@@ -1,59 +1,47 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useReducer } from 'react';
 import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment } from './types';
+import { appReducer, initialState } from './reducer';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
 import AgendaView from './components/AgendaView';
 import BookingDetailsView from './components/BookingDetailsView';
 import ShiftsView from './components/ShiftsView';
-import { WORKERS } from './constants';
 
 
 const App: React.FC = () => {
+    const [state, dispatch] = useReducer(appReducer, initialState);
+    const { bookings, shiftAssignments } = state;
+
     const [view, setView] = useState<View>('plano');
-    const [bookings, setBookings] = useState<Bookings>({});
-    const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedBooking, setSelectedBooking] = useState<ConsolidatedBooking | null>(null);
     const [bookingToPreFill, setBookingToPreFill] = useState<ConsolidatedBooking | null>(null);
 
-    const handleToggleBooking = useCallback((bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
+    const handleAddBooking = useCallback((bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
         return new Promise((resolve) => {
             if (bookingKeys.length === 0) {
                 resolve(false);
                 return;
             }
 
-            setBookings(prev => {
-                const newBookings = { ...prev };
-                const isAdding = !newBookings[bookingKeys[0]];
-
-                if (isAdding) {
-                    if (!bookingDetails.name.trim()) {
-                        alert("El nombre de la reserva no puede estar vacío.");
-                        resolve(false);
-                        return prev;
-                    }
-                    const conflict = bookingKeys.some(key => prev[key]);
-                    if (conflict) {
-                        alert("Conflicto de reserva: Uno o más de los horarios seleccionados ya están ocupados en las fechas indicadas.");
-                        resolve(false);
-                        return prev;
-                    }
-                    bookingKeys.forEach(key => {
-                        newBookings[key] = bookingDetails;
-                    });
-                    resolve(true);
-                } else {
-                    bookingKeys.forEach(key => {
-                        delete newBookings[key];
-                    });
-                    resolve(true);
-                }
-                return newBookings;
-            });
+            if (!bookingDetails.name.trim()) {
+                alert("El nombre de la reserva no puede estar vacío.");
+                resolve(false);
+                return;
+            }
+            
+            const conflict = bookingKeys.some(key => bookings[key]);
+            if (conflict) {
+                alert("Conflicto de reserva: Uno o más de los horarios seleccionados ya están ocupados en las fechas indicadas.");
+                resolve(false);
+                return;
+            }
+            
+            dispatch({ type: 'ADD_BOOKING', payload: { keys: bookingKeys, details: bookingDetails } });
+            resolve(true);
         });
-    }, []);
+    }, [bookings]);
     
     const handleSelectBooking = (booking: ConsolidatedBooking) => {
         setSelectedBooking(booking);
@@ -62,13 +50,7 @@ const App: React.FC = () => {
 
     const handleDeleteBooking = (keys: string[]) => {
         if (window.confirm('¿Está seguro de que desea eliminar esta reserva?')) {
-            setBookings(prev => {
-                const newBookings = { ...prev };
-                keys.forEach(key => {
-                    delete newBookings[key];
-                });
-                return newBookings;
-            });
+            dispatch({ type: 'DELETE_BOOKING', payload: { keys } });
             setSelectedBooking(null);
             setView('agenda');
         }
@@ -76,17 +58,8 @@ const App: React.FC = () => {
 
     const handleStartEdit = (booking: ConsolidatedBooking) => {
         if (window.confirm('La reserva actual se eliminará para que pueda crear una nueva con los datos precargados. ¿Desea continuar?')) {
-            // 1. Delete the old booking
-            setBookings(prev => {
-                const newBookings = { ...prev };
-                booking.keys.forEach(key => {
-                    delete newBookings[key];
-                });
-                return newBookings;
-            });
+            dispatch({ type: 'DELETE_BOOKING', payload: { keys: booking.keys } });
             
-            // 2. Set data for the next view and navigate directly.
-            // React will batch these state updates for a single, consistent render.
             setBookingToPreFill(booking);
             setView('plano');
         }
@@ -103,25 +76,18 @@ const App: React.FC = () => {
     }, [view, selectedBooking]);
 
     const handleUpdateShifts = useCallback((weekId: string, newShifts: ShiftAssignment) => {
-        setShiftAssignments(prev => ({
-            ...prev,
-            [weekId]: newShifts
-        }));
+        dispatch({ type: 'UPDATE_SHIFTS', payload: { weekId, shifts: newShifts } });
     }, []);
 
     const handleResetWeekShifts = useCallback((weekId: string) => {
-        setShiftAssignments(prev => {
-            const newAssignments = { ...prev };
-            delete newAssignments[weekId];
-            return newAssignments;
-        });
+        dispatch({ type: 'RESET_WEEK_SHIFTS', payload: { weekId } });
     }, []);
 
 
     const renderView = () => {
         switch (view) {
             case 'plano':
-                return <FloorPlanView bookings={bookings} onToggleBooking={handleToggleBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;
+                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;
             case 'calendario':
                 return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} />;
             case 'agenda':
@@ -141,7 +107,7 @@ const App: React.FC = () => {
                     onResetWeekShifts={handleResetWeekShifts}
                 />;
             default:
-                return <FloorPlanView bookings={bookings} onToggleBooking={handleToggleBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;
+                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;
         }
     };
 

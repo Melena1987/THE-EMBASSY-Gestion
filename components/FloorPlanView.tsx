@@ -6,14 +6,14 @@ import { formatDateForBookingKey } from '../utils/dateUtils';
 
 interface FloorPlanViewProps {
     bookings: Bookings;
-    onToggleBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     bookingToPreFill: ConsolidatedBooking | null;
     onPreFillComplete: () => void;
 }
 
-const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onToggleBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete }) => {
+const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete }) => {
     const [selectedStartTime, setSelectedStartTime] = useState('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState('10:00');
     const [reservationName, setReservationName] = useState('');
@@ -175,7 +175,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onToggleBooking
             bookingDetails.observations = observations.trim();
         }
 
-        const success = await onToggleBooking(allKeysToToggle, bookingDetails);
+        const success = await onAddBooking(allKeysToToggle, bookingDetails);
         
         if (success) {
             setReservationName('');
