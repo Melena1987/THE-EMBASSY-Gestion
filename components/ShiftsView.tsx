@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail } from '../types';
 import { WORKERS } from '../constants';
 import { getWeekData } from '../utils/dateUtils';
-import { getDefaultDailyShift } from '../utils/shiftUtils';
+import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
 import SwitchIcon from './icons/SwitchIcon';
@@ -80,46 +80,22 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
     };
     
     const handleDailyShiftChange = (dayIndex: number, period: 'morning' | 'evening', field: keyof ShiftPeriodDetail, value: string | boolean) => {
-        const newShifts: ShiftAssignment = JSON.parse(JSON.stringify(
-            shiftAssignments[weekId] || { ...defaultAssignments, dailyOverrides: {} }
-        ));
-        if (!newShifts.dailyOverrides) {
-            newShifts.dailyOverrides = {};
-        }
-
-        const weeklyDefaults = { morning: newShifts.morning, evening: newShifts.evening };
+        // The base state is either the customized state for the week, or the default one.
+        const baseShifts: ShiftAssignment = shiftAssignments[weekId] || { 
+            morning: defaultAssignments.morning, 
+            evening: defaultAssignments.evening 
+        };
         
-        const currentDailyState = newShifts.dailyOverrides[dayIndex]
-            ? newShifts.dailyOverrides[dayIndex]
-            : getDefaultDailyShift(dayIndex, weeklyDefaults.morning, weeklyDefaults.evening);
+        // The complex logic is now in a pure utility function.
+        const newShifts = calculateUpdatedShifts(
+            baseShifts,
+            dayIndex,
+            period,
+            field,
+            value
+        );
 
-        const updatedDailyState: DailyShift = JSON.parse(JSON.stringify(currentDailyState));
-
-        (updatedDailyState[period] as any)[field] = value;
-        
-        if (field === 'worker') {
-            const otherPeriod = period === 'morning' ? 'evening' : 'morning';
-            if (updatedDailyState[otherPeriod].worker === value) {
-                updatedDailyState[otherPeriod].worker = WORKERS.find(w => w !== value) || '';
-            }
-        }
-
-        const defaultStateForDay = getDefaultDailyShift(dayIndex, weeklyDefaults.morning, weeklyDefaults.evening);
-        
-        const isSameAsDefault =
-            JSON.stringify(updatedDailyState.morning) === JSON.stringify(defaultStateForDay.morning) &&
-            JSON.stringify(updatedDailyState.evening) === JSON.stringify(defaultStateForDay.evening);
-
-        if (isSameAsDefault) {
-            delete newShifts.dailyOverrides[dayIndex];
-        } else {
-            newShifts.dailyOverrides[dayIndex] = updatedDailyState;
-        }
-
-        if (Object.keys(newShifts.dailyOverrides).length === 0) {
-            delete newShifts.dailyOverrides;
-        }
-
+        // The component's only job is to dispatch the update.
         onUpdateShifts(weekId, newShifts);
     };
 
