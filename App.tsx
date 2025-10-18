@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useEffect, useReducer } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
 import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment } from './types';
-import { appReducer, initialState } from './reducer';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
@@ -8,57 +9,107 @@ import AgendaView from './components/AgendaView';
 import BookingDetailsView from './components/BookingDetailsView';
 import ShiftsView from './components/ShiftsView';
 
-
 const App: React.FC = () => {
-    const [state, dispatch] = useReducer(appReducer, initialState);
-    const { bookings, shiftAssignments } = state;
+    const [bookings, setBookings] = useState<Bookings>({});
+    const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
 
     const [view, setView] = useState<View>('plano');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedBooking, setSelectedBooking] = useState<ConsolidatedBooking | null>(null);
     const [bookingToPreFill, setBookingToPreFill] = useState<ConsolidatedBooking | null>(null);
 
-    const handleAddBooking = useCallback((bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
-        return new Promise((resolve) => {
-            if (bookingKeys.length === 0) {
-                resolve(false);
-                return;
-            }
-
-            if (!bookingDetails.name.trim()) {
-                alert("El nombre de la reserva no puede estar vacío.");
-                resolve(false);
-                return;
-            }
-            
-            const conflict = bookingKeys.some(key => bookings[key]);
-            if (conflict) {
-                alert("Conflicto de reserva: Uno o más de los horarios seleccionados ya están ocupados en las fechas indicadas.");
-                resolve(false);
-                return;
-            }
-            
-            dispatch({ type: 'ADD_BOOKING', payload: { keys: bookingKeys, details: bookingDetails } });
-            resolve(true);
+    useEffect(() => {
+        // Listener para las reservas
+        const bookingsCol = collection(db, 'bookings');
+        const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot) => {
+            const newBookings: Bookings = {};
+            snapshot.forEach((doc) => {
+                newBookings[doc.id] = doc.data() as BookingDetails;
+            });
+            setBookings(newBookings);
         });
-    }, [bookings]);
+
+        // Listener para los turnos
+        const shiftsCol = collection(db, 'shiftAssignments');
+        const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot) => {
+            const newShiftAssignments: ShiftAssignments = {};
+            snapshot.forEach((doc) => {
+                newShiftAssignments[doc.id] = doc.data() as ShiftAssignment;
+            });
+            setShiftAssignments(newShiftAssignments);
+        });
+
+        // Limpieza de listeners al desmontar el componente
+        return () => {
+            unsubscribeBookings();
+            unsubscribeShifts();
+        };
+    }, []);
+
+    const handleAddBooking = useCallback(async (bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
+        if (bookingKeys.length === 0) {
+            return false;
+        }
+        if (!bookingDetails.name.trim()) {
+            alert("El nombre de la reserva no puede estar vacío.");
+            return false;
+        }
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                const bookingDocsRefs = bookingKeys.map(key => doc(db, 'bookings', key));
+                
+                // Firestore get all documents in a single request is more efficient
+                const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
+
+                for (const docSnapshot of bookingDocsSnapshots) {
+                    if (docSnapshot.exists()) {
+                         throw new Error("Conflicto de reserva: Uno o más de los horarios seleccionados ya están ocupados en las fechas indicadas.");
+                    }
+                }
+
+                bookingKeys.forEach(key => {
+                    transaction.set(doc(db, 'bookings', key), bookingDetails);
+                });
+            });
+            return true;
+        } catch (e: any) {
+            console.error("Error en la transacción de reserva:", e);
+            alert(e.message || "No se pudo crear la reserva. Compruebe los datos e inténtelo de nuevo.");
+            return false;
+        }
+    }, []);
     
     const handleSelectBooking = (booking: ConsolidatedBooking) => {
         setSelectedBooking(booking);
         setView('detalles');
     };
 
-    const handleDeleteBooking = (keys: string[]) => {
+    const handleDeleteBooking = async (keys: string[]) => {
         if (window.confirm('¿Está seguro de que desea eliminar esta reserva?')) {
-            dispatch({ type: 'DELETE_BOOKING', payload: { keys } });
-            setSelectedBooking(null);
-            setView('agenda');
+            try {
+                const batch = writeBatch(db);
+                keys.forEach(key => {
+                    batch.delete(doc(db, 'bookings', key));
+                });
+                await batch.commit();
+                setSelectedBooking(null);
+                setView('agenda');
+            } catch (error) {
+                console.error("Error al eliminar la reserva:", error);
+                alert("Ocurrió un error al eliminar la reserva.");
+            }
         }
     };
 
     const handleStartEdit = (booking: ConsolidatedBooking) => {
         if (window.confirm('La reserva actual se eliminará para que pueda crear una nueva con los datos precargados. ¿Desea continuar?')) {
-            dispatch({ type: 'DELETE_BOOKING', payload: { keys: booking.keys } });
+            const batch = writeBatch(db);
+            booking.keys.forEach(key => {
+                batch.delete(doc(db, 'bookings', key));
+            });
+            // Ejecutar la eliminación en segundo plano para una respuesta de UI inmediata
+            batch.commit().catch(err => console.error("Error en la eliminación en segundo plano:", err));
             
             setBookingToPreFill(booking);
             setView('plano');
@@ -75,12 +126,22 @@ const App: React.FC = () => {
         }
     }, [view, selectedBooking]);
 
-    const handleUpdateShifts = useCallback((weekId: string, newShifts: ShiftAssignment) => {
-        dispatch({ type: 'UPDATE_SHIFTS', payload: { weekId, shifts: newShifts } });
+    const handleUpdateShifts = useCallback(async (weekId: string, newShifts: ShiftAssignment) => {
+        try {
+            await setDoc(doc(db, 'shiftAssignments', weekId), newShifts);
+        } catch (error) {
+            console.error("Error al actualizar los turnos:", error);
+            alert("No se pudieron guardar los cambios en los turnos.");
+        }
     }, []);
 
-    const handleResetWeekShifts = useCallback((weekId: string) => {
-        dispatch({ type: 'RESET_WEEK_SHIFTS', payload: { weekId } });
+    const handleResetWeekShifts = useCallback(async (weekId: string) => {
+        try {
+            await deleteDoc(doc(db, 'shiftAssignments', weekId));
+        } catch (error) {
+            console.error("Error al resetear los turnos de la semana:", error);
+            alert("No se pudo resetear la semana.");
+        }
     }, []);
 
 
@@ -96,7 +157,6 @@ const App: React.FC = () => {
                  if (selectedBooking) {
                     return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={handleDeleteBooking} onEdit={() => handleStartEdit(selectedBooking)} />;
                 }
-                // Fallback if no booking is selected, let the effect handle navigation.
                 return null;
             case 'turnos':
                  return <ShiftsView 
