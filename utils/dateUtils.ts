@@ -34,3 +34,60 @@ export const formatDateForBookingKey = (date: Date): string => {
     const day = date.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
+/**
+ * A generator function that yields a sequence of dates based on a starting date and a repeat option.
+ * @param startDate The initial date for the sequence.
+ * @param repeatOption A string indicating the repetition rule ('none', 'daily', 'weekdays', 'weekly', 'monthly').
+ * @returns A Generator that yields Date objects.
+ */
+export function* generateRepeatingDates(startDate: Date, repeatOption: string): Generator<Date> {
+    const initialDate = new Date(startDate.getTime()); // Ensure we don't modify the original
+
+    switch (repeatOption) {
+        case 'none':
+            yield initialDate;
+            break;
+        case 'daily': {
+            const limitDate = new Date(initialDate);
+            limitDate.setMonth(limitDate.getMonth() + 1);
+            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
+                yield new Date(d);
+            }
+            break;
+        }
+        case 'weekdays': {
+            const limitDate = new Date(initialDate);
+            limitDate.setMonth(limitDate.getMonth() + 1);
+            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
+                const day = d.getDay();
+                if (day > 0 && day < 6) { // Monday to Friday
+                    yield new Date(d);
+                }
+            }
+            break;
+        }
+        case 'weekly': {
+            const limitDate = new Date(initialDate);
+            limitDate.setMonth(limitDate.getMonth() + 3);
+            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 7)) {
+                yield new Date(d);
+            }
+            break;
+        }
+        case 'monthly': {
+            for (let i = 0; i < 6; i++) {
+                const nextDate = new Date(initialDate);
+                nextDate.setMonth(initialDate.getMonth() + i);
+                // Only yield if the day of the month hasn't changed (e.g., avoids booking Jan 31 -> Feb 28 -> Mar 31 becoming Mar 3)
+                if (nextDate.getDate() === initialDate.getDate()) {
+                    yield nextDate;
+                }
+            }
+            break;
+        }
+        default:
+            yield initialDate; // Fallback to 'none'
+            break;
+    }
+}

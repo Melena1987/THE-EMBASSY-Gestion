@@ -102,7 +102,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
     const handleResetDay = (dayIndex: number) => {
         if (!currentShifts.dailyOverrides?.[dayIndex]) return;
 
-        const newShifts: ShiftAssignment = JSON.parse(JSON.stringify(currentShifts));
+        const newShifts: ShiftAssignment = structuredClone(currentShifts);
         delete newShifts.dailyOverrides[dayIndex];
 
         if (Object.keys(newShifts.dailyOverrides).length === 0) {

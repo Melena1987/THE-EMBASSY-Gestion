@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Bookings, Space, BookingDetails, ConsolidatedBooking } from '../types';
 import { SPACES, TIME_SLOTS } from '../constants';
 import CheckIcon from './icons/CheckIcon';
-import { formatDateForBookingKey } from '../utils/dateUtils';
+import { formatDateForBookingKey, generateRepeatingDates } from '../utils/dateUtils';
 
 interface FloorPlanViewProps {
     bookings: Bookings;
@@ -119,42 +119,8 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
             return;
         }
         
-        const datesToBook: Date[] = [];
         const initialDate = new Date(selectedDate.getTime());
-
-        if (repeatOption === 'none') {
-            datesToBook.push(initialDate);
-        } else if (repeatOption === 'daily') {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 1);
-            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
-                datesToBook.push(new Date(d));
-            }
-        } else if (repeatOption === 'weekdays') {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 1);
-            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
-                const day = d.getDay();
-                // 0 is Sunday, 6 is Saturday. We only want Monday-Friday (1-5).
-                if (day > 0 && day < 6) {
-                    datesToBook.push(new Date(d));
-                }
-            }
-        } else if (repeatOption === 'weekly') {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 3);
-            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 7)) {
-                datesToBook.push(new Date(d));
-            }
-        } else if (repeatOption === 'monthly') {
-            for (let i = 0; i < 6; i++) {
-                const nextDate = new Date(initialDate);
-                nextDate.setMonth(initialDate.getMonth() + i);
-                if (nextDate.getDate() === initialDate.getDate()) {
-                    datesToBook.push(nextDate);
-                }
-            }
-        }
+        const datesToBook = Array.from(generateRepeatingDates(initialDate, repeatOption));
 
         if (datesToBook.length === 0) {
             alert("La regla de repetición no generó ninguna fecha válida para la selección actual.");

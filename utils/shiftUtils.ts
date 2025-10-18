@@ -49,7 +49,7 @@ export const calculateUpdatedShifts = (
     value: string | boolean
 ): ShiftAssignment => {
     // Deep copy to avoid mutations
-    const newShifts: ShiftAssignment = JSON.parse(JSON.stringify(currentWeekShifts));
+    const newShifts: ShiftAssignment = structuredClone(currentWeekShifts);
 
     if (!newShifts.dailyOverrides) {
         newShifts.dailyOverrides = {};
@@ -63,7 +63,7 @@ export const calculateUpdatedShifts = (
         : getDefaultDailyShift(dayIndex, weeklyDefaults.morning, weeklyDefaults.evening);
 
     // Create a mutable copy for this day's update
-    const updatedDailyState: DailyShift = JSON.parse(JSON.stringify(currentDailyState));
+    const updatedDailyState: DailyShift = structuredClone(currentDailyState);
 
     // Apply the specific change
     (updatedDailyState[period] as any)[field] = value;
