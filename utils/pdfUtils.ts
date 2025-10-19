@@ -283,10 +283,10 @@ const getLinesOfText = (text: string, font: any, size: number, maxWidth: number)
 };
 
 
-export const generateAgendaPDF = async (weekNumber: number, year: number, weekDays: Date[], bookings: Bookings) => {
+export const generateAgendaPDF = async (weekNumber: number, year: number, weekDays: Date[], bookings: Bookings, shifts: ShiftAssignment) => {
     const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
+    let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -344,6 +344,78 @@ export const generateAgendaPDF = async (weekNumber: number, year: number, weekDa
             columnBottomY = currentY;
         }
     });
+
+    y = columnBottomY - 40;
+
+    // Tasks section
+    if (shifts.tasks && shifts.tasks.length > 0) {
+        page.drawText('Tareas de la Semana:', { x: margin, y: y, font: fontBold, size: 16, color: rgb(0.96, 0.45, 0.09) });
+        y -= 20;
+
+        shifts.tasks.forEach(task => {
+            if (y < margin) return;
+
+            const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0);
+            const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
+            const boxSize = 10;
+            const boxY = y + 1; // Vertically align with text
+
+            // Draw checkbox
+            page.drawRectangle({
+                x: margin,
+                y: boxY,
+                width: boxSize,
+                height: boxSize,
+                borderWidth: 1,
+                borderColor: taskColor,
+            });
+
+            if (task.completed) {
+                // Draw checkmark
+                page.drawLine({
+                    start: { x: margin + 2, y: boxY + 5 },
+                    end: { x: margin + 4, y: boxY + 2 },
+                    thickness: 1.5,
+                    color: taskColor
+                });
+                page.drawLine({
+                    start: { x: margin + 4, y: boxY + 2 },
+                    end: { x: margin + 8, y: boxY + 8 },
+                    thickness: 1.5,
+                    color: taskColor
+                });
+            }
+
+            page.drawText(`${task.text} (Asignado a: ${assignees})`, {
+                x: margin + boxSize + 5,
+                y: y,
+                font: font,
+                size: 10,
+                color: taskColor,
+                maxWidth: width - margin * 2 - (boxSize + 5),
+            });
+
+            y -= 18;
+        });
+        y -= 15;
+    }
+
+    // Observations section
+    if (shifts.observations) {
+        y -= 10;
+        page.drawText('Observaciones:', { x: margin, y: y, font: fontBold, size: 16, color: rgb(0.96, 0.45, 0.09) });
+        y -= 20;
+
+        page.drawText(shifts.observations, {
+            x: margin,
+            y: y,
+            font: font,
+            size: 10,
+            lineHeight: 13,
+            color: rgb(0.2, 0.2, 0.2),
+            maxWidth: width - 2 * margin,
+        });
+    }
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
