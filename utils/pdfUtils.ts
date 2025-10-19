@@ -179,10 +179,48 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
         y -= 20;
 
         shifts.tasks.forEach(task => {
+            if (y < margin) return;
+
             const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0);
             const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
-            page.drawText(task.completed ? '☑' : '☐', { x: margin, y: y, font: font, size: 12, color: taskColor });
-            page.drawText(`${task.text} (Asignado a: ${assignees})`, { x: margin + 20, y: y, font: font, size: 12, color: taskColor });
+            const boxSize = 10;
+            const boxY = y + 1; // Vertically align with text
+
+            // Draw checkbox
+            page.drawRectangle({
+                x: margin,
+                y: boxY,
+                width: boxSize,
+                height: boxSize,
+                borderWidth: 1,
+                borderColor: taskColor,
+            });
+
+            if (task.completed) {
+                // Draw checkmark
+                page.drawLine({
+                    start: { x: margin + 2, y: boxY + 5 },
+                    end: { x: margin + 4, y: boxY + 2 },
+                    thickness: 1.5,
+                    color: taskColor
+                });
+                page.drawLine({
+                    start: { x: margin + 4, y: boxY + 2 },
+                    end: { x: margin + 8, y: boxY + 8 },
+                    thickness: 1.5,
+                    color: taskColor
+                });
+            }
+
+            page.drawText(`${task.text} (Asignado a: ${assignees})`, {
+                x: margin + boxSize + 5,
+                y: y,
+                font: font,
+                size: 12,
+                color: taskColor,
+                maxWidth: width - margin * 2 - (boxSize + 5),
+            });
+
             y -= 18;
         });
         y -= 15;
