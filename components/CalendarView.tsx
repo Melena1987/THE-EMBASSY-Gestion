@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import type { Bookings, View, ConsolidatedBooking, ShiftAssignments } from '../types';
-import { WORKERS } from '../constants';
-import { getWeekData } from '../utils/dateUtils';
+import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails } from '../types';
+import { WORKERS, TIME_SLOTS } from '../constants';
+import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
@@ -15,9 +15,10 @@ interface CalendarViewProps {
     onDateChange: (date: Date) => void;
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
+    onMoveBooking: (originalKeys: string[], newKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onMoveBooking }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -68,6 +69,53 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
             await generateCalendarPDF(days, currentMonth, bookings);
         }
         setIsDownloading(false);
+    };
+    
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, booking: ConsolidatedBooking) => {
+        e.stopPropagation(); // Previene que se dispare el onClick del día
+        e.dataTransfer.setData('application/json', JSON.stringify(booking));
+        (e.target as HTMLDivElement).classList.add('dragging');
+    };
+
+    const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+        (e.target as HTMLDivElement).classList.remove('dragging');
+    };
+    
+    const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+        e.currentTarget.classList.remove('drag-over');
+    };
+    
+    const handleDrop = async (e: React.DragEvent<HTMLButtonElement>, targetDate: Date) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        try {
+            const bookingData: ConsolidatedBooking = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (formatDateForBookingKey(targetDate) === bookingData.date) {
+                return; // No se puede soltar en el mismo día
+            }
+            
+            const { startTime, endTime, details, keys: originalKeys } = bookingData;
+            
+            const spaceIds = [...new Set(originalKeys.map(key => key.split('-').slice(0, -4).join('-')))];
+            const timeSlots = TIME_SLOTS.filter(time => time >= startTime && time < endTime);
+            const targetDateStr = formatDateForBookingKey(targetDate);
+            
+            const newKeys = spaceIds.flatMap(spaceId => 
+                timeSlots.map(time => `${spaceId}-${targetDateStr}-${time}`)
+            );
+            
+            await onMoveBooking(originalKeys, newKeys, details);
+
+        } catch (error) {
+            console.error("Error al soltar la reserva:", error);
+            alert("No se pudo mover la reserva.");
+        }
     };
 
     return (
@@ -138,6 +186,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                     <button
                                         key={j}
                                         onClick={() => handleDayClick(d)}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, d)}
                                         className={`relative p-1 sm:p-2 h-28 sm:h-32 md:h-36 rounded-md transition-colors duration-200 flex flex-col items-start text-left overflow-hidden ${
                                             isSelected ? 'bg-orange-600 ring-2 ring-orange-300' : 'bg-black/20'
                                         } ${isCurrentMonth ? 'text-white hover:bg-black/40' : 'text-gray-500 hover:bg-black/40'}`}
@@ -150,8 +201,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         {dayBookings.length > 0 && (
                                             <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
                                                 {dayBookings.map((booking, index) => (
-                                                    <div key={index} className="bg-black/30 rounded px-1.5 py-0.5 truncate" title={`${booking.startTime} - ${booking.details.name}`}>
-                                                        <span className="font-semibold text-orange-400">{booking.startTime}</span> {booking.details.name}
+                                                    <div 
+                                                        key={index} 
+                                                        className="bg-black/30 rounded px-1.5 py-0.5 truncate cursor-grab" 
+                                                        title={`${booking.startTime} - ${booking.details.name}`}
+                                                        draggable="true"
+                                                        onDragStart={(e) => handleDragStart(e, booking)}
+                                                        onDragEnd={handleDragEnd}
+                                                    >
+                                                        <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
                                                     </div>
                                                 ))}
                                             </div>

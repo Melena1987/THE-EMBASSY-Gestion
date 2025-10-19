@@ -116,10 +116,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                 }
             }
 
-            const success = await onAddBooking(newKeys, details);
-            if (success) {
-                 alert(`Reserva duplicada con éxito para el ${targetDate.toLocaleDateString('es-ES')}.`);
-            }
+            await onAddBooking(newKeys, details);
 
         } catch (error) {
             console.error("Error al soltar la reserva:", error);
