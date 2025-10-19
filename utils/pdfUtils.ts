@@ -180,8 +180,9 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
 
         shifts.tasks.forEach(task => {
             const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0);
+            const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
             page.drawText(task.completed ? '☑' : '☐', { x: margin, y: y, font: font, size: 12, color: taskColor });
-            page.drawText(`${task.text} (Asignado a: ${task.assignedTo.join(', ')})`, { x: margin + 20, y: y, font: font, size: 12, color: taskColor });
+            page.drawText(`${task.text} (Asignado a: ${assignees})`, { x: margin + 20, y: y, font: font, size: 12, color: taskColor });
             y -= 18;
         });
         y -= 15;

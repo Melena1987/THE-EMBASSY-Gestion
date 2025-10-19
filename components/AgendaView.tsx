@@ -29,7 +29,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         const referenceDate = new Date(selectedDate);
         const dayOfWeek = referenceDate.getDay();
         const diffToMonday = referenceDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-        const monday = new Date(referenceDate.setDate(diffToMonday));
+        const monday = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), diffToMonday);
     
         return Array.from({ length: 7 }, (_, i) => {
             const day = new Date(monday);
@@ -188,7 +188,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                             {task.text}
                                         </span>
                                         <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                            {task.assignedTo.join(', ')}
+                                            {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
                                         </span>
                                     </div>
                                 ))}
