@@ -213,7 +213,7 @@ const App: React.FC = () => {
     };
 
     const handleAddBooking = useCallback(async (bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
-        if (userRole !== 'ADMIN') {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
             alert("Acción no permitida para su rol.");
             return false;
         }
@@ -640,7 +640,7 @@ const App: React.FC = () => {
         return <Login />;
     }
 
-    const canEditBookings = userRole === 'ADMIN';
+    const canEditBookings = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const canEditShifts = userRole === 'ADMIN';
     const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';

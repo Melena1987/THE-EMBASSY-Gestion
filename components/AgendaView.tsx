@@ -344,15 +344,16 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 )}
                             </div>
                              <div className="flex justify-center pt-2 mt-auto">
-                                <button 
-                                    onClick={() => { onDateChange(day); setView('plano'); }}
-                                    disabled={isReadOnly}
-                                    className="bg-black/20 hover:bg-black/40 text-orange-400 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    aria-label={`Añadir reserva para ${day.toLocaleDateString('es-ES')}`}
-                                    title={isReadOnly ? "No tiene permisos para añadir reservas" : "Añadir reserva"}
-                                >
-                                    <PlusIcon className="w-6 h-6" />
-                                </button>
+                                {!isReadOnly && (
+                                    <button 
+                                        onClick={() => { onDateChange(day); setView('plano'); }}
+                                        className="bg-black/20 hover:bg-black/40 text-orange-400 p-2 rounded-full transition-colors"
+                                        aria-label={`Añadir reserva para ${day.toLocaleDateString('es-ES')}`}
+                                        title={"Añadir reserva"}
+                                    >
+                                        <PlusIcon className="w-6 h-6" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );

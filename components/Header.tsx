@@ -109,6 +109,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isTurnosActive = currentView === 'turnos';
     const isServiciosActive = currentView === 'servicios';
     const isSponsorsActive = currentView === 'sponsors';
+    
+    const canCreate = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
     return (
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
@@ -171,13 +173,15 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                         aria-orientation="vertical"
                                     >
                                         <div className="py-1" role="none">
-                                            <DropdownItem
-                                                isActive={currentView === 'plano'}
-                                                onClick={() => handleViewChange('plano')}
-                                                label="Reserva"
-                                            >
-                                                <PlusIcon className="h-5 w-5" />
-                                            </DropdownItem>
+                                            {canCreate && (
+                                                <DropdownItem
+                                                    isActive={currentView === 'plano'}
+                                                    onClick={() => handleViewChange('plano')}
+                                                    label="Reserva"
+                                                >
+                                                    <PlusIcon className="h-5 w-5" />
+                                                </DropdownItem>
+                                            )}
                                             <DropdownItem
                                                 isActive={currentView === 'calendario'}
                                                 onClick={() => handleViewChange('calendario')}
@@ -192,13 +196,15 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                             >
                                                 <ListIcon className="h-5 w-5" />
                                             </DropdownItem>
-                                             <DropdownItem
-                                                isActive={currentView === 'eventos'}
-                                                onClick={() => handleViewChange('eventos')}
-                                                label="Evento Especial"
-                                            >
-                                                <StarIcon className="h-5 w-5" />
-                                            </DropdownItem>
+                                            {canCreate && (
+                                                <DropdownItem
+                                                    isActive={currentView === 'eventos'}
+                                                    onClick={() => handleViewChange('eventos')}
+                                                    label="Evento Especial"
+                                                >
+                                                    <StarIcon className="h-5 w-5" />
+                                                </DropdownItem>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -280,18 +286,22 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
                     <nav className="flex-grow p-4 space-y-2">
                         <h3 className="px-4 text-sm font-semibold text-gray-500 uppercase">Agenda</h3>
-                        <MobileNavItem onClick={() => handleMobileViewChange('plano')} label="Nueva Reserva">
-                            <PlusIcon className="w-6 h-6 text-gray-400" />
-                        </MobileNavItem>
+                        {canCreate && (
+                            <MobileNavItem onClick={() => handleMobileViewChange('plano')} label="Nueva Reserva">
+                                <PlusIcon className="w-6 h-6 text-gray-400" />
+                            </MobileNavItem>
+                        )}
                          <MobileNavItem onClick={() => handleMobileViewChange('calendario')} label="Calendario">
                             <CalendarIcon className="w-6 h-6 text-gray-400" />
                         </MobileNavItem>
                          <MobileNavItem onClick={() => handleMobileViewChange('agenda')} label="Agenda Semanal">
                             <ListIcon className="w-6 h-6 text-gray-400" />
                         </MobileNavItem>
-                         <MobileNavItem onClick={() => handleMobileViewChange('eventos')} label="Evento Especial">
-                            <StarIcon className="w-6 h-6 text-gray-400" />
-                        </MobileNavItem>
+                         {canCreate && (
+                            <MobileNavItem onClick={() => handleMobileViewChange('eventos')} label="Evento Especial">
+                                <StarIcon className="w-6 h-6 text-gray-400" />
+                            </MobileNavItem>
+                         )}
 
                         <div className="pt-4 mt-4 border-t border-white/10">
                             <h3 className="px-4 text-sm font-semibold text-gray-500 uppercase">Gestión</h3>
