@@ -1,29 +1,43 @@
+// --- Solución Definitiva para errores de 'import.meta.env' en Vite ---
+// Envolvemos la aumentación en 'declare global' para asegurar que TypeScript
+// la aplique globalmente y no solo dentro de este módulo.
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_FIREBASE_API_KEY: string;
+    readonly VITE_FIREBASE_AUTH_DOMAIN: string;
+    readonly VITE_FIREBASE_PROJECT_ID: string;
+    readonly VITE_FIREBASE_STORAGE_BUCKET: string;
+    readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+    readonly VITE_FIREBASE_APP_ID: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+// --- Fin de la solución ---
+
+
+// Importa las funciones necesarias de los SDKs que necesitas
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// --- INSTRUCCIONES DE CONFIGURACIÓN ---
-// Por favor, reemplace los valores de marcador de posición a continuación con la configuración
-// real de su proyecto de Firebase. Puede encontrar esta información en la consola de Firebase,
-// en la configuración de su proyecto (Project Settings > General > Your apps > Firebase SDK snippet).
+// Lee las variables de entorno de Vite/Netlify de forma segura
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Reemplazar con su API Key
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Reemplazar con su Auth Domain
-  projectId: "YOUR_PROJECT_ID", // Reemplazar con su Project ID
-  storageBucket: "YOUR_PROJECT_ID.appspot.com", // Reemplazar con su Storage Bucket
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Reemplazar con su Messaging Sender ID
-  appId: "YOUR_APP_ID", // Reemplazar con su App ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
-
-// Validación para asegurar que la configuración de Firebase ha sido actualizada.
-if (firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "YOUR_PROJECT_ID") {
-    console.warn(
-        "Configuración de Firebase incompleta: Por favor, edite el fichero 'firebase.ts' " +
-        "y reemplace los valores de marcador de posición con las credenciales reales de su proyecto de Firebase."
-    );
-}
 
 // Inicializa Firebase
 const app = initializeApp(firebaseConfig);
+
+// Exporta los servicios que necesitas
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+export default app;
