@@ -90,7 +90,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
 
         const weeklyShifts = shiftAssignments[weekId] || defaultAssignments;
 
-        generateShiftsPDF(weekNumber, year, weekDaysForPDF, weeklyShifts);
+        await generateShiftsPDF(weekNumber, year, weekDaysForPDF, weeklyShifts);
         setIsDownloading(false);
     };
 

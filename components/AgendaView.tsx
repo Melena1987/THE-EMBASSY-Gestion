@@ -54,7 +54,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts);
+            await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts);
         }
         setIsDownloading(false);
     };

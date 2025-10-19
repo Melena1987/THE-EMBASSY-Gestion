@@ -130,7 +130,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            generateShiftsPDF(weekNumber, year, weekDays, currentShifts);
+            await generateShiftsPDF(weekNumber, year, weekDays, currentShifts);
         }
         setIsDownloading(false);
     };
