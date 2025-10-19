@@ -184,15 +184,31 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
-                    <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
-                    <h2 className="text-xl font-bold text-white text-center w-full sm:w-auto order-first sm:order-none">
-                        Semana {weekNumber} <br />
-                        <span className="text-sm font-normal text-gray-400">
+                <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-4 gap-4 sm:gap-2">
+                    
+                    {/* Prev button (for sm and up) */}
+                    <div className="hidden sm:flex sm:flex-1 sm:justify-start">
+                        <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
+                    </div>
+
+                    {/* Title */}
+                    <div className="flex-shrink-0 order-first sm:order-none w-full text-center">
+                        <h2 className="text-xl font-bold text-white">
+                            Semana {weekNumber}
+                        </h2>
+                        <p className="text-sm font-normal text-gray-400">
                             {weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - {weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </span>
-                    </h2>
-                     <div className="flex items-center gap-2">
+                        </p>
+                    </div>
+                    
+                    {/* Mobile-only full-width nav */}
+                    <div className="w-full flex justify-between items-center sm:hidden order-1">
+                        <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
+                    </div>
+
+                    {/* Right side buttons */}
+                    <div className="flex sm:flex-1 items-center justify-center sm:justify-end gap-2 order-last">
                         <button
                             onClick={handleDownloadAgendaPDF}
                             disabled={isDownloadingAgenda}
@@ -201,6 +217,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         >
                             <DownloadIcon className="w-5 h-5" />
                             <span className="hidden sm:inline">{isDownloadingAgenda ? 'Generando...' : 'PDF Agenda'}</span>
+                            <span className="sm:hidden">{isDownloadingAgenda ? '...' : 'Agenda'}</span>
                         </button>
                         <button
                             onClick={handleDownloadShiftsPDF}
@@ -210,8 +227,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         >
                             <DownloadIcon className="w-5 h-5" />
                             <span className="hidden sm:inline">{isDownloadingShifts ? 'Generando...' : 'PDF Turnos'}</span>
+                            <span className="sm:hidden">{isDownloadingShifts ? '...' : 'Turnos'}</span>
                         </button>
-                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
+                        {/* Next button for sm and up */}
+                        <button onClick={() => changeWeek(1)} className="hidden sm:inline-block px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
                     </div>
                 </div>
             </div>
