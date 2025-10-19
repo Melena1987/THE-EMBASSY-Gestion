@@ -17,9 +17,17 @@ interface SpecialEventDetailsViewProps {
 
 const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event, onBack, onEdit, onDelete, onToggleTask, canEdit }) => {
     
-    const [year, month, day] = event.id.split('-').map(Number);
-    const dateObj = new Date(Date.UTC(year, month - 1, day));
-    const formattedDate = dateObj.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    const [startYear, startMonth, startDay] = event.startDate.split('-').map(Number);
+    const startDateObj = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+    const formattedStartDate = startDateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+    const [endYear, endMonth, endDay] = event.endDate.split('-').map(Number);
+    const endDateObj = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+    const formattedEndDate = endDateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    
+    const formattedDate = event.startDate === event.endDate 
+        ? formattedStartDate 
+        : `Del ${formattedStartDate} al ${formattedEndDate}`;
 
     const bookedSpacesNames = event.spaceIds?.map(id => SPACES.find(s => s.id === id)?.name || id).join(', ') || 'Ninguno';
     

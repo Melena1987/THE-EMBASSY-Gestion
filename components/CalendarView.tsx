@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
@@ -187,8 +188,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                             </div>
 
                             {weekDays.map((d, j) => {
+                                const dayKey = formatDateForBookingKey(d);
                                 const dayBookings = consolidateBookingsForDay(bookings, d);
-                                const specialEvent = specialEvents[formatDateForBookingKey(d)];
+                                // FIX: Explicitly type 'event' to resolve type inference issues.
+                                const eventsForDay = Object.values(specialEvents).filter((event: SpecialEvent) => dayKey >= event.startDate && dayKey <= event.endDate);
                                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
                                 const isSelected = isSameDay(d, selectedDate);
                                 
@@ -214,15 +217,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         </div>
 
                                         <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
-                                            {specialEvent && (
+                                            {eventsForDay.map(event => (
                                                 <div 
+                                                    key={event.id}
                                                     className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
-                                                    onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(specialEvent); }}
+                                                    onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(event); }}
                                                 >
                                                    <StarIcon className="w-3 h-3 flex-shrink-0" />
-                                                   <span className="truncate">{specialEvent.name}</span>
+                                                   <span className="truncate">{event.name}</span>
                                                 </div>
-                                            )}
+                                            ))}
                                             {dayBookings.map((booking, index) => (
                                                 <div 
                                                     key={index} 

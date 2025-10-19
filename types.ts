@@ -61,8 +61,10 @@ export type CleaningAssignments = Record<string, { startTime: string }>;
 export type CleaningObservations = Record<string, { observations: string }>;
 
 export interface SpecialEvent {
-  id: string; // YYYY-MM-DD
+  id: string; // Unique ID
   name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   startTime?: string;
   endTime?: string;
   spaceIds?: string[];
@@ -70,4 +72,4 @@ export interface SpecialEvent {
   observations?: string;
   posterUrl?: string;
 }
-export type SpecialEvents = Record<string, SpecialEvent>; // Key is id (date)
+export type SpecialEvents = Record<string, SpecialEvent>; // Key is unique id

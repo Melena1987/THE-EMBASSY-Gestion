@@ -111,7 +111,7 @@ const App: React.FC = () => {
         const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot) => {
             const newEvents: SpecialEvents = {};
             snapshot.forEach((doc) => {
-                newEvents[doc.id] = doc.data() as SpecialEvent;
+                newEvents[doc.id] = { ...doc.data(), id: doc.id } as SpecialEvent;
             });
             setSpecialEvents(newEvents);
         });
@@ -395,48 +395,50 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
-    const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEventId?: string): Promise<boolean> => {
+    const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEvent: SpecialEvent | null): Promise<boolean> => {
         if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
             alert("Acción no permitida para su rol.");
             return false;
         }
-
-        const { id: date, name, startTime, endTime, spaceIds, tasks, observations, posterUrl } = eventData;
-        const originalEvent = originalEventId ? specialEvents[originalEventId] : null;
-
+        
         try {
             await runTransaction(db, async (transaction) => {
-                if (originalEventId && originalEventId !== date) {
-                    transaction.delete(doc(db, 'specialEvents', originalEventId));
+                const eventDocRef = doc(db, 'specialEvents', eventData.id);
+
+                // 1. Delete old bookings if event scope changes
+                if (originalEvent) {
+                    if (originalEvent.startTime && originalEvent.endTime && originalEvent.spaceIds) {
+                        const oldTimeSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
+                        for (let d = new Date(originalEvent.startDate + 'T00:00:00'); d <= new Date(originalEvent.endDate + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+                            const dateStr = formatDateForBookingKey(d);
+                            originalEvent.spaceIds!.forEach(spaceId => {
+                                oldTimeSlots.forEach(time => {
+                                    transaction.delete(doc(db, 'bookings', `${spaceId}-${dateStr}-${time}`));
+                                });
+                            });
+                        }
+                    }
                 }
-                const eventDocRef = doc(db, 'specialEvents', date);
-                
-                const oldKeysToDelete: string[] = [];
-                if (originalEvent && originalEvent.startTime && originalEvent.endTime && originalEvent.spaceIds) {
-                     const oldTimeSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
-                     originalEvent.spaceIds.forEach(spaceId => {
-                         oldTimeSlots.forEach(time => {
-                             oldKeysToDelete.push(`${spaceId}-${originalEvent.id}-${time}`);
-                         });
-                     });
-                }
-                
+
+                // 2. Prepare new bookings and check for conflicts
                 const newKeysToCreate: string[] = [];
-                if (startTime && endTime && spaceIds) {
-                    const newTimeSlots = TIME_SLOTS.filter(t => t >= startTime && t < endTime);
-                    spaceIds.forEach(spaceId => {
-                        newTimeSlots.forEach(time => {
-                            newKeysToCreate.push(`${spaceId}-${date}-${time}`);
+                if (eventData.startTime && eventData.endTime && eventData.spaceIds) {
+                    const newTimeSlots = TIME_SLOTS.filter(t => t >= eventData.startTime! && t < eventData.endTime!);
+                    for (let d = new Date(eventData.startDate + 'T00:00:00'); d <= new Date(eventData.endDate + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+                        const dateStr = formatDateForBookingKey(d);
+                        eventData.spaceIds!.forEach(spaceId => {
+                            newTimeSlots.forEach(time => {
+                                newKeysToCreate.push(`${spaceId}-${dateStr}-${time}`);
+                            });
                         });
-                    });
+                    }
                 }
-                
+
                 const cancellationTasks: Task[] = [];
                 const conflictingBookingRefsToDelete: DocumentReference[] = [];
-                const keysToCheckForConflict = newKeysToCreate.filter(k => !oldKeysToDelete.includes(k));
-
-                if (keysToCheckForConflict.length > 0) {
-                    const bookingDocsRefs = keysToCheckForConflict.map(key => doc(db, 'bookings', key));
+                
+                if (newKeysToCreate.length > 0) {
+                    const bookingDocsRefs = newKeysToCreate.map(key => doc(db, 'bookings', key));
                     const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
                     const processedBookingsForTasks = new Set<string>();
 
@@ -464,14 +466,23 @@ const App: React.FC = () => {
                     }
                 }
                 
-                oldKeysToDelete.forEach(key => transaction.delete(doc(db, 'bookings', key)));
                 conflictingBookingRefsToDelete.forEach(ref => transaction.delete(ref));
                 
-                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${name}` };
+                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
                 newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
                 
-                const finalTasks = [...(tasks || []), ...cancellationTasks];
-                const eventToSave: SpecialEvent = { id: date, name, observations, tasks: finalTasks.length > 0 ? finalTasks : undefined, startTime, endTime, spaceIds, posterUrl };
+                const finalTasks = [...(eventData.tasks || []), ...cancellationTasks];
+                const eventToSave: Omit<SpecialEvent, 'id'> = { 
+                    name: eventData.name, 
+                    startDate: eventData.startDate, 
+                    endDate: eventData.endDate,
+                    observations: eventData.observations, 
+                    tasks: finalTasks.length > 0 ? finalTasks : undefined, 
+                    startTime: eventData.startTime, 
+                    endTime: eventData.endTime, 
+                    spaceIds: eventData.spaceIds, 
+                    posterUrl: eventData.posterUrl 
+                };
                 transaction.set(eventDocRef, eventToSave);
             });
 
@@ -486,6 +497,7 @@ const App: React.FC = () => {
         }
     }, [userRole, specialEvents]);
 
+
     const handleDeleteSpecialEvent = useCallback(async (eventToDelete: SpecialEvent) => {
         if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
             alert("Acción no permitida para su rol.");
@@ -499,11 +511,14 @@ const App: React.FC = () => {
             const batch = writeBatch(db);
             if (eventToDelete.startTime && eventToDelete.endTime && eventToDelete.spaceIds) {
                 const timeSlots = TIME_SLOTS.filter(t => t >= eventToDelete.startTime! && t < eventToDelete.endTime!);
-                eventToDelete.spaceIds.forEach(spaceId => {
-                    timeSlots.forEach(time => {
-                        batch.delete(doc(db, 'bookings', `${spaceId}-${eventToDelete.id}-${time}`));
+                for (let d = new Date(eventToDelete.startDate + 'T00:00:00'); d <= new Date(eventToDelete.endDate + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+                    const dateStr = formatDateForBookingKey(d);
+                    eventToDelete.spaceIds.forEach(spaceId => {
+                        timeSlots.forEach(time => {
+                            batch.delete(doc(db, 'bookings', `${spaceId}-${dateStr}-${time}`));
+                        });
                     });
-                });
+                }
             }
 
             if (eventToDelete.posterUrl) {
