@@ -276,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
              {/* --- Mobile Menu Panel --- */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 bg-gray-900 z-30 flex flex-col animate-fade-in" role="dialog" aria-modal="true">
+                <div className="md:hidden fixed inset-0 bg-[#0c1a2e] z-30 flex flex-col" role="dialog" aria-modal="true">
                     <div className="flex items-center justify-between h-16 px-4 sm:px-6 border-b border-white/10">
                         <div className="flex items-center gap-2">
                             <EmbassyLogo className="h-7 w-auto text-orange-400" />
