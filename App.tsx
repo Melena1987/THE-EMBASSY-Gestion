@@ -589,6 +589,34 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
+    const handleAddSponsor = useCallback(async (sponsorName: string): Promise<string | null> => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
+            alert("Acción no permitida para su rol.");
+            return null;
+        }
+        if (!sponsorName.trim()) {
+            alert("El nombre del patrocinador no puede estar vacío.");
+            return null;
+        }
+        try {
+            const sponsorId = sponsorName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            const sponsorRef = doc(db, 'sponsors', sponsorId);
+            
+            const docSnap = await getDoc(sponsorRef);
+            if (docSnap.exists()) {
+                alert("Ya existe un patrocinador con un nombre similar. Elija otro nombre.");
+                return null;
+            }
+
+            await setDoc(sponsorRef, { name: sponsorName.trim(), tasks: [], allianceDate: formatDateForBookingKey(new Date()) });
+            return sponsorId;
+        } catch (error) {
+            console.error("Error al añadir patrocinador:", error);
+            alert("No se pudo añadir el patrocinador.");
+            return null;
+        }
+    }, [userRole]);
+    
     if (isLoadingAuth) {
         return <div className="min-h-screen flex items-center justify-center text-white text-xl">Cargando...</div>;
     }
@@ -664,6 +692,7 @@ const App: React.FC = () => {
                  return <SponsorsView
                     sponsors={sponsors}
                     onUpdateSponsor={handleUpdateSponsor}
+                    onAddSponsor={handleAddSponsor}
                     isReadOnly={!canManageSponsors}
                  />;
             default:

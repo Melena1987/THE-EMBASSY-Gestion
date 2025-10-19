@@ -78,5 +78,10 @@ export interface Sponsor {
   id: string; // Document ID from Firestore
   name: string;
   tasks?: Task[];
+  allianceDate?: string; // YYYY-MM-DD
+  annualContribution?: number;
+  contactPhone?: string;
+  instagramUrl?: string;
+  observations?: string;
 }
 export type Sponsors = Record<string, Sponsor>; // Key is the sponsor ID
