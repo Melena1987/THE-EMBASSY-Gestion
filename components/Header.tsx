@@ -13,6 +13,8 @@ import StarIcon from './icons/StarIcon';
 import HeartIcon from './icons/HeartIcon';
 import BellIcon from './icons/BellIcon';
 import TasksDropdown from './TasksDropdown';
+import MenuIcon from './icons/MenuIcon';
+import XIcon from './icons/XIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -44,10 +46,25 @@ const DropdownItem: React.FC<{
     </button>
 );
 
+const MobileNavItem: React.FC<{
+    onClick: () => void;
+    children: React.ReactNode;
+    label: string;
+}> = ({ onClick, children, label }) => (
+    <button
+        onClick={onClick}
+        className="flex items-center gap-4 px-4 py-3 text-lg w-full text-left text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
+    >
+        {children}
+        <span>{label}</span>
+    </button>
+);
+
 
 const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, onToggleTask }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const tasksRef = useRef<HTMLDivElement>(null);
 
@@ -67,9 +84,25 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
         };
     }, []);
 
+    useEffect(() => {
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [isMobileMenuOpen]);
+
     const handleViewChange = (view: View) => {
         setView(view);
         setIsMenuOpen(false);
+    };
+    
+    const handleMobileViewChange = (view: View) => {
+        setView(view);
+        setIsMobileMenuOpen(false);
     };
 
     const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
@@ -91,28 +124,31 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                             <p className="text-sm font-medium text-white">{userEmail}</p>
                             <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
                         </div>
-                        <nav className="flex items-center space-x-1 sm:space-x-2">
-                           <div className="relative" ref={tasksRef}>
-                                <button
-                                    onClick={() => setIsTasksOpen(prev => !prev)}
-                                    className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                    title="Mis Tareas Pendientes"
-                                >
-                                    <BellIcon className="h-5 w-5" />
-                                    {pendingTasks.length > 0 && (
-                                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
-                                            {pendingTasks.length}
-                                        </span>
-                                    )}
-                                </button>
-                                {isTasksOpen && (
-                                    <TasksDropdown 
-                                        tasks={pendingTasks} 
-                                        onToggleTask={onToggleTask} 
-                                        onClose={() => setIsTasksOpen(false)}
-                                    />
+                        
+                        <div className="relative" ref={tasksRef}>
+                            <button
+                                onClick={() => setIsTasksOpen(prev => !prev)}
+                                className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                title="Mis Tareas Pendientes"
+                            >
+                                <BellIcon className="h-5 w-5" />
+                                {pendingTasks.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                                        {pendingTasks.length}
+                                    </span>
                                 )}
-                            </div>
+                            </button>
+                            {isTasksOpen && (
+                                <TasksDropdown 
+                                    tasks={pendingTasks} 
+                                    onToggleTask={onToggleTask} 
+                                    onClose={() => setIsTasksOpen(false)}
+                                />
+                            )}
+                        </div>
+
+                        {/* --- Desktop Navigation --- */}
+                        <nav className="hidden md:flex items-center space-x-1 sm:space-x-2">
                            <div className="relative" ref={menuRef}>
                                 <button
                                     onClick={() => setIsMenuOpen(prev => !prev)}
@@ -125,7 +161,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                     aria-expanded={isMenuOpen}
                                 >
                                     <LayoutIcon className="h-5 w-5" />
-                                    <span className="hidden sm:inline">Agenda</span>
+                                    <span>Agenda</span>
                                     <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 {isMenuOpen && (
@@ -176,7 +212,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                }`}
                            >
                                <UsersIcon className="h-5 w-5" />
-                               <span className="hidden sm:inline">Turnos</span>
+                               <span>Turnos</span>
                            </button>
                            <button
                                onClick={() => setView('servicios')}
@@ -187,7 +223,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                }`}
                            >
                                <BriefcaseIcon className="h-5 w-5" />
-                               <span className="hidden sm:inline">Servicios</span>
+                               <span>Servicios</span>
                            </button>
                            {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
                                <button
@@ -199,20 +235,95 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                    }`}
                                >
                                    <HeartIcon className="h-5 w-5" />
-                                   <span className="hidden sm:inline">Patrocinadores</span>
+                                   <span>Patrocinadores</span>
                                </button>
                            )}
                         </nav>
                         <button 
                             onClick={onLogout}
                             title="Cerrar Sesión"
-                            className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                            className="hidden md:block p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
                         >
                             <LogoutIcon className="h-5 w-5" />
                         </button>
+
+                        {/* --- Mobile Hamburger Button --- */}
+                        <div className="md:hidden">
+                           <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                title="Abrir menú"
+                           >
+                               <MenuIcon className="h-6 w-6" />
+                           </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+             {/* --- Mobile Menu Panel --- */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden fixed inset-0 bg-gray-900 z-30 flex flex-col animate-fade-in" role="dialog" aria-modal="true">
+                    <div className="flex items-center justify-between h-16 px-4 sm:px-6 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                            <EmbassyLogo className="h-7 w-auto text-orange-400" />
+                            <span className="text-orange-400 font-light">Gestión</span>
+                        </div>
+                        <button
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                            title="Cerrar menú"
+                        >
+                            <XIcon className="h-6 w-6" />
+                        </button>
+                    </div>
+
+                    <nav className="flex-grow p-4 space-y-2">
+                        <h3 className="px-4 text-sm font-semibold text-gray-500 uppercase">Agenda</h3>
+                        <MobileNavItem onClick={() => handleMobileViewChange('plano')} label="Nueva Reserva">
+                            <PlusIcon className="w-6 h-6 text-gray-400" />
+                        </MobileNavItem>
+                         <MobileNavItem onClick={() => handleMobileViewChange('calendario')} label="Calendario">
+                            <CalendarIcon className="w-6 h-6 text-gray-400" />
+                        </MobileNavItem>
+                         <MobileNavItem onClick={() => handleMobileViewChange('agenda')} label="Agenda Semanal">
+                            <ListIcon className="w-6 h-6 text-gray-400" />
+                        </MobileNavItem>
+                         <MobileNavItem onClick={() => handleMobileViewChange('eventos')} label="Evento Especial">
+                            <StarIcon className="w-6 h-6 text-gray-400" />
+                        </MobileNavItem>
+
+                        <div className="pt-4 mt-4 border-t border-white/10">
+                            <h3 className="px-4 text-sm font-semibold text-gray-500 uppercase">Gestión</h3>
+                             <MobileNavItem onClick={() => handleMobileViewChange('turnos')} label="Turnos">
+                                <UsersIcon className="w-6 h-6 text-gray-400" />
+                            </MobileNavItem>
+                            <MobileNavItem onClick={() => handleMobileViewChange('servicios')} label="Servicios">
+                                <BriefcaseIcon className="w-6 h-6 text-gray-400" />
+                            </MobileNavItem>
+                            {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
+                                <MobileNavItem onClick={() => handleMobileViewChange('sponsors')} label="Patrocinadores">
+                                    <HeartIcon className="w-6 h-6 text-gray-400" />
+                                </MobileNavItem>
+                            )}
+                        </div>
+                    </nav>
+
+                    <div className="p-4 border-t border-white/10 space-y-4">
+                        <div className="text-left">
+                            <p className="text-sm font-medium text-white">{userEmail}</p>
+                            <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
+                        </div>
+                        <button 
+                            onClick={onLogout}
+                            className="w-full flex items-center justify-center gap-3 px-4 py-3 text-lg text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150 rounded-md"
+                        >
+                            <LogoutIcon className="w-6 h-6" />
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+            )}
         </header>
     );
 };
