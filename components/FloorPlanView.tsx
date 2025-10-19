@@ -227,35 +227,80 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* FIX: Replaced `Object.entries` with `Object.keys` for more robust type inference, resolving the "'map' does not exist on type 'unknown'" error. */}
                 {Object.keys(groupedSpaces).map((groupName) => {
                     const spaces = groupedSpaces[groupName];
+                    const isCourtGroup = groupName.startsWith('Pista');
+
                     return (
                         <div key={groupName} className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                             <h3 className="text-lg font-semibold text-orange-400 mb-4 border-b border-white/20 pb-2">{groupName}</h3>
-                            <div className={`grid ${groupName.startsWith('Pista') ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-                                {spaces.map(space => {
-                                    const { isBooked, bookingDetails } = spaceStatuses[space.id];
-                                    const isPending = pendingSelections.includes(space.id);
+                            <div className="grid grid-cols-1 gap-3">
+                                {isCourtGroup ? (() => {
+                                    const courtSpaceIds = spaces.map(s => s.id);
+                                    // A court is considered booked if any of its parts are booked.
+                                    const isCourtBooked = courtSpaceIds.some(id => spaceStatuses[id]?.isBooked);
+                                    
+                                    // Find the first booked part to display the booking name.
+                                    const firstBookedId = courtSpaceIds.find(id => spaceStatuses[id]?.isBooked);
+                                    const courtBookingDetails = firstBookedId ? spaceStatuses[firstBookedId].bookingDetails : undefined;
+
+                                    // A court is pending if ALL of its parts are selected.
+                                    const isCourtPending = courtSpaceIds.length > 0 && courtSpaceIds.every(id => pendingSelections.includes(id));
+
+                                    const handleCourtClick = () => {
+                                        if (isCourtBooked) return;
+
+                                        // Toggle selection of all parts of the court together.
+                                        if (isCourtPending) {
+                                            setPendingSelections(prev => prev.filter(id => !courtSpaceIds.includes(id)));
+                                        } else {
+                                            // Ensure atomicity: remove any partial selections of this court before adding all parts.
+                                            const otherSelections = pendingSelections.filter(id => !courtSpaceIds.includes(id));
+                                            setPendingSelections([...otherSelections, ...courtSpaceIds]);
+                                        }
+                                    };
 
                                     return (
                                         <button
-                                            key={space.id}
-                                            onClick={() => handleSpaceClick(space.id)}
-                                            disabled={isBooked}
+                                            key={groupName}
+                                            onClick={handleCourtClick}
+                                            disabled={isCourtBooked}
                                             className={`p-4 rounded-md text-center text-sm font-medium transition-all duration-200 ease-in-out flex items-center justify-center h-24 ${
-                                                isBooked ? 'bg-red-600 text-white cursor-not-allowed opacity-75' : 
-                                                isPending ? 'bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white transform hover:scale-105' :
+                                                isCourtBooked ? 'bg-red-600 text-white cursor-not-allowed opacity-75' : 
+                                                isCourtPending ? 'bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white transform hover:scale-105' :
                                                 'bg-black/20 hover:bg-black/40 text-gray-300 transform hover:scale-105'
                                             }`}
                                         >
                                             <div className="flex flex-col items-center gap-1 text-center break-words">
-                                                {isBooked && <CheckIcon className="w-5 h-5 mb-1" />}
-                                                {isBooked ? bookingDetails?.name : space.name}
+                                                {isCourtBooked && <CheckIcon className="w-5 h-5 mb-1" />}
+                                                {isCourtBooked ? courtBookingDetails?.name : groupName}
                                             </div>
                                         </button>
                                     );
-                                })}
+                                })() : (
+                                    spaces.map(space => {
+                                        const { isBooked, bookingDetails } = spaceStatuses[space.id];
+                                        const isPending = pendingSelections.includes(space.id);
+
+                                        return (
+                                            <button
+                                                key={space.id}
+                                                onClick={() => handleSpaceClick(space.id)}
+                                                disabled={isBooked}
+                                                className={`p-4 rounded-md text-center text-sm font-medium transition-all duration-200 ease-in-out flex items-center justify-center h-24 ${
+                                                    isBooked ? 'bg-red-600 text-white cursor-not-allowed opacity-75' : 
+                                                    isPending ? 'bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white transform hover:scale-105' :
+                                                    'bg-black/20 hover:bg-black/40 text-gray-300 transform hover:scale-105'
+                                                }`}
+                                            >
+                                                <div className="flex flex-col items-center gap-1 text-center break-words">
+                                                    {isBooked && <CheckIcon className="w-5 h-5 mb-1" />}
+                                                    {isBooked ? bookingDetails?.name : space.name}
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     );
