@@ -320,7 +320,6 @@ export const generateAgendaPDF = async (weekNumber: number, year: number, weekDa
                 const text = `${booking.startTime}-${booking.endTime}: ${booking.details.name} (${booking.space})`;
                 const maxWidth = width / 2 - margin - 20;
 
-                // Draw the text, allowing pdf-lib to wrap it automatically.
                 page.drawText(text, {
                     x: currentX,
                     y: currentY,
@@ -330,13 +329,11 @@ export const generateAgendaPDF = async (weekNumber: number, year: number, weekDa
                     maxWidth: maxWidth
                 });
 
-                // Since drawText doesn't return the height of the rendered block, we must
-                // estimate it by calculating the number of lines the text would wrap to.
                 const lines = getLinesOfText(text, font, 9, maxWidth);
-                const lineHeight = font.heightAtSize(9) * 1.2; // Use a 1.2 line height for better spacing
+                const lineHeight = font.heightAtSize(9) * 1.2;
                 const textHeight = lines.length * lineHeight;
                 
-                currentY -= textHeight + 5; // Move Y position down for the next element
+                currentY -= textHeight + 5;
             });
         } else {
              page.drawText('Sin reservas', { x: currentX, y: currentY, font: font, size: 9, color: rgb(0.5, 0.5, 0.5) });
