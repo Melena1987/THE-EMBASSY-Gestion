@@ -8,9 +8,10 @@ interface BookingDetailsViewProps {
     onBack: () => void;
     onEdit: () => void;
     onDelete: (booking: ConsolidatedBooking) => void;
+    isReadOnly: boolean;
 }
 
-const BookingDetailsView: React.FC<BookingDetailsViewProps> = ({ booking, onBack, onEdit, onDelete }) => {
+const BookingDetailsView: React.FC<BookingDetailsViewProps> = ({ booking, onBack, onEdit, onDelete, isReadOnly }) => {
     
     const handleDelete = () => {
         onDelete(booking);
@@ -46,22 +47,24 @@ const BookingDetailsView: React.FC<BookingDetailsViewProps> = ({ booking, onBack
                 >
                     &larr; Volver a la Agenda
                 </button>
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <button
-                        onClick={onEdit}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
-                    >
-                        <PencilIcon className="w-5 h-5" />
-                        Editar Reserva
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
-                    >
-                        <TrashIcon className="w-5 h-5" />
-                        Eliminar Reserva
-                    </button>
-                </div>
+                {!isReadOnly && (
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <button
+                            onClick={onEdit}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
+                        >
+                            <PencilIcon className="w-5 h-5" />
+                            Editar Reserva
+                        </button>
+                        <button
+                            onClick={handleDelete}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
+                        >
+                            <TrashIcon className="w-5 h-5" />
+                            Eliminar Reserva
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

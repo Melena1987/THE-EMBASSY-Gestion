@@ -11,6 +11,7 @@ interface FloorPlanViewProps {
     onDateChange: (date: Date) => void;
     bookingToPreFill: ConsolidatedBooking | null;
     onPreFillComplete: () => void;
+    isReadOnly: boolean;
 }
 
 const WEEKDAYS = [
@@ -20,7 +21,7 @@ const WEEKDAYS = [
 ];
 
 
-const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete }) => {
+const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete, isReadOnly }) => {
     const [selectedStartTime, setSelectedStartTime] = useState('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState('10:00');
     const [reservationName, setReservationName] = useState('');
@@ -190,12 +191,13 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
             <button
                 key={space.id}
                 onClick={() => handleSpaceClick(space.id)}
-                disabled={isBooked}
+                disabled={isBooked || isReadOnly}
                 className={`p-4 rounded-md text-center text-sm font-medium transition-all duration-200 ease-in-out flex items-center justify-center h-24 ${
                     isBooked ? 'bg-red-600 text-white cursor-not-allowed opacity-75' : 
                     isPending ? 'bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white transform hover:scale-105' :
-                    'bg-black/20 hover:bg-black/40 text-gray-300 transform hover:scale-105'
+                    `bg-black/20 ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'hover:bg-black/40 transform hover:scale-105'} text-gray-300`
                 }`}
+                 title={isReadOnly ? 'No tiene permisos para reservar' : space.name}
             >
                 <div className="flex flex-col items-center gap-1 text-center break-words">
                     {isBooked && <CheckIcon className="w-5 h-5 mb-1" />}
@@ -210,22 +212,22 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg space-y-4 border border-white/10">
                 <h2 className="text-lg font-bold text-white border-b border-white/20 pb-2">Selector de Reserva</h2>
                 
-                <div className="space-y-4">
+                <fieldset disabled={isReadOnly} className={`space-y-4 ${isReadOnly ? 'opacity-70' : ''}`}>
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="lg:col-span-2">
                             <label htmlFor="reservationName" className="text-xs text-gray-400 block mb-1">Nombre de la reserva</label>
                             <input id="reservationName" type="text" placeholder="Ej: Entrenamiento John Doe" value={reservationName} onChange={(e) => setReservationName(e.target.value)}
-                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" />
                         </div>
                         <div>
                             <label htmlFor="startTime" className="text-xs text-gray-400 block mb-1">Hora de inicio</label>
                             <input id="startTime" type="time" value={selectedStartTime} onChange={(e) => setSelectedStartTime(e.target.value)}
-                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
+                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" step="1800" />
                         </div>
                         <div>
                             <label htmlFor="endTime" className="text-xs text-gray-400 block mb-1">Hora de fin</label>
                             <input id="endTime" type="time" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}
-                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
+                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" step="1800" />
                         </div>
                     </div>
 
@@ -238,7 +240,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                         <div className="lg:col-span-2">
                              <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetición</label>
                              <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)}
-                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500">
+                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed">
                                 <option value="none">No se repite</option>
                                 <option value="daily">Diariamente</option>
                                 <option value="weekdays">Días laborables (L-V)</option>
@@ -277,7 +279,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                                     value={formatDateForBookingKey(repeatEndDate)} 
                                     onChange={(e) => e.target.value && setRepeatEndDate(new Date(`${e.target.value}T00:00:00`))}
                                     min={formatDateForBookingKey(selectedDate)}
-                                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" />
                             </div>
                         </div>
                     )}
@@ -287,9 +289,9 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                         <label htmlFor="observations" className="text-xs text-gray-400 block mb-1">Observaciones (opcional)</label>
                         <textarea id="observations" placeholder="Añadir material, personal necesario, etc." value={observations} onChange={(e) => setObservations(e.target.value)}
                             rows={2}
-                            className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 resize-y" />
+                            className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 resize-y disabled:cursor-not-allowed" />
                     </div>
-                </div>
+                </fieldset>
 
 
                 {pendingSelections.length > 0 && (
@@ -300,13 +302,15 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleClearSelection}
-                                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-md transition-colors"
+                                disabled={isReadOnly}
+                                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Limpiar
                             </button>
                             <button
                                 onClick={handleConfirmBooking}
-                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors whitespace-nowrap"
+                                disabled={isReadOnly}
+                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Confirmar Reserva
                             </button>

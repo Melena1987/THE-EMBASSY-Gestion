@@ -16,9 +16,10 @@ interface CalendarViewProps {
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    isReadOnly: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onAddBooking }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onAddBooking, isReadOnly }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -82,6 +83,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
     };
     
     const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+        if (isReadOnly) return;
         e.preventDefault();
         e.currentTarget.classList.add('drag-over');
     };
@@ -91,6 +93,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
     };
     
     const handleDrop = async (e: React.DragEvent<HTMLButtonElement>, targetDate: Date) => {
+        if (isReadOnly) return;
         e.preventDefault();
         e.currentTarget.classList.remove('drag-over');
         
@@ -211,11 +214,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                                 {dayBookings.map((booking, index) => (
                                                     <div 
                                                         key={index} 
-                                                        className="bg-black/30 rounded px-1.5 py-0.5 truncate cursor-grab" 
+                                                        className={`bg-black/30 rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
                                                         title={`${booking.startTime} - ${booking.details.name}`}
-                                                        draggable="true"
-                                                        onDragStart={(e) => handleDragStart(e, booking)}
-                                                        onDragEnd={handleDragEnd}
+                                                        draggable={!isReadOnly}
+                                                        onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                                        onDragEnd={!isReadOnly ? handleDragEnd : undefined}
                                                     >
                                                         <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
                                                     </div>

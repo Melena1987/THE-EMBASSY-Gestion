@@ -1,5 +1,7 @@
 export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios';
 
+export type UserRole = 'ADMIN' | 'TRABAJADOR' | null;
+
 export interface Space {
   id: string;
   name: string;

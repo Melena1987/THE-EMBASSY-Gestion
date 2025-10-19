@@ -15,9 +15,10 @@ interface AgendaViewProps {
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    isReadOnly: boolean;
 }
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
@@ -81,6 +82,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     };
     
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        if (isReadOnly) return;
         e.preventDefault();
         e.currentTarget.classList.add('drag-over');
     };
@@ -90,6 +92,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     };
     
     const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetDate: Date) => {
+        if (isReadOnly) return;
         e.preventDefault();
         e.currentTarget.classList.remove('drag-over');
         
@@ -218,10 +221,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     dayBookings.map((booking, index) => (
                                         <div 
                                             key={index} 
-                                            draggable="true"
-                                            onDragStart={(e) => handleDragStart(e, booking)}
-                                            onDragEnd={handleDragEnd}
-                                            className="w-full text-left bg-black/20 p-2 rounded hover:bg-black/40 transition-colors duration-200 cursor-grab"
+                                            draggable={!isReadOnly}
+                                            onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                            onDragEnd={!isReadOnly ? handleDragEnd : undefined}
+                                            className={`w-full text-left bg-black/20 p-2 rounded hover:bg-black/40 transition-colors duration-200 ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
                                         >
                                             <button onClick={() => onSelectBooking(booking)} className="w-full text-left">
                                                 <p className="font-semibold text-orange-300 pointer-events-none">
@@ -244,9 +247,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                              <div className="flex justify-center pt-2 mt-auto">
                                 <button 
                                     onClick={() => { onDateChange(day); setView('plano'); }}
-                                    className="bg-black/20 hover:bg-black/40 text-orange-400 p-2 rounded-full transition-colors"
+                                    disabled={isReadOnly}
+                                    className="bg-black/20 hover:bg-black/40 text-orange-400 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={`Añadir reserva para ${day.toLocaleDateString('es-ES')}`}
-                                    title="Añadir reserva"
+                                    title={isReadOnly ? "No tiene permisos para añadir reservas" : "Añadir reserva"}
                                 >
                                     <PlusIcon className="w-6 h-6" />
                                 </button>

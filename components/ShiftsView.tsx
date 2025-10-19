@@ -16,9 +16,10 @@ interface ShiftsViewProps {
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
     onResetWeekShifts: (weekId: string) => void;
+    isReadOnly: boolean;
 }
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onResetWeekShifts }) => {
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
@@ -160,13 +161,13 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                     </div>
                 </div>
                 
-                <div className="mt-6 bg-black/20 p-4 rounded-lg flex flex-col md:flex-row items-center justify-center gap-4 flex-wrap">
+                <fieldset disabled={isReadOnly} className={`mt-6 bg-black/20 p-4 rounded-lg flex flex-col md:flex-row items-center justify-center gap-4 flex-wrap ${isReadOnly ? 'opacity-70' : ''}`}>
                     <div className="flex items-center gap-3">
                         <span className="font-semibold text-orange-400">Turno Mañana (por defecto):</span>
                         <select 
                             value={currentShifts.morning} 
                             onChange={(e) => handleWeeklyWorkerChange('morning', e.target.value)}
-                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed"
                         >
                             {WORKERS.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
@@ -176,7 +177,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                         <select 
                             value={currentShifts.evening}
                             onChange={(e) => handleWeeklyWorkerChange('evening', e.target.value)}
-                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed"
                         >
                              {WORKERS.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
@@ -184,7 +185,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
 
                     <button
                         onClick={handleSwap}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center gap-2"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Intercambiar turno de mañana y tarde para toda la semana"
                     >
                         <SwitchIcon className="w-5 h-5" />
@@ -193,12 +194,12 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                     {isCustomized && (
                         <button
                             onClick={handleReset}
-                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Resetear Semana
                         </button>
                     )}
-                </div>
+                </fieldset>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
@@ -208,38 +209,38 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                     const isDayCustomized = !!dailyOverride;
                     
                     const ShiftEditor = ({ period, details }: { period: 'morning' | 'evening', details: ShiftPeriodDetail }) => (
-                        <div className="p-2 bg-black/20 rounded-md space-y-2">
+                         <fieldset disabled={isReadOnly} className={`p-2 bg-black/20 rounded-md space-y-2 ${isReadOnly ? 'opacity-70' : ''}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     {period === 'morning' ? <SunIcon className="w-5 h-5 text-yellow-300"/> : <MoonIcon className="w-5 h-5 text-blue-300"/>}
                                     <p className="text-gray-300 font-semibold capitalize text-sm">{period === 'morning' ? 'Mañana' : 'Tarde'}</p>
                                 </div>
                                 <label className="flex items-center cursor-pointer">
-                                    <input type="checkbox" className="h-4 w-4 rounded bg-black/30 border-white/20 text-orange-500 focus:ring-orange-500" checked={details.active} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'active', e.target.checked)} />
+                                    <input type="checkbox" className="h-4 w-4 rounded bg-black/30 border-white/20 text-orange-500 focus:ring-orange-500 disabled:cursor-not-allowed" checked={details.active} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'active', e.target.checked)} />
                                     <span className={`ml-2 text-xs font-medium ${details.active ? 'text-green-400' : 'text-red-400'}`}>{details.active ? 'Abierto' : 'Cerrado'}</span>
                                 </label>
                             </div>
                             <div className={`space-y-2 transition-opacity ${!details.active ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <select value={details.worker} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'worker', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 text-xs focus:ring-orange-500 focus:border-orange-500">
+                                <select value={details.worker} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'worker', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 text-xs focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed">
                                     {WORKERS.map(w => <option key={w} value={w}>{w}</option>)}
                                 </select>
                                 <div className="flex items-center gap-1 text-xs">
-                                    <input type="time" value={details.start} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'start', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 focus:ring-orange-500 focus:border-orange-500" />
+                                    <input type="time" value={details.start} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'start', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" />
                                     <span>-</span>
-                                    <input type="time" value={details.end} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'end', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 focus:ring-orange-500 focus:border-orange-500" />
+                                    <input type="time" value={details.end} onChange={(e) => handleDailyShiftChange(dayIndex, period, 'end', e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-1 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed" />
                                 </div>
                             </div>
-                        </div>
+                        </fieldset>
                     );
 
                     return (
-                        <div key={day.toISOString()} className={`bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner transition-all border border-white/10 ${isDayCustomized ? 'ring-2 ring-blue-500' : ''}`}>
+                        <div key={day.toISOString()} className={`bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner transition-all border border-white/10 ${isDayCustomized && !isReadOnly ? 'ring-2 ring-blue-500' : ''}`}>
                             <div className="flex items-center justify-center text-center border-b border-white/20 pb-2 mb-3 relative h-10">
                                 <h3 className="font-bold capitalize text-white">
                                     {day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
                                 </h3>
                                 {isDayCustomized && (
-                                    <button onClick={() => handleResetDay(dayIndex)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white rounded-full hover:bg-white/10" title="Resetear turno del día">
+                                    <button onClick={() => handleResetDay(dayIndex)} disabled={isReadOnly} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white rounded-full hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed" title="Resetear turno del día">
                                         <RefreshCcwIcon className="w-4 h-4" />
                                     </button>
                                 )}
@@ -262,7 +263,8 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                     onChange={handleObservationsChange}
                     rows={4}
                     placeholder="Anotaciones importantes para la semana, eventos especiales, recordatorios, etc."
-                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y"
+                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y disabled:cursor-not-allowed"
+                    disabled={isReadOnly}
                 />
             </div>
         </div>
