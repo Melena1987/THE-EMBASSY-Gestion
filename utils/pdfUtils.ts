@@ -251,6 +251,38 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
     URL.revokeObjectURL(link.href);
 };
 
+
+/**
+ * A helper function to split text into lines based on a max width.
+ * This is used to estimate the height of a wrapped text block in a PDF.
+ * @param text The text to wrap.
+ * @param font The PDFFont object.
+ * @param size The font size.
+ * @param maxWidth The maximum width for a line.
+ * @returns An array of strings, where each string is a line of text.
+ */
+const getLinesOfText = (text: string, font: any, size: number, maxWidth: number): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    if (words.length === 0) return [];
+    
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = font.widthOfTextAtSize(`${currentLine} ${word}`, size);
+        if (width < maxWidth) {
+            currentLine += ` ${word}`;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+    return lines;
+};
+
+
 export const generateAgendaPDF = async (weekNumber: number, year: number, weekDays: Date[], bookings: Bookings) => {
     const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
     const pdfDoc = await PDFDocument.create();
@@ -284,10 +316,27 @@ export const generateAgendaPDF = async (weekNumber: number, year: number, weekDa
         
         if (dayBookings.length > 0) {
             dayBookings.forEach(booking => {
-                 if (currentY < margin) return;
-                 const text = `${booking.startTime}-${booking.endTime}: ${booking.details.name} (${booking.space})`;
-                 page.drawText(text, { x: currentX, y: currentY, font: font, size: 9, color: rgb(0.2, 0.2, 0.2), maxWidth: width / 2 - margin - 20 });
-                 currentY -= font.heightAtSize(text, 9, { descender: false, maxWidth: width / 2 - margin - 20 }) + 5;
+                if (currentY < margin) return;
+                const text = `${booking.startTime}-${booking.endTime}: ${booking.details.name} (${booking.space})`;
+                const maxWidth = width / 2 - margin - 20;
+
+                // Draw the text, allowing pdf-lib to wrap it automatically.
+                page.drawText(text, {
+                    x: currentX,
+                    y: currentY,
+                    font: font,
+                    size: 9,
+                    color: rgb(0.2, 0.2, 0.2),
+                    maxWidth: maxWidth
+                });
+
+                // Since drawText doesn't return the height of the rendered block, we must
+                // estimate it by calculating the number of lines the text would wrap to.
+                const lines = getLinesOfText(text, font, 9, maxWidth);
+                const lineHeight = font.heightAtSize(9) * 1.2; // Use a 1.2 line height for better spacing
+                const textHeight = lines.length * lineHeight;
+                
+                currentY -= textHeight + 5; // Move Y position down for the next element
             });
         } else {
              page.drawText('Sin reservas', { x: currentX, y: currentY, font: font, size: 9, color: rgb(0.5, 0.5, 0.5) });
