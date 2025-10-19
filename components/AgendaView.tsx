@@ -7,6 +7,7 @@ import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF, generateAgendaPDF } from '../utils/pdfUtils';
 import CheckIcon from './icons/CheckIcon';
+import { getDefaultDailyShift } from '../utils/shiftUtils';
 
 interface AgendaViewProps {
     bookings: Bookings;
@@ -204,14 +205,14 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
                 {weekDays.map(day => {
-                    const dayBookings = consolidateBookingsForDay(bookings, day);
                     const dayWeekData = getWeekData(day);
                     const dayWeekId = `${dayWeekData.year}-${dayWeekData.week.toString().padStart(2, '0')}`;
                     const dayIndex = day.getDay() === 0 ? 6 : day.getDay() - 1;
                     const dailyOverride = shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
-
-                    const morningWorker = dailyOverride?.morning.active ? dailyOverride.morning.worker : currentWeekShifts.morning;
-                    const eveningWorker = dailyOverride?.evening.active ? dailyOverride.evening.worker : currentWeekShifts.evening;
+                    const dayBookings = consolidateBookingsForDay(bookings, day);
+                    
+                    const defaultDailyShift = getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
+                    const effectiveShifts = dailyOverride || defaultDailyShift;
 
                     return (
                         <div 
@@ -225,23 +226,20 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 <h3 className="font-bold capitalize text-white">
                                     {day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
                                 </h3>
-                                {dailyOverride ? (
-                                    <div className="text-xs text-blue-300 mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>
-                                        {dailyOverride.morning.active || dailyOverride.evening.active ? (
-                                            <>
-                                                {dailyOverride.morning.active && <p className="leading-tight">M: {morningWorker}</p>}
-                                                {dailyOverride.evening.active && <p className="leading-tight">T: {eveningWorker}</p>}
-                                            </>
-                                        ) : (
-                                            <p className="text-red-400 font-semibold">Cerrado</p>
-                                        )}
-                                    </div>
-                                ) : (
-                                     <div className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>
-                                        <p className="leading-tight">M: {morningWorker}</p>
-                                        <p className="leading-tight">T: {eveningWorker}</p>
-                                    </div>
-                                )}
+                                <div className={`text-xs mt-1 ${dailyOverride ? 'text-blue-300' : 'text-gray-400'}`} style={{ fontFamily: 'Arial, sans-serif' }}>
+                                    {effectiveShifts.morning.active || effectiveShifts.evening.active ? (
+                                        <>
+                                            {effectiveShifts.morning.active && (
+                                                <p className="leading-tight">M: {effectiveShifts.morning.worker} ({effectiveShifts.morning.start} - {effectiveShifts.morning.end})</p>
+                                            )}
+                                            {effectiveShifts.evening.active && (
+                                                <p className="leading-tight">T: {effectiveShifts.evening.worker} ({effectiveShifts.evening.start} - {effectiveShifts.evening.end})</p>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="text-red-400 font-semibold">Cerrado</p>
+                                    )}
+                                </div>
                             </div>
                             <div className="space-y-2 text-xs flex-grow">
                                 {dayBookings.length > 0 ? (
