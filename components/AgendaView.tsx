@@ -6,6 +6,7 @@ import PlusIcon from './icons/PlusIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF, generateAgendaPDF } from '../utils/pdfUtils';
+import CheckIcon from './icons/CheckIcon';
 
 interface AgendaViewProps {
     bookings: Bookings;
@@ -15,10 +16,11 @@ interface AgendaViewProps {
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    onToggleTask: (weekId: string, taskId: string) => void;
     isReadOnly: boolean;
 }
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking, isReadOnly }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking, onToggleTask, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
@@ -169,7 +171,17 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                 {currentWeekShifts.tasks.map(task => (
                                     <div key={task.id} className="flex items-center gap-3 text-sm">
-                                        <div className={`w-4 h-4 rounded-full flex-shrink-0 ${task.completed ? 'bg-green-500' : 'border-2 border-gray-500'}`}></div>
+                                        <button
+                                            onClick={() => onToggleTask(weekId, task.id)}
+                                            className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
+                                                task.completed 
+                                                    ? 'bg-green-500 hover:bg-green-600' 
+                                                    : 'border-2 border-gray-500 hover:bg-white/10'
+                                            }`}
+                                            aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                        >
+                                            {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
+                                        </button>
                                         <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>
                                             {task.text}
                                         </span>

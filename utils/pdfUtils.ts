@@ -173,6 +173,55 @@ export const generateShiftsPDF = async (
         }
     });
 
+    y -= 20;
+
+    // TASKS SECTION
+    if (currentShifts.tasks && currentShifts.tasks.length > 0 && y > 100) {
+        y -= 10;
+        page.drawText('Tareas de la Semana:', { x: leftMargin, y, font: boldFont, size: 14, color: orange });
+        y -= 25;
+
+        for (const task of currentShifts.tasks) {
+            const taskStartY = y;
+            const taskTextMaxWidth = tableWidth - 25 - 70; // Reserve 25 for checkbox, 70 for assignee
+            const taskLines = wrapText(task.text, font, 10, taskTextMaxWidth);
+            const taskLineHeight = 14;
+            const totalTaskHeight = taskLines.length * taskLineHeight;
+
+            if (taskStartY - totalTaskHeight < 40) break; // Check if task fits on page
+
+            // Draw Checkbox
+            const boxSize = 10;
+            const boxY = taskStartY;
+            page.drawRectangle({
+                x: leftMargin, y: boxY, width: boxSize, height: boxSize,
+                borderColor: black, borderWidth: 1,
+            });
+            if (task.completed) {
+                page.drawLine({ start: { x: leftMargin + 2, y: boxY + 5 }, end: { x: leftMargin + 4, y: boxY + 2 }, thickness: 1.5, color: black });
+                page.drawLine({ start: { x: leftMargin + 4, y: boxY + 2 }, end: { x: leftMargin + 8, y: boxY + 8 }, thickness: 1.5, color: black });
+            }
+
+            // Draw Assignee
+            const assigneeText = `(${task.assignedTo})`;
+            const assigneeWidth = font.widthOfTextAtSize(assigneeText, 10);
+            page.drawText(assigneeText, { 
+                x: leftMargin + tableWidth - assigneeWidth, y: taskStartY, font: font, size: 10, color: grey 
+            });
+
+            // Draw Task Text Lines
+            const textColor = task.completed ? grey : black;
+            taskLines.forEach((line, i) => {
+                page.drawText(line, { 
+                    x: leftMargin + 20, y: taskStartY - (i * taskLineHeight), font: font, size: 10, color: textColor
+                });
+            });
+
+            y = taskStartY - totalTaskHeight - 4; // Move y down for next task
+        }
+    }
+
+
     if (currentShifts.observations && y > 100) {
         y -= 30;
         page.drawText('Observaciones:', { x: leftMargin, y, font: boldFont, size: 14, color: orange });
@@ -181,7 +230,6 @@ export const generateShiftsPDF = async (
         const lines = wrapText(currentShifts.observations, font, 10, tableWidth);
         lines.forEach(line => {
             if (y < 40) return;
-            // FIX: Corrected the options object for drawText. The 'font' property key was missing its value assignment and was followed by 'size' creating a syntax error.
             page.drawText(line, { x: leftMargin, y, font: font, size: 10, color: black });
             y -= 14;
         });

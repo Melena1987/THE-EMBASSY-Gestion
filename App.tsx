@@ -332,7 +332,7 @@ const App: React.FC = () => {
             case 'calendario':
                 return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} isReadOnly={isReadOnly} />;
             case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} isReadOnly={isReadOnly} />;
+                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} onToggleTask={handleToggleTaskCompletion} isReadOnly={isReadOnly} />;
             case 'detalles':
                  if (selectedBooking) {
                     return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={isReadOnly} />;
