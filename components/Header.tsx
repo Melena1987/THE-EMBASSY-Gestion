@@ -116,17 +116,111 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
+                    {/* --- Left Part: Logo --- */}
                     <div className="flex items-center gap-2">
                         <EmbassyLogo className="h-7 w-auto text-orange-400" />
                         <span className="text-orange-400 font-light hidden sm:inline">Gestión</span>
                     </div>
                     
-                    <div className="flex items-center gap-4">
-                        <div className="text-right hidden md:block">
-                            <p className="text-sm font-medium text-white">{userEmail}</p>
-                            <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
+                    {/* --- Center Part: Desktop Navigation --- */}
+                    <nav className="hidden md:flex items-center space-x-1 sm:space-x-2">
+                       <div className="relative" ref={menuRef}>
+                            <button
+                                onClick={() => setIsMenuOpen(prev => !prev)}
+                                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                    isAgendaMenuActive
+                                        ? 'bg-orange-600 text-white'
+                                        : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                }`}
+                                aria-haspopup="true"
+                                aria-expanded={isMenuOpen}
+                            >
+                                <LayoutIcon className="h-5 w-5" />
+                                <span>Agenda</span>
+                                <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isMenuOpen && (
+                                <div 
+                                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-56 origin-top bg-black/50 backdrop-blur-xl border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+                                    role="menu"
+                                    aria-orientation="vertical"
+                                >
+                                    <div className="py-1" role="none">
+                                        {canCreate && (
+                                            <DropdownItem
+                                                isActive={currentView === 'plano'}
+                                                onClick={() => handleViewChange('plano')}
+                                                label="Reserva"
+                                            >
+                                                <PlusIcon className="h-5 w-5" />
+                                            </DropdownItem>
+                                        )}
+                                        <DropdownItem
+                                            isActive={currentView === 'calendario'}
+                                            onClick={() => handleViewChange('calendario')}
+                                            label="Calendario"
+                                        >
+                                            <CalendarIcon className="h-5 w-5" />
+                                        </DropdownItem>
+                                        <DropdownItem
+                                            isActive={currentView === 'agenda'}
+                                            onClick={() => handleViewChange('agenda')}
+                                            label="Agenda Semanal"
+                                        >
+                                            <ListIcon className="h-5 w-5" />
+                                        </DropdownItem>
+                                        {canCreate && (
+                                            <DropdownItem
+                                                isActive={currentView === 'eventos'}
+                                                onClick={() => handleViewChange('eventos')}
+                                                label="Evento Especial"
+                                            >
+                                                <StarIcon className="h-5 w-5" />
+                                            </DropdownItem>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        
+                        <button
+                           onClick={() => setView('turnos')}
+                           className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                               isTurnosActive
+                                   ? 'bg-orange-600 text-white'
+                                   : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                           }`}
+                       >
+                           <UsersIcon className="h-5 w-5" />
+                           <span>Turnos</span>
+                       </button>
+                       <button
+                           onClick={() => setView('servicios')}
+                           className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                               isServiciosActive
+                                   ? 'bg-orange-600 text-white'
+                                   : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                           }`}
+                       >
+                           <BriefcaseIcon className="h-5 w-5" />
+                           <span>Servicios</span>
+                       </button>
+                       {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
+                           <button
+                               onClick={() => setView('sponsors')}
+                               className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                   isSponsorsActive
+                                       ? 'bg-orange-600 text-white'
+                                       : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                               }`}
+                           >
+                               <HeartIcon className="h-5 w-5" />
+                               <span>Patrocinadores</span>
+                           </button>
+                       )}
+                    </nav>
+
+                    {/* --- Right Part: User, Notifications, Logout --- */}
+                    <div className="flex items-center gap-4">
                         <div className="relative" ref={tasksRef}>
                             <button
                                 onClick={() => setIsTasksOpen(prev => !prev)}
@@ -148,103 +242,12 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 />
                             )}
                         </div>
-
-                        {/* --- Desktop Navigation --- */}
-                        <nav className="hidden md:flex items-center space-x-1 sm:space-x-2">
-                           <div className="relative" ref={menuRef}>
-                                <button
-                                    onClick={() => setIsMenuOpen(prev => !prev)}
-                                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                                        isAgendaMenuActive
-                                            ? 'bg-orange-600 text-white'
-                                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                                    }`}
-                                    aria-haspopup="true"
-                                    aria-expanded={isMenuOpen}
-                                >
-                                    <LayoutIcon className="h-5 w-5" />
-                                    <span>Agenda</span>
-                                    <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                                {isMenuOpen && (
-                                    <div 
-                                        className="absolute right-0 mt-2 w-56 origin-top-right bg-black/50 backdrop-blur-xl border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
-                                        role="menu"
-                                        aria-orientation="vertical"
-                                    >
-                                        <div className="py-1" role="none">
-                                            {canCreate && (
-                                                <DropdownItem
-                                                    isActive={currentView === 'plano'}
-                                                    onClick={() => handleViewChange('plano')}
-                                                    label="Reserva"
-                                                >
-                                                    <PlusIcon className="h-5 w-5" />
-                                                </DropdownItem>
-                                            )}
-                                            <DropdownItem
-                                                isActive={currentView === 'calendario'}
-                                                onClick={() => handleViewChange('calendario')}
-                                                label="Calendario"
-                                            >
-                                                <CalendarIcon className="h-5 w-5" />
-                                            </DropdownItem>
-                                            <DropdownItem
-                                                isActive={currentView === 'agenda'}
-                                                onClick={() => handleViewChange('agenda')}
-                                                label="Agenda Semanal"
-                                            >
-                                                <ListIcon className="h-5 w-5" />
-                                            </DropdownItem>
-                                            {canCreate && (
-                                                <DropdownItem
-                                                    isActive={currentView === 'eventos'}
-                                                    onClick={() => handleViewChange('eventos')}
-                                                    label="Evento Especial"
-                                                >
-                                                    <StarIcon className="h-5 w-5" />
-                                                </DropdownItem>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                               onClick={() => setView('turnos')}
-                               className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                                   isTurnosActive
-                                       ? 'bg-orange-600 text-white'
-                                       : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                               }`}
-                           >
-                               <UsersIcon className="h-5 w-5" />
-                               <span>Turnos</span>
-                           </button>
-                           <button
-                               onClick={() => setView('servicios')}
-                               className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                                   isServiciosActive
-                                       ? 'bg-orange-600 text-white'
-                                       : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                               }`}
-                           >
-                               <BriefcaseIcon className="h-5 w-5" />
-                               <span>Servicios</span>
-                           </button>
-                           {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
-                               <button
-                                   onClick={() => setView('sponsors')}
-                                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                                       isSponsorsActive
-                                           ? 'bg-orange-600 text-white'
-                                           : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                                   }`}
-                               >
-                                   <HeartIcon className="h-5 w-5" />
-                                   <span>Patrocinadores</span>
-                               </button>
-                           )}
-                        </nav>
+                        
+                        <div className="text-right hidden md:block">
+                            <p className="text-sm font-medium text-white">{userEmail}</p>
+                            <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
+                        </div>
+                        
                         <button 
                             onClick={onLogout}
                             title="Cerrar Sesión"
