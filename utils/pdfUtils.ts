@@ -245,13 +245,14 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
     y -= 25;
     
     // Tasks section
-    if (allTasks && allTasks.length > 0) {
+    const uncompletedTasks = allTasks.filter(task => !task.completed);
+    if (uncompletedTasks.length > 0) {
         if (y < margin + 40) addNewPage();
         y -= 10;
         page.drawText('Tareas de la Semana:', { x: margin, y: y, font: fontBold, size: 16, color: rgb(0.96, 0.45, 0.09) });
         y -= 20;
 
-        allTasks.forEach(task => {
+        uncompletedTasks.forEach(task => {
             const isEventTask = task.type === 'event';
             const taskText = isEventTask ? `[${task.eventName}] ${task.text}` : task.text;
             const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
@@ -264,19 +265,23 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
 
             if (y < margin + neededHeight) addNewPage();
 
-            const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : (isEventTask ? rgb(0.5, 0.2, 0.8) : rgb(0, 0, 0));
+            const taskColor = isEventTask ? rgb(0.5, 0.2, 0.8) : rgb(0, 0, 0);
             const boxSize = 10;
             const boxY = y + 1;
 
             page.drawRectangle({ x: margin, y: boxY, width: boxSize, height: boxSize, borderWidth: 1, borderColor: taskColor });
-            if (task.completed) {
-                page.drawLine({ start: { x: margin + 2, y: boxY + 5 }, end: { x: margin + 4, y: boxY + 2 }, thickness: 1.5, color: taskColor });
-                page.drawLine({ start: { x: margin + 4, y: boxY + 2 }, end: { x: margin + 8, y: boxY + 8 }, thickness: 1.5, color: taskColor });
-            }
 
-            page.drawText(sanitizedText, {
-                x: margin + boxSize + 5, y: y, font: font, size: 10, color: taskColor, maxWidth: maxWidthTasks, lineHeight: 12,
+            const textX = margin + boxSize + 5;
+            lines.forEach((line, index) => {
+                page.drawText(line, {
+                    x: textX,
+                    y: y - (index * 12),
+                    font: font,
+                    size: 10,
+                    color: taskColor
+                });
             });
+
             y -= neededHeight;
         });
         y -= 15;
@@ -425,13 +430,14 @@ export const generateAgendaPDF = async (
     y -= 40;
 
     // Tasks section
-    if (allTasks && allTasks.length > 0) {
+    const uncompletedTasks = allTasks.filter(task => !task.completed);
+    if (uncompletedTasks.length > 0) {
         if (y < margin + 40) addNewPage();
 
         page.drawText('Tareas de la Semana:', { x: margin, y: y, font: fontBold, size: 16, color: rgb(0.96, 0.45, 0.09) });
         y -= 25;
 
-        allTasks.forEach(task => {
+        uncompletedTasks.forEach(task => {
             const isEventTask = task.type === 'event';
             const taskText = isEventTask ? `[${task.eventName}] ${task.text}` : task.text;
             const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
@@ -444,19 +450,23 @@ export const generateAgendaPDF = async (
             
             if (y < margin + neededHeight) addNewPage();
 
-            const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : (isEventTask ? rgb(0.5, 0.2, 0.8) : rgb(0, 0, 0));
+            const taskColor = isEventTask ? rgb(0.5, 0.2, 0.8) : rgb(0, 0, 0);
             const boxSize = 10;
             const boxY = y + 1;
 
             page.drawRectangle({ x: margin, y: boxY, width: boxSize, height: boxSize, borderWidth: 1, borderColor: taskColor });
-            if (task.completed) {
-                page.drawLine({ start: { x: margin + 2, y: boxY + 5 }, end: { x: margin + 4, y: boxY + 2 }, thickness: 1.5, color: taskColor });
-                page.drawLine({ start: { x: margin + 4, y: boxY + 2 }, end: { x: margin + 8, y: boxY + 8 }, thickness: 1.5, color: taskColor });
-            }
-
-            page.drawText(sanitizedText, {
-                x: margin + boxSize + 5, y: y, font: font, size: 10, color: taskColor, maxWidth: maxWidthTasks, lineHeight: 12,
+            
+            const textX = margin + boxSize + 5;
+            lines.forEach((line, index) => {
+                page.drawText(line, {
+                    x: textX,
+                    y: y - (index * 12),
+                    font: font,
+                    size: 10,
+                    color: taskColor
+                });
             });
+
             y -= neededHeight;
         });
         y -= 15;
