@@ -61,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
         setDropdownOpen(false);
     };
 
-    const isReservasActive = ['plano', 'calendario', 'agenda', 'detalles'].includes(currentView);
+    const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles'].includes(currentView);
     const isTurnosActive = currentView === 'turnos';
     const isServiciosActive = currentView === 'servicios';
 
@@ -84,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 <button
                                     onClick={() => setDropdownOpen(prev => !prev)}
                                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                                        isReservasActive
+                                        isAgendaMenuActive
                                             ? 'bg-orange-600 text-white'
                                             : 'text-gray-300 hover:bg-white/10 hover:text-white'
                                     }`}
@@ -92,7 +92,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                     aria-expanded={isDropdownOpen}
                                 >
                                     <LayoutIcon className="h-5 w-5" />
-                                    <span className="hidden sm:inline">Reservas</span>
+                                    <span className="hidden sm:inline">Agenda</span>
                                     <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 {isDropdownOpen && (
