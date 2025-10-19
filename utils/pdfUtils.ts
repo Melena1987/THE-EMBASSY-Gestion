@@ -1,3 +1,7 @@
+import type { ShiftAssignment, Bookings, ConsolidatedBooking } from '../types';
+import { getDefaultDailyShift } from './shiftUtils';
+import { consolidateBookingsForDay } from './bookingUtils';
+
 // A global map to store promises for script loading, preventing duplicate script tags.
 const scriptPromises: Record<string, Promise<void>> = {};
 
@@ -43,11 +47,30 @@ export const ensurePdfLibsLoaded = async (): Promise<boolean> => {
     }
 };
 
-import type { ShiftAssignment } from '../types';
-import { getDefaultDailyShift } from './shiftUtils';
+const wrapText = (text: string, font: any, fontSize: number, maxWidth: number): string[] => {
+    const lines: string[] = [];
+    if (!text) return lines;
+    
+    const paragraphs = text.split('\n');
+    for (const p of paragraphs) {
+        let currentLine = '';
+        const words = p.split(' ');
+        for (const word of words) {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            if (font.widthOfTextAtSize(testLine, fontSize) < maxWidth) {
+                currentLine = testLine;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+    }
+    return lines;
+};
 
 /**
- * Generates and downloads a PDF document for the weekly shifts using pdf-lib.
+ * Generates and downloads a visually improved PDF document for the weekly shifts.
  * @param weekNumber The week number.
  * @param year The year.
  * @param weekDays An array of Date objects for the week.
@@ -71,7 +94,7 @@ export const generateShiftsPDF = async (
     const orange = rgb(230 / 255, 126 / 255, 34 / 255);
     const grey = rgb(0.6, 0.6, 0.6);
     const black = rgb(0.1, 0.1, 0.1);
-    const headerFill = rgb(55/255, 65/255, 81/255);
+    const headerFill = rgb(42/255, 52/255, 65/255);
     const headerColor = rgb(0.95, 0.95, 0.95);
     const morningFill = rgb(255/255, 249/255, 230/255);
     const eveningFill = rgb(229/255, 239/255, 255/255);
@@ -79,20 +102,20 @@ export const generateShiftsPDF = async (
     let y = height - 40;
 
     page.drawText(`Horario Semanal - Semana ${weekNumber}`, {
-        x: 50, y, font: boldFont, size: 18, color: orange,
+        x: 50, y, font: boldFont, size: 20, color: orange,
     });
     y -= 20;
 
     const dateRange = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
     page.drawText(dateRange, {
-        x: 50, y, font: font, size: 11, color: grey,
+        x: 50, y, font: font, size: 12, color: grey,
     });
-    y -= 30;
+    y -= 40;
 
     const tableTop = y;
     const leftMargin = 50;
     const tableWidth = width - 100;
-    const colWidths = [130, 80, 120, 120];
+    const colWidths = [120, 80, 150, 150];
     const rowHeight = 22;
     const header = ['Día', 'Turno', 'Personal', 'Horario'];
 
@@ -101,69 +124,66 @@ export const generateShiftsPDF = async (
     });
     let currentX = leftMargin;
     header.forEach((text, i) => {
-        page.drawText(text, { x: currentX + 5, y: y - 15, font: boldFont, size: 10, color: headerColor });
+        page.drawText(text, { x: currentX + 10, y: y - 15, font: boldFont, size: 11, color: headerColor });
         currentX += colWidths[i];
     });
     y -= rowHeight;
 
-    const tableData = weekDays.flatMap((day, dayIndex) => {
-        const effectiveShifts = currentShifts.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentShifts.morning, currentShifts.evening);
+    weekDays.forEach((day, dayIndex) => {
         const dayString = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
-        return [
-            [dayString, 'Mañana', effectiveShifts.morning.active ? effectiveShifts.morning.worker : 'Cerrado', effectiveShifts.morning.active ? `${effectiveShifts.morning.start} - ${effectiveShifts.morning.end}` : '-'],
-            ['', 'Tarde', effectiveShifts.evening.active ? effectiveShifts.evening.worker : 'Cerrado', effectiveShifts.evening.active ? `${effectiveShifts.evening.start} - ${effectiveShifts.evening.end}` : '-']
-        ];
-    });
+        const effectiveShifts = currentShifts.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentShifts.morning, currentShifts.evening);
 
-    tableData.forEach((row, rowIndex) => {
-        const isMorning = rowIndex % 2 === 0;
-        const fillColor = isMorning ? morningFill : eveningFill;
-        page.drawRectangle({ x: leftMargin + colWidths[0], y: y - rowHeight, width: colWidths[1], height: rowHeight, color: fillColor });
-        
-        currentX = leftMargin;
-        row.forEach((cell, cellIndex) => {
-            const cellFont = (cellIndex === 0 && isMorning) ? boldFont : font;
-            page.drawText(String(cell), { x: currentX + 5, y: y - 15, font: cellFont, size: 9, color: black });
-            currentX += colWidths[cellIndex];
+        const morningRow = ['Mañana', effectiveShifts.morning.active ? effectiveShifts.morning.worker : 'Cerrado', effectiveShifts.morning.active ? `${effectiveShifts.morning.start} - ${effectiveShifts.morning.end}` : '-'];
+        const eveningRow = ['Tarde', effectiveShifts.evening.active ? effectiveShifts.evening.worker : 'Cerrado', effectiveShifts.evening.active ? `${effectiveShifts.evening.start} - ${effectiveShifts.evening.end}` : '-'];
+
+        // Backgrounds
+        page.drawRectangle({ x: leftMargin, y: y - (rowHeight * 2), width: tableWidth, height: rowHeight * 2, color: rgb(1,1,1) });
+        page.drawRectangle({ x: leftMargin, y: y - rowHeight, width: tableWidth, height: rowHeight, color: morningFill });
+        page.drawRectangle({ x: leftMargin, y: y - (rowHeight * 2), width: tableWidth, height: rowHeight, color: eveningFill });
+
+        // Merged Day Cell
+        page.drawText(dayString, { x: leftMargin + 10, y: y - rowHeight - 5, font: boldFont, size: 10, color: black });
+
+        // Morning Row
+        currentX = leftMargin + colWidths[0];
+        morningRow.forEach((cell, i) => {
+            page.drawText(String(cell), { x: currentX + 10, y: y - 15, font: font, size: 10, color: black });
+            currentX += colWidths[i + 1];
         });
-        page.drawLine({ start: { x: leftMargin, y: y - rowHeight }, end: { x: leftMargin + tableWidth, y: y - rowHeight }, thickness: 0.5, color: grey });
-        y -= rowHeight;
+        
+        // Evening Row
+        currentX = leftMargin + colWidths[0];
+        eveningRow.forEach((cell, i) => {
+            page.drawText(String(cell), { x: currentX + 10, y: y - rowHeight - 15, font: font, size: 10, color: black });
+            currentX += colWidths[i + 1];
+        });
+
+        // Horizontal line
+        page.drawLine({ start: { x: leftMargin, y: y - (rowHeight * 2) }, end: { x: leftMargin + tableWidth, y: y - (rowHeight * 2) }, thickness: 0.5, color: grey });
+
+        y -= (rowHeight * 2);
     });
 
+    // Vertical Lines
     currentX = leftMargin;
     [...colWidths, 0].forEach((w, i) => {
         if (i <= colWidths.length) {
-            page.drawLine({ start: { x: currentX, y: tableTop }, end: { x: currentX, y: y + rowHeight }, thickness: 0.5, color: grey });
+            page.drawLine({ start: { x: currentX, y: tableTop }, end: { x: currentX, y: y + (rowHeight * 2) }, thickness: 0.5, color: grey });
             currentX += w;
         }
     });
 
-    if (currentShifts.observations) {
+    if (currentShifts.observations && y > 100) {
+        y -= 30;
+        page.drawText('Observaciones:', { x: leftMargin, y, font: boldFont, size: 14, color: orange });
         y -= 25;
-        page.drawText('Observaciones:', { x: leftMargin, y, font: boldFont, size: 12, color: orange });
-        y -= 20;
 
-        const text = currentShifts.observations;
-        const maxWidth = tableWidth;
-        const fontSize = 10;
-        const paragraphs = text.split('\n');
-        
-        for (const p of paragraphs) {
-            let currentLine = '';
-            const words = p.split(' ');
-            for (const word of words) {
-                const testLine = currentLine ? `${currentLine} ${word}` : word;
-                if (font.widthOfTextAtSize(testLine, fontSize) < maxWidth) {
-                    currentLine = testLine;
-                } else {
-                    page.drawText(currentLine, { x: leftMargin, y, font, size: fontSize, color: black });
-                    y -= (fontSize * 1.2);
-                    currentLine = word;
-                }
-            }
-            page.drawText(currentLine, { x: leftMargin, y, font, size: fontSize, color: black });
-            y -= (fontSize * 1.2);
-        }
+        const lines = wrapText(currentShifts.observations, font, 10, tableWidth);
+        lines.forEach(line => {
+            if (y < 40) return;
+            page.drawText(line, { x: leftMargin, y, font, size: 10, color: black });
+            y -= 14;
+        });
     }
 
     const pdfBytes = await pdfDoc.save();
@@ -171,6 +191,202 @@ export const generateShiftsPDF = async (
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `Turnos_Semana_${weekNumber}_${year}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+};
+
+
+export const generateCalendarPDF = async (
+    daysInMonth: Date[],
+    currentMonth: Date,
+    bookings: Bookings
+) => {
+    const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
+    
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const orange = rgb(230 / 255, 126 / 255, 34 / 255);
+    const grey = rgb(0.6, 0.6, 0.6);
+    const lightGrey = rgb(0.85, 0.85, 0.85);
+    const black = rgb(0.1, 0.1, 0.1);
+    
+    const margin = 40;
+    let y = height - margin;
+
+    const monthName = currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+    page.drawText(monthName.toUpperCase(), {
+        x: margin, y, font: boldFont, size: 24, color: orange,
+    });
+    y -= 40;
+
+    const tableTop = y;
+    const tableWidth = width - (margin * 2);
+    const colWidth = tableWidth / 7;
+    const dayHeaders = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    // Draw day headers
+    dayHeaders.forEach((header, i) => {
+        page.drawText(header, { x: margin + (i * colWidth) + 5, y: y - 15, font: boldFont, size: 10, color: black });
+    });
+    y -= 25;
+    
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: grey });
+    
+    const numWeeks = Math.ceil(daysInMonth.length / 7);
+    const rowHeight = (y - margin) / numWeeks;
+    
+    daysInMonth.forEach((day, index) => {
+        const weekIndex = Math.floor(index / 7);
+        const dayIndex = index % 7;
+        
+        const x = margin + (dayIndex * colWidth);
+        const cellY = y - (weekIndex * rowHeight);
+
+        const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+        const dayColor = isCurrentMonth ? black : grey;
+
+        // Draw day number
+        page.drawText(String(day.getDate()), { x: x + 5, y: cellY - 15, font: boldFont, size: 12, color: dayColor });
+
+        // Draw bookings
+        if (isCurrentMonth) {
+            const dayBookings = consolidateBookingsForDay(bookings, day);
+            let bookingY = cellY - 30;
+            const bookingFontSize = 6;
+            const bookingLineHeight = 8;
+            
+            dayBookings.forEach(booking => {
+                if (bookingY < cellY - rowHeight + 10) return;
+                const bookingText = `${booking.startTime} ${booking.details.name}`;
+                const lines = wrapText(bookingText, font, bookingFontSize, colWidth - 10);
+                
+                lines.forEach(line => {
+                    if (bookingY < cellY - rowHeight + 10) return;
+                    page.drawText(line, { x: x + 5, y: bookingY, font, size: bookingFontSize, color: black });
+                    bookingY -= bookingLineHeight;
+                });
+            });
+        }
+    });
+
+    // Draw grid lines
+    for (let i = 0; i <= numWeeks; i++) {
+        page.drawLine({ start: { x: margin, y: y - (i * rowHeight) }, end: { x: width - margin, y: y - (i * rowHeight) }, thickness: 0.5, color: lightGrey });
+    }
+    for (let i = 0; i <= 7; i++) {
+        page.drawLine({ start: { x: margin + (i * colWidth), y: tableTop }, end: { x: margin + (i * colWidth), y: y - (numWeeks * rowHeight) }, thickness: 0.5, color: lightGrey });
+    }
+    
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Calendario_${monthName.replace(' ', '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+};
+
+export const generateAgendaPDF = async (
+    weekNumber: number,
+    weekDays: Date[],
+    bookings: Bookings
+) => {
+    const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
+    
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+    const orange = rgb(230 / 255, 126 / 255, 34 / 255);
+    const grey = rgb(0.6, 0.6, 0.6);
+    const black = rgb(0.1, 0.1, 0.1);
+
+    const margin = 50;
+    let y = height - margin;
+
+    const checkY = (requiredHeight: number) => {
+        if (y < margin + requiredHeight) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+        }
+    };
+    
+    checkY(50);
+    page.drawText(`Agenda Semanal - Semana ${weekNumber}`, {
+        x: margin, y, font: boldFont, size: 20, color: orange,
+    });
+    y -= 20;
+
+    const dateRange = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    page.drawText(dateRange, {
+        x: margin, y, font: font, size: 12, color: grey,
+    });
+    y -= 30;
+
+    for (const day of weekDays) {
+        const dayBookings = consolidateBookingsForDay(bookings, day);
+        if (dayBookings.length === 0) continue;
+        
+        checkY(40);
+        y -= 10;
+        page.drawText(day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }), {
+            x: margin, y, font: boldFont, size: 16, color: black
+        });
+        y -= 25;
+        
+        page.drawLine({ start: { x: margin, y: y + 10 }, end: { x: width - margin, y: y + 10 }, thickness: 0.5, color: grey });
+
+        for (const booking of dayBookings) {
+            const bookingHeight = 40 + (booking.details.observations ? 30 : 0);
+            checkY(bookingHeight);
+
+            page.drawText(`${booking.startTime} - ${booking.endTime}`, {
+                x: margin, y, font: boldFont, size: 12, color: orange
+            });
+            y -= 20;
+
+            page.drawText(`${booking.details.name}`, {
+                x: margin + 10, y, font: boldFont, size: 11, color: black
+            });
+            y -= 16;
+            
+            page.drawText(`Espacio: ${booking.space}`, {
+                x: margin + 10, y, font: font, size: 10, color: black
+            });
+            y -= 16;
+
+            if (booking.details.observations) {
+                const obsLines = wrapText(booking.details.observations, italicFont, 9, width - (margin * 2) - 10);
+                checkY(obsLines.length * 12);
+                page.drawText('Obs:', { x: margin + 10, y, font: italicFont, size: 9, color: grey });
+
+                obsLines.forEach(line => {
+                    page.drawText(line, { x: margin + 40, y, font: italicFont, size: 9, color: black });
+                    y -= 12;
+                });
+            }
+             y -= 10;
+        }
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Agenda_Semana_${weekNumber}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

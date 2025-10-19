@@ -5,7 +5,7 @@ import { getWeekData } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
-import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
+import { ensurePdfLibsLoaded, generateShiftsPDF, generateAgendaPDF } from '../utils/pdfUtils';
 
 interface AgendaViewProps {
     bookings: Bookings;
@@ -17,7 +17,8 @@ interface AgendaViewProps {
 }
 
 const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments }) => {
-    const [isDownloading, setIsDownloading] = useState(false);
+    const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
+    const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
     const weekDays = useMemo(() => {
         const startOfWeek = new Date(selectedDate);
@@ -50,14 +51,23 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         onDateChange(newDate);
     };
 
-    const handleDownloadPDF = async () => {
-        setIsDownloading(true);
+    const handleDownloadShiftsPDF = async () => {
+        setIsDownloadingShifts(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
             await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts);
         }
-        setIsDownloading(false);
+        setIsDownloadingShifts(false);
     };
+
+    const handleDownloadAgendaPDF = async () => {
+        setIsDownloadingAgenda(true);
+        const loaded = await ensurePdfLibsLoaded();
+        if (loaded) {
+            await generateAgendaPDF(weekNumber, weekDays, bookings);
+        }
+        setIsDownloadingAgenda(false);
+    }
     
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -71,16 +81,25 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         </span>
                     </h2>
                      <div className="flex items-center gap-2">
-                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente Semana &gt;</button>
                         <button
-                            onClick={handleDownloadPDF}
-                            disabled={isDownloading}
-                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
-                            title="Descargar horario semanal en PDF"
+                            onClick={handleDownloadAgendaPDF}
+                            disabled={isDownloadingAgenda}
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar agenda de reservas en PDF"
                         >
                             <DownloadIcon className="w-5 h-5" />
-                            <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF'}</span>
+                            <span className="hidden sm:inline">{isDownloadingAgenda ? 'Generando...' : 'PDF Agenda'}</span>
                         </button>
+                        <button
+                            onClick={handleDownloadShiftsPDF}
+                            disabled={isDownloadingShifts}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar horario de turnos en PDF"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">{isDownloadingShifts ? 'Generando...' : 'PDF Turnos'}</span>
+                        </button>
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
                     </div>
                 </div>
                  <div className="text-center bg-black/20 p-3 rounded-md grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -6,7 +6,7 @@ import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
-import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
+import { ensurePdfLibsLoaded, generateCalendarPDF } from '../utils/pdfUtils';
 
 
 interface CalendarViewProps {
@@ -21,21 +21,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
-    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-    const startDate = new Date(startOfMonth);
-    const dayOfWeek = startDate.getDay(); // 0 for Sunday, 1 for Monday
-    const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Calculate offset to make Monday the first day
-    startDate.setDate(startDate.getDate() - offset);
-
-
-    const days = [];
-    let day = startDate;
-    // Ensure the grid always has 6 weeks for consistent height
-    while (days.length < 42) {
-        days.push(new Date(day));
-        day.setDate(day.getDate() + 1);
-    }
+    const days = useMemo(() => {
+        const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const dayOfWeek = startOfMonth.getDay();
+        const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        
+        const startDate = new Date(startOfMonth);
+        startDate.setDate(startDate.getDate() - offset);
+        
+        const calendarDays = [];
+        let day = startDate;
+        while (calendarDays.length < 42) {
+            calendarDays.push(new Date(day));
+            day.setDate(day.getDate() + 1);
+        }
+        return calendarDays;
+    }, [currentMonth]);
     
     const weeks = useMemo(() => {
         const weekChunks = [];
@@ -60,37 +61,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         setView('agenda');
     };
 
-    const handleDownloadSelectedWeekPDF = async () => {
+    const handleDownloadCalendarPDF = async () => {
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
-        if (!loaded) {
-            setIsDownloading(false);
-            return;
+        if (loaded) {
+            await generateCalendarPDF(days, currentMonth, bookings);
         }
-
-        // Calculate week data for the selected date
-        const startOfWeek = new Date(selectedDate);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Adjust to make Monday the first day
-        startOfWeek.setDate(diff);
-        
-        const weekDaysForPDF = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(startOfWeek);
-            date.setDate(startOfWeek.getDate() + i);
-            return date;
-        });
-
-        const { week: weekNumber, year } = getWeekData(selectedDate);
-        const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
-
-        const isEvenWeek = weekNumber % 2 === 0;
-        const defaultMorning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-        const defaultEvening = defaultMorning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
-        const defaultAssignments = { morning: defaultMorning, evening: defaultEvening };
-
-        const weeklyShifts = shiftAssignments[weekId] || defaultAssignments;
-
-        await generateShiftsPDF(weekNumber, year, weekDaysForPDF, weeklyShifts);
         setIsDownloading(false);
     };
 
@@ -103,13 +79,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                 </h2>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={handleDownloadSelectedWeekPDF}
+                        onClick={handleDownloadCalendarPDF}
                         disabled={isDownloading}
                         className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
-                        title="Descargar horario de la semana seleccionada en PDF"
+                        title="Descargar calendario del mes en PDF"
                     >
                         <DownloadIcon className="w-5 h-5" />
-                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Semana'}</span>
+                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Calendario'}</span>
                     </button>
                     <button onClick={() => changeMonth(1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&gt;</button>
                 </div>
