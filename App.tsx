@@ -1,12 +1,10 @@
-
-
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task, Sponsors, Sponsor } from './types';
-import { TIME_SLOTS, SPACES, WORKERS } from './constants';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task, Sponsors, Sponsor, AggregatedTask, TaskSourceCollection } from './types';
+import { TIME_SLOTS, SPACES, WORKERS, USER_EMAIL_MAP } from './constants';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
@@ -32,6 +30,7 @@ const App: React.FC = () => {
     
     const [user, setUser] = useState<User | null>(null);
     const [userRole, setUserRole] = useState<UserRole>(null);
+    const [currentUserName, setCurrentUserName] = useState<string | null>(null);
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
     const [isInitialSetupDone, setIsInitialSetupDone] = useState(false);
 
@@ -51,12 +50,13 @@ const App: React.FC = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setIsLoadingAuth(true);
-            if (currentUser) {
+            if (currentUser && currentUser.email) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
                     const role = userDocSnap.data().role as UserRole;
                     setUserRole(role);
+                    setCurrentUserName(USER_EMAIL_MAP[currentUser.email.toLowerCase()] || null);
                     setUser(currentUser);
 
                     if (!isInitialSetupDone) {
@@ -80,11 +80,13 @@ const App: React.FC = () => {
                 } else {
                     console.error("No role document found for user:", currentUser.uid);
                     setUserRole(null);
+                    setCurrentUserName(null);
                     setUser(null);
                     await signOut(auth); // Sign out user if no role is found
                 }
             } else {
                 setUser(null);
+                setCurrentUserName(null);
                 setUserRole(null);
             }
             setIsLoadingAuth(false);
@@ -157,6 +159,50 @@ const App: React.FC = () => {
             unsubscribeSponsors();
         };
     }, [user]);
+
+    const myPendingTasks = useMemo((): AggregatedTask[] => {
+        if (!currentUserName) return [];
+
+        const allTasks: AggregatedTask[] = [];
+
+        // Shift Tasks
+        // FIX: Explicitly cast the result of Object.entries to resolve type inference issues where `assignment` was being inferred as `unknown`.
+        for (const [weekId, assignment] of Object.entries(shiftAssignments) as [string, ShiftAssignment][]) {
+            if (assignment.tasks) {
+                assignment.tasks.forEach(task => {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                        allTasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: weekId, sourceName: `Turnos (Semana ${weekId.split('-')[1]})` });
+                    }
+                });
+            }
+        }
+
+        // Special Event Tasks
+        // FIX: Explicitly cast the result of Object.values to resolve type inference issues where `event` was being inferred as `unknown`.
+        for (const event of Object.values(specialEvents) as SpecialEvent[]) {
+            if (event.tasks) {
+                event.tasks.forEach(task => {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                        allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: event.id, sourceName: `Evento: ${event.name}` });
+                    }
+                });
+            }
+        }
+
+        // Sponsor Tasks
+        // FIX: Explicitly cast the result of Object.values to resolve type inference issues where `sponsor` was being inferred as `unknown`.
+        for (const sponsor of Object.values(sponsors) as Sponsor[]) {
+            if (sponsor.tasks) {
+                sponsor.tasks.forEach(task => {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                        allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: sponsor.id, sourceName: `Patrocinador: ${sponsor.name}` });
+                    }
+                });
+            }
+        }
+
+        return allTasks;
+    }, [currentUserName, shiftAssignments, specialEvents, sponsors]);
 
     const handleLogout = async () => {
         try {
@@ -324,33 +370,16 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
-    const handleToggleTaskCompletion = useCallback(async (weekId: string, taskId: string, collectionName: 'shiftAssignments' | 'specialEvents' = 'shiftAssignments') => {
+    const handleToggleTask = useCallback(async (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => {
         if (!user) return;
-
-        const stateUpdater = collectionName === 'shiftAssignments' ? setShiftAssignments : setSpecialEvents;
-
-        // Optimistically update the UI for instant feedback
-        stateUpdater(prevState => {
-            const newState = { ...prevState };
-            const docToUpdate = newState[weekId];
-            if (docToUpdate && docToUpdate.tasks) {
-                const newTasks = docToUpdate.tasks.map(task => 
-                    task.id === taskId ? { ...task, completed: !task.completed } : task
-                );
-                newState[weekId] = { ...docToUpdate, tasks: newTasks };
-                return newState;
-            }
-            return prevState;
-        });
-
-        const docRef = doc(db, collectionName, weekId);
+        const docRef = doc(db, collectionName, sourceId);
         try {
             await runTransaction(db, async (transaction) => {
                 const docSnap = await transaction.get(docRef);
                 if (!docSnap.exists()) {
                     throw new Error("No se encontró el documento para actualizar la tarea.");
                 }
-                const currentData = docSnap.data() as (ShiftAssignment | SpecialEvent);
+                const currentData = docSnap.data() as (ShiftAssignment | SpecialEvent | Sponsor);
                 const updatedTasks = currentData.tasks?.map(task => 
                     task.id === taskId ? { ...task, completed: !task.completed } : task
                 );
@@ -360,22 +389,8 @@ const App: React.FC = () => {
                 }
             });
         } catch (error) {
-            console.error("Error al actualizar la tarea, revirtiendo cambio:", error);
+            console.error("Error al actualizar la tarea:", error);
             alert(`No se pudo actualizar el estado de la tarea. ${error instanceof Error ? error.message : ''}`);
-            
-            // Revert the optimistic update on error
-            stateUpdater(prevState => {
-                const newState = { ...prevState };
-                const docToUpdate = newState[weekId];
-                if (docToUpdate && docToUpdate.tasks) {
-                    const revertedTasks = docToUpdate.tasks.map(task => 
-                        task.id === taskId ? { ...task, completed: !task.completed } : task // Toggle back
-                    );
-                    newState[weekId] = { ...docToUpdate, tasks: revertedTasks };
-                    return newState;
-                }
-                return prevState;
-            });
         }
     }, [user]);
 
@@ -638,7 +653,7 @@ const App: React.FC = () => {
             case 'calendario':
                 return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTaskCompletion} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
+                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'detalles':
                  if (selectedBooking) {
                     return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={!canEditBookings} />;
@@ -651,7 +666,7 @@ const App: React.FC = () => {
                     selectedDate={selectedDate} 
                     onDateChange={setSelectedDate} 
                     onUpdateShifts={handleUpdateShifts}
-                    onToggleTask={handleToggleTaskCompletion}
+                    onToggleTask={handleToggleTask}
                     onResetWeekShifts={handleResetWeekShifts}
                     isReadOnly={!canEditShifts}
                 />;
@@ -683,7 +698,7 @@ const App: React.FC = () => {
                             onBack={() => { setView('agenda'); setSelectedSpecialEvent(null); }}
                             onEdit={() => setView('eventos')}
                             onDelete={handleDeleteSpecialEvent}
-                            onToggleTask={(taskId) => handleToggleTaskCompletion(currentEventData.id, taskId, 'specialEvents')}
+                            onToggleTask={handleToggleTask}
                             canEdit={canEditSpecialEvents}
                         />;
                     }
@@ -694,6 +709,7 @@ const App: React.FC = () => {
                     sponsors={sponsors}
                     onUpdateSponsor={handleUpdateSponsor}
                     onAddSponsor={handleAddSponsor}
+                    onToggleTask={handleToggleTask}
                     isReadOnly={!canManageSponsors}
                  />;
             default:
@@ -703,7 +719,15 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen text-gray-100 flex flex-col">
-            <Header currentView={view} setView={setView} userEmail={user.email} userRole={userRole} onLogout={handleLogout} />
+            <Header 
+                currentView={view} 
+                setView={setView} 
+                userEmail={user.email} 
+                userRole={userRole} 
+                onLogout={handleLogout}
+                pendingTasks={myPendingTasks}
+                onToggleTask={handleToggleTask}
+            />
             <main className="flex-grow p-4 sm:p-6 md:p-8">
                 {renderView()}
             </main>

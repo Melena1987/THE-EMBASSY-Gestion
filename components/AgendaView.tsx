@@ -1,9 +1,5 @@
-
-
-
-
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task } from '../types';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
@@ -23,7 +19,7 @@ interface AgendaViewProps {
     shiftAssignments: ShiftAssignments;
     specialEvents: SpecialEvents;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
-    onToggleTask: (weekId: string, taskId: string, collectionName?: 'shiftAssignments' | 'specialEvents') => void;
+    onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
 }

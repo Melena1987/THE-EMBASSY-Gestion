@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent } from '../types';
+import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection } from '../types';
 import { WORKERS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
@@ -19,7 +19,7 @@ interface ShiftsViewProps {
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
-    onToggleTask: (weekId: string, taskId: string, collectionName?: 'shiftAssignments' | 'specialEvents') => void;
+    onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
 }

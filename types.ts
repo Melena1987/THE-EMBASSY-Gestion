@@ -85,3 +85,11 @@ export interface Sponsor {
   observations?: string;
 }
 export type Sponsors = Record<string, Sponsor>; // Key is the sponsor ID
+
+export type TaskSourceCollection = 'shiftAssignments' | 'specialEvents' | 'sponsors';
+
+export interface AggregatedTask extends Task {
+  sourceCollection: TaskSourceCollection;
+  sourceId: string;
+  sourceName: string;
+}

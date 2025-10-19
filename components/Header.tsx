@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { View, UserRole } from '../types';
+import type { View, UserRole, AggregatedTask, TaskSourceCollection } from '../types';
 import CalendarIcon from './icons/CalendarIcon';
 import LayoutIcon from './icons/LayoutIcon';
 import ListIcon from './icons/ListIcon';
@@ -11,6 +11,8 @@ import BriefcaseIcon from './icons/BriefcaseIcon';
 import LogoutIcon from './icons/LogoutIcon';
 import StarIcon from './icons/StarIcon';
 import HeartIcon from './icons/HeartIcon';
+import BellIcon from './icons/BellIcon';
+import TasksDropdown from './TasksDropdown';
 
 interface HeaderProps {
     currentView: View;
@@ -18,6 +20,8 @@ interface HeaderProps {
     userEmail: string | null;
     userRole: UserRole;
     onLogout: () => void;
+    pendingTasks: AggregatedTask[];
+    onToggleTask: (sourceId: string, taskId: string, collection: TaskSourceCollection) => void;
 }
 
 const DropdownItem: React.FC<{
@@ -41,14 +45,19 @@ const DropdownItem: React.FC<{
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout }) => {
-    const [isDropdownOpen, setDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, onToggleTask }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isTasksOpen, setIsTasksOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const tasksRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setDropdownOpen(false);
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+            if (tasksRef.current && !tasksRef.current.contains(event.target as Node)) {
+                setIsTasksOpen(false);
             }
         };
 
@@ -60,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
     const handleViewChange = (view: View) => {
         setView(view);
-        setDropdownOpen(false);
+        setIsMenuOpen(false);
     };
 
     const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
@@ -82,23 +91,44 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                             <p className="text-sm font-medium text-white">{userEmail}</p>
                             <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
                         </div>
-                        <nav className="flex items-center space-x-2 sm:space-x-4">
-                           <div className="relative" ref={dropdownRef}>
+                        <nav className="flex items-center space-x-1 sm:space-x-2">
+                           <div className="relative" ref={tasksRef}>
                                 <button
-                                    onClick={() => setDropdownOpen(prev => !prev)}
+                                    onClick={() => setIsTasksOpen(prev => !prev)}
+                                    className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                    title="Mis Tareas Pendientes"
+                                >
+                                    <BellIcon className="h-5 w-5" />
+                                    {pendingTasks.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                                            {pendingTasks.length}
+                                        </span>
+                                    )}
+                                </button>
+                                {isTasksOpen && (
+                                    <TasksDropdown 
+                                        tasks={pendingTasks} 
+                                        onToggleTask={onToggleTask} 
+                                        onClose={() => setIsTasksOpen(false)}
+                                    />
+                                )}
+                            </div>
+                           <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setIsMenuOpen(prev => !prev)}
                                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                                         isAgendaMenuActive
                                             ? 'bg-orange-600 text-white'
                                             : 'text-gray-300 hover:bg-white/10 hover:text-white'
                                     }`}
                                     aria-haspopup="true"
-                                    aria-expanded={isDropdownOpen}
+                                    aria-expanded={isMenuOpen}
                                 >
                                     <LayoutIcon className="h-5 w-5" />
                                     <span className="hidden sm:inline">Agenda</span>
-                                    <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                    <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
-                                {isDropdownOpen && (
+                                {isMenuOpen && (
                                     <div 
                                         className="absolute right-0 mt-2 w-56 origin-top-right bg-black/50 backdrop-blur-xl border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
                                         role="menu"

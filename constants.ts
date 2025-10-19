@@ -16,6 +16,16 @@ export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso'];
 
 export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
 
+export const USER_EMAIL_MAP: Record<string, string> = {
+    'daniel.l@theembassytc.com': 'Dani',
+    'mescobar@theembassytc.com': 'Manolo',
+    'olga.duran@theembassytc.com': 'Olga',
+    'berni@theembassytc.com': 'Berni',
+    'alfonso@theembassytc.com': 'Alfonso',
+    'eventos@theembassytc.com': 'Yiyi',
+    'manu@theembassytc.com': 'Manu' // Assuming Manu's email for completeness
+};
+
 export const TIME_SLOTS: string[] = [];
 // Generate time slots for the entire day in 30-minute intervals.
 for (let h = 0; h < 24; h++) {

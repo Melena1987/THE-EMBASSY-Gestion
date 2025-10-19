@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SpecialEvent } from '../types';
+import type { SpecialEvent, TaskSourceCollection } from '../types';
 import { SPACES } from '../constants';
 import TrashIcon from './icons/TrashIcon';
 import PencilIcon from './icons/PencilIcon';
@@ -11,7 +11,7 @@ interface SpecialEventDetailsViewProps {
     onBack: () => void;
     onEdit: () => void;
     onDelete: (event: SpecialEvent) => void;
-    onToggleTask: (taskId: string) => void;
+    onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     canEdit: boolean;
 }
 
@@ -81,7 +81,7 @@ const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event
                             {event.tasks.map(task => (
                                 <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                     <button
-                                        onClick={() => onToggleTask(task.id)}
+                                        onClick={() => onToggleTask(event.id, task.id, 'specialEvents')}
                                         className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${ task.completed ? 'bg-green-500 hover:bg-green-600' : 'border-2 border-gray-500 hover:bg-white/10' }`}
                                     >
                                         {task.completed && <CheckIcon className="w-3 h-3 text-white" />}

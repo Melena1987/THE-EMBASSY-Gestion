@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Sponsors, Sponsor, Task } from '../types';
+import type { Sponsors, Sponsor, Task, TaskSourceCollection } from '../types';
 import { SPONSOR_ASSIGNEES } from '../constants';
 import TrashIcon from './icons/TrashIcon';
 import PlusIcon from './icons/PlusIcon';
 import LinkIcon from './icons/LinkIcon';
+import CheckIcon from './icons/CheckIcon';
 
 interface SponsorsViewProps {
     sponsors: Sponsors;
     onUpdateSponsor: (sponsorId: string, newSponsorData: Sponsor) => void;
     onAddSponsor: (sponsorName: string) => Promise<string | null>;
+    onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     isReadOnly: boolean;
 }
 
-const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, onAddSponsor, isReadOnly }) => {
+const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, onAddSponsor, onToggleTask, isReadOnly }) => {
     const sponsorIds = Object.keys(sponsors);
     const [activeTab, setActiveTab] = useState<string | null>(null);
     const [newTaskText, setNewTaskText] = useState('');
@@ -43,7 +45,10 @@ const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, 
 
     const isDirty = useMemo(() => {
         if (!activeSponsor || !editingSponsor) return false;
-        return JSON.stringify(activeSponsor) !== JSON.stringify(editingSponsor);
+        // Compare everything except tasks, as they are handled separately
+        const { tasks: originalTasks, ...originalSponsor } = activeSponsor;
+        const { tasks: editingTasks, ...editingSponsorData } = editingSponsor;
+        return JSON.stringify(originalSponsor) !== JSON.stringify(editingSponsorData);
     }, [activeSponsor, editingSponsor]);
     
     const handleSaveChanges = () => {
@@ -69,22 +74,15 @@ const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, 
         }
     };
 
-    const handleUpdateTask = (updatedTasks: Task[]) => {
+    const handleUpdateSponsorTasks = (updatedTasks: Task[]) => {
         if (!activeSponsor) return;
         const updatedSponsor: Sponsor = { ...activeSponsor, tasks: updatedTasks };
         onUpdateSponsor(activeSponsor.id, updatedSponsor);
     };
 
-    const handleToggleTask = (taskId: string) => {
-        const updatedTasks = activeSponsor?.tasks?.map(task =>
-            task.id === taskId ? { ...task, completed: !task.completed } : task
-        ) || [];
-        handleUpdateTask(updatedTasks);
-    };
-    
     const handleDeleteTask = (taskId: string) => {
         const updatedTasks = activeSponsor?.tasks?.filter(task => task.id !== taskId) || [];
-        handleUpdateTask(updatedTasks);
+        handleUpdateSponsorTasks(updatedTasks);
     };
 
     const handleAddTask = () => {
@@ -99,7 +97,7 @@ const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, 
             completed: false,
         };
         const updatedTasks = [...(activeSponsor.tasks || []), newTask];
-        handleUpdateTask(updatedTasks);
+        handleUpdateSponsorTasks(updatedTasks);
         setNewTaskText('');
         setNewTaskAssignees([]);
     };
@@ -208,7 +206,9 @@ const SponsorsView: React.FC<SponsorsViewProps> = ({ sponsors, onUpdateSponsor, 
                                     {(editingSponsor.tasks || []).length > 0 ? (
                                         (editingSponsor.tasks || []).map(task => (
                                             <div key={task.id} className="flex items-center gap-3 p-2 bg-black/30 rounded-md">
-                                                <input type="checkbox" checked={task.completed} onChange={() => handleToggleTask(task.id)} className="h-5 w-5 rounded bg-black/40 border-white/30 text-orange-500 focus:ring-orange-500 cursor-pointer flex-shrink-0" disabled={isReadOnly}/>
+                                                <button onClick={() => onToggleTask(editingSponsor.id, task.id, 'sponsors')} disabled={isReadOnly} className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${ task.completed ? 'bg-green-500 hover:bg-green-600' : 'border-2 border-gray-500 hover:bg-white/10' }`}>
+                                                    {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
+                                                </button>
                                                 <span className={`flex-grow text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>{task.text}</span>
                                                 <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">{Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}</span>
                                                 {!isReadOnly && (<button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea"><TrashIcon className="w-4 h-4" /></button>)}
