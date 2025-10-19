@@ -56,3 +56,6 @@ export type ShiftAssignments = Record<string, ShiftAssignment>;
 
 // Key format: "YYYY-MM-DD"
 export type CleaningAssignments = Record<string, { startTime: string }>;
+
+// Key format: "YYYY-WW"
+export type CleaningObservations = Record<string, { observations: string }>;

@@ -1,4 +1,4 @@
-import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments } from '../types';
+import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments, CleaningObservations } from '../types';
 import { getDefaultDailyShift } from './shiftUtils';
 import { consolidateBookingsForDay } from './bookingUtils';
 
@@ -487,7 +487,7 @@ export const generateCalendarPDF = async (days: Date[], month: Date, bookings: B
     URL.revokeObjectURL(link.href);
 };
 
-export const generateCleaningPDF = async (weekNumber: number, year: number, weekDays: Date[], cleaningAssignments: CleaningAssignments) => {
+export const generateCleaningPDF = async (weekNumber: number, year: number, weekDays: Date[], cleaningAssignments: CleaningAssignments, cleaningObservation?: { observations: string }) => {
     const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
@@ -520,6 +520,28 @@ export const generateCleaningPDF = async (weekNumber: number, year: number, week
         page.drawText(assignment?.startTime || 'Sin asignar', { x: margin + colWidths[0] + 10, y: y - (rowHeight / 2) - 5, font: font, size: 11, color: assignment?.startTime ? rgb(0, 0, 0) : rgb(0.5, 0.5, 0.5) });
         y -= rowHeight;
     });
+
+    if (cleaningObservation?.observations) {
+        y -= 25;
+        page.drawText('Observaciones:', {
+            x: margin,
+            y: y,
+            font: fontBold,
+            size: 16,
+            color: rgb(0.96, 0.45, 0.09)
+        });
+        y -= 20;
+        
+        page.drawText(cleaningObservation.observations, {
+            x: margin,
+            y: y,
+            font: font,
+            size: 12,
+            lineHeight: 15,
+            color: rgb(0.2, 0.2, 0.2),
+            maxWidth: width - 2 * margin,
+        });
+    }
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });

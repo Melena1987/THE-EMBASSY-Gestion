@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole } from './types';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations } from './types';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
@@ -19,6 +19,7 @@ const App: React.FC = () => {
     const [bookings, setBookings] = useState<Bookings>({});
     const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
     const [cleaningAssignments, setCleaningAssignments] = useState<CleaningAssignments>({});
+    const [cleaningObservations, setCleaningObservations] = useState<CleaningObservations>({});
     
     const [user, setUser] = useState<User | null>(null);
     const [userRole, setUserRole] = useState<UserRole>(null);
@@ -93,11 +94,22 @@ const App: React.FC = () => {
             setCleaningAssignments(newAssignments);
         });
 
+        // Listener para observaciones de limpieza
+        const cleaningObsCol = collection(db, 'cleaningObservations');
+        const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot) => {
+            const newObservations: CleaningObservations = {};
+            snapshot.forEach((doc) => {
+                newObservations[doc.id] = doc.data() as { observations: string };
+            });
+            setCleaningObservations(newObservations);
+        });
+
         // Limpieza de listeners al desmontar el componente
         return () => {
             unsubscribeBookings();
             unsubscribeShifts();
             unsubscribeCleaning();
+            unsubscribeCleaningObs();
         };
     }, [user]);
 
@@ -310,6 +322,19 @@ const App: React.FC = () => {
             alert("No se pudo guardar la hora de limpieza.");
         }
     }, []);
+
+    const handleUpdateCleaningObservations = useCallback(async (weekId: string, observations: string) => {
+        try {
+            if (observations.trim()) {
+                await setDoc(doc(db, 'cleaningObservations', weekId), { observations });
+            } else {
+                await deleteDoc(doc(db, 'cleaningObservations', weekId));
+            }
+        } catch (error) {
+            console.error("Error al actualizar las observaciones de limpieza:", error);
+            alert("No se pudo guardar las observaciones de limpieza.");
+        }
+    }, []);
     
     if (isLoadingAuth) {
         return (
@@ -351,9 +376,11 @@ const App: React.FC = () => {
             case 'servicios':
                 return <ExternalServicesView
                     cleaningAssignments={cleaningAssignments}
+                    cleaningObservations={cleaningObservations}
                     selectedDate={selectedDate}
                     onDateChange={setSelectedDate}
                     onUpdateCleaningTime={handleUpdateCleaningTime}
+                    onUpdateCleaningObservations={handleUpdateCleaningObservations}
                 />;
             default:
                 return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={isReadOnly} />;

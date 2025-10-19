@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
 import CleaningSchedule from './CleaningSchedule';
-import type { CleaningAssignments } from '../types';
+import type { CleaningAssignments, CleaningObservations } from '../types';
 
 interface ExternalServicesViewProps {
     cleaningAssignments: CleaningAssignments;
+    cleaningObservations: CleaningObservations;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateCleaningTime: (date: Date, startTime: string) => void;
+    onUpdateCleaningObservations: (weekId: string, observations: string) => void;
 }
 
 const ExternalServicesView: React.FC<ExternalServicesViewProps> = (props) => {

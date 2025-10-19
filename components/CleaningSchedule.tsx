@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { CleaningAssignments } from '../types';
+import type { CleaningAssignments, CleaningObservations } from '../types';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import DownloadIcon from './icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateCleaningPDF } from '../utils/pdfUtils';
@@ -7,15 +7,19 @@ import TrashIcon from './icons/TrashIcon';
 
 interface CleaningScheduleProps {
     cleaningAssignments: CleaningAssignments;
+    cleaningObservations: CleaningObservations;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateCleaningTime: (date: Date, startTime: string) => void;
+    onUpdateCleaningObservations: (weekId: string, observations: string) => void;
 }
 
-const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments, selectedDate, onDateChange, onUpdateCleaningTime }) => {
+const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments, cleaningObservations, selectedDate, onDateChange, onUpdateCleaningTime, onUpdateCleaningObservations }) => {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
+    const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
+    const currentObservations = cleaningObservations[weekId]?.observations || '';
 
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
@@ -44,7 +48,7 @@ const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateCleaningPDF(weekNumber, year, weekDays, cleaningAssignments);
+            await generateCleaningPDF(weekNumber, year, weekDays, cleaningAssignments, cleaningObservations[weekId]);
         }
         setIsDownloading(false);
     };
@@ -105,6 +109,20 @@ const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments
                         </div>
                     );
                 })}
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                <label htmlFor="cleaningObservations" className="text-lg font-semibold text-orange-400 mb-2 block">
+                    Observaciones de Limpieza de la Semana
+                </label>
+                <textarea
+                    id="cleaningObservations"
+                    value={currentObservations}
+                    onChange={(e) => onUpdateCleaningObservations(weekId, e.target.value)}
+                    rows={4}
+                    placeholder="Anotaciones sobre la limpieza de la semana, productos necesarios, etc."
+                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y"
+                />
             </div>
         </div>
     );
