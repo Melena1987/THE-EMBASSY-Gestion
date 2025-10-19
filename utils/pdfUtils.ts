@@ -295,98 +295,165 @@ export const generateCalendarPDF = async (
     URL.revokeObjectURL(link.href);
 };
 
+const loadCustomFont = async (pdfDoc: any) => {
+    try {
+        const fontUrl = 'https://fonts.gstatic.com/s/orbitron/v25/yMJRMIlzdpvBhQQL_Qq7dy0.ttf';
+        const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+        const customFont = await pdfDoc.embedFont(fontBytes);
+
+        const boldFontUrl = 'https://fonts.gstatic.com/s/orbitron/v25/yMJZMIlzdpvBhQQL_QJSPP_9_g.ttf';
+        const boldFontBytes = await fetch(boldFontUrl).then(res => res.arrayBuffer());
+        const customBoldFont = await pdfDoc.embedFont(boldFontBytes);
+        
+        return { font: customFont, boldFont: customBoldFont };
+    } catch (e) {
+        console.error("Failed to load custom font, falling back to Helvetica.", e);
+        const { StandardFonts } = (window as any).PDFLib;
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        return { font, boldFont };
+    }
+}
+
+
 export const generateAgendaPDF = async (
     weekNumber: number,
+    year: number,
     weekDays: Date[],
     bookings: Bookings
 ) => {
-    const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
+    const { PDFDocument, rgb } = (window as any).PDFLib;
     
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
     
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-
-    const orange = rgb(230 / 255, 126 / 255, 34 / 255);
-    const grey = rgb(0.6, 0.6, 0.6);
-    const black = rgb(0.1, 0.1, 0.1);
+    const { font, boldFont } = await loadCustomFont(pdfDoc);
+    
+    const orange = rgb(0.9, 0.49, 0.13);
+    const darkGrey = rgb(0.2, 0.2, 0.2);
+    const mediumGrey = rgb(0.5, 0.5, 0.5);
+    const lightGrey = rgb(0.95, 0.95, 0.95);
 
     const margin = 50;
     let y = height - margin;
 
-    const checkY = (requiredHeight: number) => {
+    const checkY = (requiredHeight: number, newPageCallback = () => {}) => {
         if (y < margin + requiredHeight) {
             page = pdfDoc.addPage();
             y = height - margin;
+            newPageCallback();
         }
     };
-    
-    checkY(50);
-    page.drawText(`Agenda Semanal - Semana ${weekNumber}`, {
-        x: margin, y, font: boldFont, size: 20, color: orange,
-    });
-    y -= 20;
 
-    const dateRange = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-    page.drawText(dateRange, {
-        x: margin, y, font: font, size: 12, color: grey,
-    });
-    y -= 30;
+    const drawHeader = () => {
+        page.drawText('THE EMBASSY', {
+            x: margin, y, font: boldFont, size: 16, color: orange,
+        });
+        
+        const title = `Agenda Semanal - Semana ${weekNumber}`;
+        const titleWidth = boldFont.widthOfTextAtSize(title, 12);
+        page.drawText(title, {
+            x: width - margin - titleWidth, y: y + 4, font: boldFont, size: 12, color: darkGrey
+        });
+        
+        const dateRange = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        const dateRangeWidth = font.widthOfTextAtSize(dateRange, 9);
+        page.drawText(dateRange, {
+             x: width - margin - dateRangeWidth, y: y - 10, font: font, size: 9, color: mediumGrey,
+        });
+        y -= 40;
+    };
+
+    const drawFooter = () => {
+        const pageCount = pdfDoc.getPageCount();
+        for (let i = 0; i < pageCount; i++) {
+            const pdfPage = pdfDoc.getPage(i);
+            const generationDate = `Generado el ${new Date().toLocaleString('es-ES')}`;
+            const dateWidth = font.widthOfTextAtSize(generationDate, 8);
+            pdfPage.drawText(generationDate, {
+                x: margin, y: margin / 2, font: font, size: 8, color: mediumGrey,
+            });
+            const pageNumText = `Página ${i + 1} de ${pageCount}`;
+            const pageNumWidth = font.widthOfTextAtSize(pageNumText, 8);
+            pdfPage.drawText(pageNumText, {
+                x: width - margin - pageNumWidth, y: margin / 2, font: font, size: 8, color: mediumGrey,
+            });
+        }
+    };
+
+    drawHeader();
 
     for (const day of weekDays) {
         const dayBookings = consolidateBookingsForDay(bookings, day);
         if (dayBookings.length === 0) continue;
-        
-        checkY(40);
-        y -= 10;
-        page.drawText(day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }), {
-            x: margin, y, font: boldFont, size: 16, color: black
+
+        checkY(50, drawHeader);
+
+        y -= 15;
+        const dayHeaderText = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+        page.drawRectangle({
+            x: margin, y: y - 5, width: width - (margin * 2), height: 22, color: lightGrey
         });
-        y -= 25;
+        page.drawText(dayHeaderText, {
+            x: margin + 10, y, font: boldFont, size: 11, color: darkGrey
+        });
+        y -= 35;
         
-        page.drawLine({ start: { x: margin, y: y + 10 }, end: { x: width - margin, y: y + 10 }, thickness: 0.5, color: grey });
+        for (const [index, booking] of dayBookings.entries()) {
+            const obsLines = booking.details.observations ? wrapText(booking.details.observations, font, 9, width - (margin * 2) - 90) : [];
+            const bookingHeight = 35 + (obsLines.length * 12);
+            checkY(bookingHeight, drawHeader);
 
-        for (const booking of dayBookings) {
-            const bookingHeight = 40 + (booking.details.observations ? 30 : 0);
-            checkY(bookingHeight);
-
+            // Time Column
             page.drawText(`${booking.startTime} - ${booking.endTime}`, {
-                x: margin, y, font: boldFont, size: 12, color: orange
+                x: margin, y, font: boldFont, size: 10, color: orange
             });
-            y -= 20;
 
-            page.drawText(`${booking.details.name}`, {
-                x: margin + 10, y, font: boldFont, size: 11, color: black
+            // Details Column
+            const detailsX = margin + 80;
+            const detailsWidth = width - margin - detailsX;
+            page.drawText(booking.details.name, {
+                x: detailsX, y, font: boldFont, size: 10, color: darkGrey
             });
-            y -= 16;
             
+            y -= 14;
             page.drawText(`Espacio: ${booking.space}`, {
-                x: margin + 10, y, font: font, size: 10, color: black
+                x: detailsX, y, font: font, size: 9, color: mediumGrey
             });
-            y -= 16;
+            y -= 12;
 
             if (booking.details.observations) {
-                const obsLines = wrapText(booking.details.observations, italicFont, 9, width - (margin * 2) - 10);
-                checkY(obsLines.length * 12);
-                page.drawText('Obs:', { x: margin + 10, y, font: italicFont, size: 9, color: grey });
-
                 obsLines.forEach(line => {
-                    page.drawText(line, { x: margin + 40, y, font: italicFont, size: 9, color: black });
+                    page.drawText(line, { x: detailsX + 10, y, font: font, size: 9, color: mediumGrey });
                     y -= 12;
                 });
             }
-             y -= 10;
+            
+            y -= 8;
+            
+            // Dotted Separator
+            if (index < dayBookings.length - 1) {
+                 page.drawLine({
+                    start: { x: margin, y },
+                    end: { x: width - margin, y },
+                    thickness: 0.5,
+                    color: lightGrey,
+                    dashArray: [2, 2],
+                    dashPhase: 0,
+                });
+                y -= 10;
+            }
         }
     }
+    
+    drawFooter();
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `Agenda_Semana_${weekNumber}.pdf`;
+    link.download = `Agenda_Semana_${weekNumber}_${year}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

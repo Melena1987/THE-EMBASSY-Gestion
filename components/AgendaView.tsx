@@ -65,7 +65,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateAgendaPDF(weekNumber, weekDays, bookings);
+            // FIX: Pass the 'year' to generateAgendaPDF.
+            await generateAgendaPDF(weekNumber, year, weekDays, bookings);
         }
         setIsDownloadingAgenda(false);
     }
