@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SpecialEvent } from '../types';
-import { SPACES, WORKERS } from '../constants';
+import { SPACES } from '../constants';
 import TrashIcon from './icons/TrashIcon';
 import PencilIcon from './icons/PencilIcon';
 import CheckIcon from './icons/CheckIcon';
@@ -29,7 +29,10 @@ const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event
         ? formattedStartDate 
         : `Del ${formattedStartDate} al ${formattedEndDate}`;
 
-    const bookedSpacesNames = event.spaceIds?.map(id => SPACES.find(s => s.id === id)?.name || id).join(', ') || 'Ninguno';
+    const allSpaceIdsCount = SPACES.length;
+    const bookedSpacesNames = event.spaceIds && event.spaceIds.length > 0
+        ? (event.spaceIds.length === allSpaceIdsCount ? 'TODA LA INSTALACIÓN' : event.spaceIds.map(id => SPACES.find(s => s.id === id)?.name || id).join(', '))
+        : 'Ninguno';
     
     const posterUrl = event.posterUrl;
     const isImage = posterUrl && /\.(jpg|jpeg|png|gif|webp)$/i.test(posterUrl);

@@ -216,7 +216,6 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     const dayIndex = day.getDay() === 0 ? 6 : day.getDay() - 1;
                     const dailyOverride = shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
                     const dayBookings = consolidateBookingsForDay(bookings, day);
-                    // FIX: Explicitly type 'event' to resolve type inference issues.
                     const eventsForDay = Object.values(specialEvents).filter((event: SpecialEvent) => dayKey >= event.startDate && dayKey <= event.endDate);
                     
                     const defaultDailyShift = getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
@@ -250,7 +249,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 </div>
                             </div>
                             <div className="space-y-2 text-xs flex-grow">
-                                {eventsForDay.map(event => (
+                                {/* FIX: Explicitly type 'event' to resolve type inference issues. */}
+                                {eventsForDay.map((event: SpecialEvent) => (
                                     <button 
                                         key={event.id}
                                         onClick={() => onSelectSpecialEvent(event)}

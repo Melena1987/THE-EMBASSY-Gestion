@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -599,14 +600,17 @@ const App: React.FC = () => {
                 />;
             case 'detalles_evento':
                 if (selectedSpecialEvent) {
-                    return <SpecialEventDetailsView
-                        event={selectedSpecialEvent}
-                        onBack={() => { setView('agenda'); setSelectedSpecialEvent(null); }}
-                        onEdit={() => setView('eventos')}
-                        onDelete={handleDeleteSpecialEvent}
-                        onToggleTask={(taskId) => handleToggleTaskCompletion(selectedSpecialEvent.id, taskId, 'specialEvents')}
-                        canEdit={canEditSpecialEvents}
-                    />
+                    const currentEventData = specialEvents[selectedSpecialEvent.id];
+                    if (currentEventData) {
+                        return <SpecialEventDetailsView
+                            event={currentEventData}
+                            onBack={() => { setView('agenda'); setSelectedSpecialEvent(null); }}
+                            onEdit={() => setView('eventos')}
+                            onDelete={handleDeleteSpecialEvent}
+                            onToggleTask={(taskId) => handleToggleTaskCompletion(currentEventData.id, taskId, 'specialEvents')}
+                            canEdit={canEditSpecialEvents}
+                        />;
+                    }
                 }
                 return null;
             default:

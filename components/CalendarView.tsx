@@ -190,7 +190,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                             {weekDays.map((d, j) => {
                                 const dayKey = formatDateForBookingKey(d);
                                 const dayBookings = consolidateBookingsForDay(bookings, d);
-                                // FIX: Explicitly type 'event' to resolve type inference issues.
                                 const eventsForDay = Object.values(specialEvents).filter((event: SpecialEvent) => dayKey >= event.startDate && dayKey <= event.endDate);
                                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
                                 const isSelected = isSameDay(d, selectedDate);
@@ -217,7 +216,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         </div>
 
                                         <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
-                                            {eventsForDay.map(event => (
+                                            {/* FIX: Explicitly type 'event' to resolve type inference issues. */}
+                                            {eventsForDay.map((event: SpecialEvent) => (
                                                 <div 
                                                     key={event.id}
                                                     className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
