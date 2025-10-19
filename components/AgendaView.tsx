@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments } from '../types';
-import { WORKERS } from '../constants';
-import { getWeekData } from '../utils/dateUtils';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails } from '../types';
+import { WORKERS, TIME_SLOTS } from '../constants';
+import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
@@ -14,9 +14,10 @@ interface AgendaViewProps {
     onSelectBooking: (booking: ConsolidatedBooking) => void;
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
+    onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
 }
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
@@ -68,6 +69,63 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         }
         setIsDownloadingAgenda(false);
     }
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, booking: ConsolidatedBooking) => {
+        e.dataTransfer.setData('application/json', JSON.stringify(booking));
+        (e.target as HTMLDivElement).classList.add('dragging');
+    };
+
+    const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+        (e.target as HTMLDivElement).classList.remove('dragging');
+    };
+    
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.currentTarget.classList.remove('drag-over');
+    };
+    
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetDate: Date) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        try {
+            const bookingData: ConsolidatedBooking = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (formatDateForBookingKey(targetDate) === bookingData.date) {
+                return; // Can't drop on the same day
+            }
+            
+            const { startTime, endTime, details, keys: originalKeys } = bookingData;
+            
+            const spaceIds = [...new Set(originalKeys.map(key => key.split('-').slice(0, -4).join('-')))];
+            const timeSlots = TIME_SLOTS.filter(time => time >= startTime && time < endTime);
+            const targetDateStr = formatDateForBookingKey(targetDate);
+            
+            const newKeys = spaceIds.flatMap(spaceId => 
+                timeSlots.map(time => `${spaceId}-${targetDateStr}-${time}`)
+            );
+            
+            // Conflict check
+            for (const key of newKeys) {
+                if (bookings[key]) {
+                    alert(`Conflicto de reserva: El horario de ${startTime} a ${endTime} ya está ocupado el ${targetDate.toLocaleDateString('es-ES')}.`);
+                    return;
+                }
+            }
+
+            const success = await onAddBooking(newKeys, details);
+            if (success) {
+                 alert(`Reserva duplicada con éxito para el ${targetDate.toLocaleDateString('es-ES')}.`);
+            }
+
+        } catch (error) {
+            console.error("Error al soltar la reserva:", error);
+            alert("No se pudo duplicar la reserva.");
+        }
+    };
     
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -136,7 +194,13 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     }
                     
                     return (
-                        <div key={day.toISOString()} className="bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner min-h-[200px] flex flex-col border border-white/10">
+                        <div 
+                            key={day.toISOString()} 
+                            className="bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner min-h-[200px] flex flex-col border border-white/10 transition-all duration-300"
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, day)}
+                        >
                             <div className="text-center border-b border-white/20 pb-2 mb-2">
                                 <h3 className="font-bold capitalize text-white">
                                     {day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
@@ -154,16 +218,24 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                             <div className="space-y-2 text-xs flex-grow">
                                 {dayBookings.length > 0 ? (
                                     dayBookings.map((booking, index) => (
-                                        <button key={index} onClick={() => onSelectBooking(booking)} className="w-full text-left bg-black/20 p-2 rounded hover:bg-black/40 transition-colors duration-200">
-                                            <p className="font-semibold text-orange-300">
-                                                {booking.startTime} - {booking.endTime}
-                                            </p>
-                                            <ul className="list-disc list-inside pl-2 text-gray-300">
-                                                <li className="capitalize">
-                                                    {booking.space}: <span className="font-semibold text-white">{booking.details.name}</span>
-                                                </li>
-                                            </ul>
-                                        </button>
+                                        <div 
+                                            key={index} 
+                                            draggable="true"
+                                            onDragStart={(e) => handleDragStart(e, booking)}
+                                            onDragEnd={handleDragEnd}
+                                            className="w-full text-left bg-black/20 p-2 rounded hover:bg-black/40 transition-colors duration-200 cursor-grab"
+                                        >
+                                            <button onClick={() => onSelectBooking(booking)} className="w-full text-left">
+                                                <p className="font-semibold text-orange-300 pointer-events-none">
+                                                    {booking.startTime} - {booking.endTime}
+                                                </p>
+                                                <ul className="list-disc list-inside pl-2 text-gray-300 pointer-events-none">
+                                                    <li className="capitalize">
+                                                        {booking.space}: <span className="font-semibold text-white">{booking.details.name}</span>
+                                                    </li>
+                                                </ul>
+                                            </button>
+                                        </div>
                                     ))
                                  ) : (
                                     <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
