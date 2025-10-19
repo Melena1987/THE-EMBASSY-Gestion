@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail } from '../types';
 import { WORKERS } from '../constants';
 import { getWeekData } from '../utils/dateUtils';
@@ -8,6 +8,7 @@ import MoonIcon from './icons/MoonIcon';
 import SwitchIcon from './icons/SwitchIcon';
 import RefreshCcwIcon from './icons/RefreshCcwIcon';
 import DownloadIcon from './icons/DownloadIcon';
+import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
 
 interface ShiftsViewProps {
     shiftAssignments: ShiftAssignments;
@@ -18,6 +19,7 @@ interface ShiftsViewProps {
 }
 
 const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onResetWeekShifts }) => {
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
@@ -124,71 +126,13 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
         onUpdateShifts(weekId, newShifts);
     };
 
-    const handleDownloadPDF = () => {
-        if (!(window as any).jspdf || !(window as any).autoTable) {
-            alert("No se pudieron cargar las librerías para generar el PDF. Inténtelo de nuevo más tarde.");
-            return;
+    const handleDownloadPDF = async () => {
+        setIsDownloading(true);
+        const loaded = await ensurePdfLibsLoaded();
+        if (loaded) {
+            generateShiftsPDF(weekNumber, year, weekDays, currentShifts);
         }
-
-        const { jsPDF } = (window as any).jspdf;
-        const autoTable = (window as any).autoTable;
-        const doc = new jsPDF();
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.setTextColor('#E67E22');
-        doc.text(`Horario Semanal - Semana ${weekNumber}`, 14, 22);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-        const dateRange = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-        doc.text(dateRange, 14, 30);
-        
-        const tableBody = weekDays.flatMap((day, dayIndex) => {
-            const effectiveShifts = currentShifts.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentShifts.morning, currentShifts.evening);
-            const dayString = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
-
-            const morningRow = [
-                { content: dayString, rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
-                { content: 'Mañana', styles: { fillColor: [255, 249, 230] } },
-                effectiveShifts.morning.active ? effectiveShifts.morning.worker : 'Cerrado',
-                effectiveShifts.morning.active ? `${effectiveShifts.morning.start} - ${effectiveShifts.morning.end}` : '-'
-            ];
-            
-            const eveningRow = [
-                { content: 'Tarde', styles: { fillColor: [229, 239, 255] } },
-                effectiveShifts.evening.active ? effectiveShifts.evening.worker : 'Cerrado',
-                effectiveShifts.evening.active ? `${effectiveShifts.evening.start} - ${effectiveShifts.evening.end}` : '-'
-            ];
-
-            return [morningRow, eveningRow];
-        });
-
-        autoTable(doc, {
-            head: [['Día', 'Turno', 'Personal', 'Horario']],
-            body: tableBody,
-            startY: 40,
-            theme: 'grid',
-            headStyles: { fillColor: '#374151', textColor: '#F3F4F6', fontStyle: 'bold' },
-            styles: { font: 'helvetica', fontSize: 10, cellPadding: 3 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-
-        if (currentShifts.observations) {
-            const finalY = (doc as any).lastAutoTable.finalY;
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#E67E22');
-            doc.text('Observaciones:', 14, finalY + 15);
-
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(40);
-            doc.text(currentShifts.observations, 14, finalY + 22, { maxWidth: 180 });
-        }
-
-        doc.save(`Turnos_Semana_${weekNumber}_${year}.pdf`);
+        setIsDownloading(false);
     };
 
     return (
@@ -206,11 +150,12 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                       <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente Semana &gt;</button>
                       <button
                           onClick={handleDownloadPDF}
-                          className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2"
+                          disabled={isDownloading}
+                          className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
                           title="Descargar horario semanal en PDF"
                       >
                           <DownloadIcon className="w-5 h-5" />
-                          <span className="hidden sm:inline">PDF</span>
+                          <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF'}</span>
                       </button>
                     </div>
                 </div>

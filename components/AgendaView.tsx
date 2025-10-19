@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments } from '../types';
 import { WORKERS } from '../constants';
 import { getWeekData } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
+import DownloadIcon from './icons/DownloadIcon';
+import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
 
 interface AgendaViewProps {
     bookings: Bookings;
@@ -15,6 +17,7 @@ interface AgendaViewProps {
 }
 
 const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments }) => {
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const weekDays = useMemo(() => {
         const startOfWeek = new Date(selectedDate);
@@ -46,19 +49,39 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         newDate.setDate(selectedDate.getDate() + offset * 7);
         onDateChange(newDate);
     };
+
+    const handleDownloadPDF = async () => {
+        setIsDownloading(true);
+        const loaded = await ensurePdfLibsLoaded();
+        if (loaded) {
+            generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts);
+        }
+        setIsDownloading(false);
+    };
     
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
                     <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
-                    <h2 className="text-xl font-bold text-white text-center">
+                    <h2 className="text-xl font-bold text-white text-center w-full sm:w-auto order-first sm:order-none">
                         Semana {weekNumber} <br />
                         <span className="text-sm font-normal text-gray-400">
                             {weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} - {weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
                     </h2>
-                    <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente Semana &gt;</button>
+                     <div className="flex items-center gap-2">
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente Semana &gt;</button>
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={isDownloading}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar horario semanal en PDF"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF'}</span>
+                        </button>
+                    </div>
                 </div>
                  <div className="text-center bg-black/20 p-3 rounded-md grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>

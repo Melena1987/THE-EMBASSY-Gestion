@@ -5,6 +5,8 @@ import { getWeekData } from '../utils/dateUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
+import DownloadIcon from './icons/DownloadIcon';
+import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
 
 
 interface CalendarViewProps {
@@ -17,6 +19,7 @@ interface CalendarViewProps {
 
 const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
@@ -57,14 +60,59 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         setView('agenda');
     };
 
+    const handleDownloadSelectedWeekPDF = async () => {
+        setIsDownloading(true);
+        const loaded = await ensurePdfLibsLoaded();
+        if (!loaded) {
+            setIsDownloading(false);
+            return;
+        }
+
+        // Calculate week data for the selected date
+        const startOfWeek = new Date(selectedDate);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Adjust to make Monday the first day
+        startOfWeek.setDate(diff);
+        
+        const weekDaysForPDF = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            return date;
+        });
+
+        const { week: weekNumber, year } = getWeekData(selectedDate);
+        const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
+
+        const isEvenWeek = weekNumber % 2 === 0;
+        const defaultMorning = isEvenWeek ? WORKERS[1] : WORKERS[0];
+        const defaultEvening = defaultMorning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+        const defaultAssignments = { morning: defaultMorning, evening: defaultEvening };
+
+        const weeklyShifts = shiftAssignments[weekId] || defaultAssignments;
+
+        generateShiftsPDF(weekNumber, year, weekDaysForPDF, weeklyShifts);
+        setIsDownloading(false);
+    };
+
     return (
         <div className="bg-white/5 backdrop-blur-lg p-4 sm:p-6 rounded-lg shadow-lg border border-white/10" style={{ fontFamily: 'Arial, sans-serif' }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
                 <button onClick={() => changeMonth(-1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&lt;</button>
-                <h2 className="text-xl font-bold text-white capitalize">
+                <h2 className="text-xl font-bold text-white capitalize text-center">
                     {currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
                 </h2>
-                <button onClick={() => changeMonth(1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&gt;</button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleDownloadSelectedWeekPDF}
+                        disabled={isDownloading}
+                        className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                        title="Descargar horario de la semana seleccionada en PDF"
+                    >
+                        <DownloadIcon className="w-5 h-5" />
+                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Semana'}</span>
+                    </button>
+                    <button onClick={() => changeMonth(1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&gt;</button>
+                </div>
             </div>
             
             <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr,1fr,1fr] gap-1 text-center font-semibold text-orange-400 mb-2">
