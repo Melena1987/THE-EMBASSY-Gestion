@@ -293,6 +293,23 @@ const App: React.FC = () => {
     
     const handleToggleTaskCompletion = useCallback(async (weekId: string, taskId: string, collectionName: 'shiftAssignments' | 'specialEvents' = 'shiftAssignments') => {
         if (!user) return;
+
+        const stateUpdater = collectionName === 'shiftAssignments' ? setShiftAssignments : setSpecialEvents;
+
+        // Optimistically update the UI for instant feedback
+        stateUpdater(prevState => {
+            const newState = { ...prevState };
+            const docToUpdate = newState[weekId];
+            if (docToUpdate && docToUpdate.tasks) {
+                const newTasks = docToUpdate.tasks.map(task => 
+                    task.id === taskId ? { ...task, completed: !task.completed } : task
+                );
+                newState[weekId] = { ...docToUpdate, tasks: newTasks };
+                return newState;
+            }
+            return prevState;
+        });
+
         const docRef = doc(db, collectionName, weekId);
         try {
             await runTransaction(db, async (transaction) => {
@@ -309,10 +326,23 @@ const App: React.FC = () => {
                     transaction.update(docRef, { tasks: updatedTasks });
                 }
             });
-        // FIX: Corrected invalid catch block syntax. `catch (error) =>` is not valid; it should be `catch (error) {`.
         } catch (error) {
-            console.error("Error al actualizar la tarea:", error);
+            console.error("Error al actualizar la tarea, revirtiendo cambio:", error);
             alert(`No se pudo actualizar el estado de la tarea. ${error instanceof Error ? error.message : ''}`);
+            
+            // Revert the optimistic update on error
+            stateUpdater(prevState => {
+                const newState = { ...prevState };
+                const docToUpdate = newState[weekId];
+                if (docToUpdate && docToUpdate.tasks) {
+                    const revertedTasks = docToUpdate.tasks.map(task => 
+                        task.id === taskId ? { ...task, completed: !task.completed } : task // Toggle back
+                    );
+                    newState[weekId] = { ...docToUpdate, tasks: revertedTasks };
+                    return newState;
+                }
+                return prevState;
+            });
         }
     }, [user]);
 

@@ -1,3 +1,4 @@
+
 import type { Bookings, ConsolidatedBooking, BookingDetails } from '../types';
 import { SPACES } from '../constants';
 import { formatDateForBookingKey } from './dateUtils';
@@ -22,7 +23,7 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
         const lockerRoomIds = SPACES.filter(s => s.group === 'Vestuarios').map(s => s.id);
 
         return [
-            { name: 'INSTALACIÓN COMPLETA', ids: new Set(allSpaceIds) },
+            { name: 'TODA LA INSTALACIÓN', ids: new Set(allSpaceIds) },
             { name: 'PISTA 1 Y 2', ids: new Set([...court1Ids, ...court2Ids]) },
             { name: 'Pista 1', ids: new Set(court1Ids) },
             { name: 'Pista 2', ids: new Set(court2Ids) },
@@ -140,12 +141,22 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
         let allKeysForThisSlot: string[] = [];
 
         for (const groupDef of groupDefinitions) {
-            if ([...groupDef.ids].every(id => unhandledSpaceIds.has(id))) {
+            const groupIds = [...groupDef.ids];
+            if (groupIds.every(id => unhandledSpaceIds.has(id))) {
+                
+                // Special case for full installation: if it matches perfectly, we are done with grouping.
+                if (groupDef.name === 'TODA LA INSTALACIÓN' && groupDef.ids.size === unhandledSpaceIds.size) {
+                    consolidatedSpaceNames.push(groupDef.name);
+                    allKeysForThisSlot.push(...[...unhandledSpaceIds].flatMap(id => bookingsBySpaceId[id].keys));
+                    unhandledSpaceIds.clear(); // Clear all as we have a full match
+                    break; // Exit the loop, no need to check for smaller groups
+                }
+
                 consolidatedSpaceNames.push(groupDef.name);
-                const groupKeys = [...groupDef.ids].flatMap(id => bookingsBySpaceId[id].keys);
+                const groupKeys = groupIds.flatMap(id => bookingsBySpaceId[id].keys);
                 allKeysForThisSlot.push(...groupKeys);
                 
-                [...groupDef.ids].forEach(id => unhandledSpaceIds.delete(id));
+                groupIds.forEach(id => unhandledSpaceIds.delete(id));
             }
         }
 
