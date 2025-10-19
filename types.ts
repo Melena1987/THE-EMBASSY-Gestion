@@ -1,6 +1,6 @@
-export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios';
+export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento';
 
-export type UserRole = 'ADMIN' | 'TRABAJADOR' | null;
+export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | null;
 
 export interface Space {
   id: string;
@@ -59,3 +59,14 @@ export type CleaningAssignments = Record<string, { startTime: string }>;
 
 // Key format: "YYYY-WW"
 export type CleaningObservations = Record<string, { observations: string }>;
+
+export interface SpecialEvent {
+  id: string; // YYYY-MM-DD
+  name: string;
+  startTime?: string;
+  endTime?: string;
+  spaceIds?: string[];
+  tasks?: Task[];
+  observations?: string;
+}
+export type SpecialEvents = Record<string, SpecialEvent>; // Key is id (date)

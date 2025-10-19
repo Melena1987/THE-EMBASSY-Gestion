@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails } from '../types';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
+import StarIcon from './icons/StarIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF, generateAgendaPDF } from '../utils/pdfUtils';
@@ -16,12 +17,14 @@ interface AgendaViewProps {
     onSelectBooking: (booking: ConsolidatedBooking) => void;
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
+    specialEvents: SpecialEvents;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
-    onToggleTask: (weekId: string, taskId: string) => void;
+    onToggleTask: (weekId: string, taskId: string, collectionName?: 'shiftAssignments' | 'specialEvents') => void;
+    onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
 }
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, onAddBooking, onToggleTask, isReadOnly }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
@@ -206,11 +209,13 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
                 {weekDays.map(day => {
+                    const dayKey = formatDateForBookingKey(day);
                     const dayWeekData = getWeekData(day);
                     const dayWeekId = `${dayWeekData.year}-${dayWeekData.week.toString().padStart(2, '0')}`;
                     const dayIndex = day.getDay() === 0 ? 6 : day.getDay() - 1;
                     const dailyOverride = shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
                     const dayBookings = consolidateBookingsForDay(bookings, day);
+                    const specialEvent = specialEvents[dayKey];
                     
                     const defaultDailyShift = getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
                     const effectiveShifts = dailyOverride || defaultDailyShift;
@@ -243,6 +248,17 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 </div>
                             </div>
                             <div className="space-y-2 text-xs flex-grow">
+                                {specialEvent && (
+                                    <button 
+                                        onClick={() => onSelectSpecialEvent(specialEvent)}
+                                        className="w-full text-left bg-purple-800/50 p-2 rounded hover:bg-purple-700/50 transition-colors duration-200 border border-purple-400"
+                                    >
+                                        <p className="font-bold text-purple-200 pointer-events-none flex items-center gap-2">
+                                            <StarIcon className="w-4 h-4 flex-shrink-0" />
+                                            <span className="truncate">{specialEvent.name}</span>
+                                        </p>
+                                    </button>
+                                )}
                                 {dayBookings.length > 0 ? (
                                     dayBookings.map((booking, index) => (
                                         <div 
@@ -265,9 +281,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                         </div>
                                     ))
                                  ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
-                                        <p>Sin reservas</p>
-                                    </div>
+                                    !specialEvent && <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center"><p>Sin reservas</p></div>
                                 )}
                             </div>
                              <div className="flex justify-center pt-2 mt-auto">

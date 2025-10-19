@@ -9,6 +9,7 @@ import PlusIcon from './icons/PlusIcon';
 import UsersIcon from './icons/UsersIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
 import LogoutIcon from './icons/LogoutIcon';
+import StarIcon from './icons/StarIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -61,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
         setDropdownOpen(false);
     };
 
-    const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles'].includes(currentView);
+    const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
     const isTurnosActive = currentView === 'turnos';
     const isServiciosActive = currentView === 'servicios';
 
@@ -122,6 +123,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                                 label="Agenda Semanal"
                                             >
                                                 <ListIcon className="h-5 w-5" />
+                                            </DropdownItem>
+                                             <DropdownItem
+                                                isActive={currentView === 'eventos'}
+                                                onClick={() => handleViewChange('eventos')}
+                                                label="Evento Especial"
+                                            >
+                                                <StarIcon className="h-5 w-5" />
                                             </DropdownItem>
                                         </div>
                                     </div>

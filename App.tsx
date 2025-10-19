@@ -2,7 +2,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations } from './types';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent } from './types';
+import { TIME_SLOTS } from './constants';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
@@ -10,6 +11,8 @@ import AgendaView from './components/AgendaView';
 import BookingDetailsView from './components/BookingDetailsView';
 import ShiftsView from './components/ShiftsView';
 import ExternalServicesView from './components/ExternalServicesView';
+import SpecialEventView from './components/SpecialEventView';
+import SpecialEventDetailsView from './components/SpecialEventDetailsView';
 import ConfirmationModal from './components/ConfirmationModal';
 import Login from './components/Login';
 import { findRelatedBookings } from './utils/bookingUtils';
@@ -20,6 +23,7 @@ const App: React.FC = () => {
     const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
     const [cleaningAssignments, setCleaningAssignments] = useState<CleaningAssignments>({});
     const [cleaningObservations, setCleaningObservations] = useState<CleaningObservations>({});
+    const [specialEvents, setSpecialEvents] = useState<SpecialEvents>({});
     
     const [user, setUser] = useState<User | null>(null);
     const [userRole, setUserRole] = useState<UserRole>(null);
@@ -28,6 +32,7 @@ const App: React.FC = () => {
     const [view, setView] = useState<View>('agenda');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedBooking, setSelectedBooking] = useState<ConsolidatedBooking | null>(null);
+    const [selectedSpecialEvent, setSelectedSpecialEvent] = useState<SpecialEvent | null>(null);
     const [bookingToPreFill, setBookingToPreFill] = useState<ConsolidatedBooking | null>(null);
     
     const [modalState, setModalState] = useState<{
@@ -64,7 +69,6 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (!user) return;
-        // Listener para las reservas
         const bookingsCol = collection(db, 'bookings');
         const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot) => {
             const newBookings: Bookings = {};
@@ -74,7 +78,6 @@ const App: React.FC = () => {
             setBookings(newBookings);
         });
 
-        // Listener para los turnos
         const shiftsCol = collection(db, 'shiftAssignments');
         const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot) => {
             const newShiftAssignments: ShiftAssignments = {};
@@ -84,7 +87,6 @@ const App: React.FC = () => {
             setShiftAssignments(newShiftAssignments);
         });
         
-        // Listener para servicios de limpieza
         const cleaningCol = collection(db, 'cleaningAssignments');
         const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot) => {
             const newAssignments: CleaningAssignments = {};
@@ -94,7 +96,6 @@ const App: React.FC = () => {
             setCleaningAssignments(newAssignments);
         });
 
-        // Listener para observaciones de limpieza
         const cleaningObsCol = collection(db, 'cleaningObservations');
         const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot) => {
             const newObservations: CleaningObservations = {};
@@ -104,12 +105,21 @@ const App: React.FC = () => {
             setCleaningObservations(newObservations);
         });
 
-        // Limpieza de listeners al desmontar el componente
+        const specialEventsCol = collection(db, 'specialEvents');
+        const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot) => {
+            const newEvents: SpecialEvents = {};
+            snapshot.forEach((doc) => {
+                newEvents[doc.id] = doc.data() as SpecialEvent;
+            });
+            setSpecialEvents(newEvents);
+        });
+
         return () => {
             unsubscribeBookings();
             unsubscribeShifts();
             unsubscribeCleaning();
             unsubscribeCleaningObs();
+            unsubscribeSpecialEvents();
         };
     }, [user]);
 
@@ -155,6 +165,11 @@ const App: React.FC = () => {
     const handleSelectBooking = (booking: ConsolidatedBooking) => {
         setSelectedBooking(booking);
         setView('detalles');
+    };
+    
+    const handleSelectSpecialEvent = (event: SpecialEvent) => {
+        setSelectedSpecialEvent(event);
+        setView('detalles_evento');
     };
 
     const triggerDeleteProcess = useCallback(async (booking: ConsolidatedBooking) => {
@@ -256,7 +271,10 @@ const App: React.FC = () => {
         if (view === 'detalles' && !selectedBooking) {
             setView('agenda');
         }
-    }, [view, selectedBooking]);
+         if (view === 'detalles_evento' && !selectedSpecialEvent) {
+            setView('agenda');
+        }
+    }, [view, selectedBooking, selectedSpecialEvent]);
 
     const handleUpdateShifts = useCallback(async (weekId: string, newShifts: ShiftAssignment) => {
         if (userRole !== 'ADMIN') {
@@ -271,27 +289,27 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
-    const handleToggleTaskCompletion = useCallback(async (weekId: string, taskId: string) => {
+    const handleToggleTaskCompletion = useCallback(async (weekId: string, taskId: string, collectionName: 'shiftAssignments' | 'specialEvents' = 'shiftAssignments') => {
         if (!user) return;
-        const weekDocRef = doc(db, 'shiftAssignments', weekId);
+        const docRef = doc(db, collectionName, weekId);
         try {
             await runTransaction(db, async (transaction) => {
-                const weekDoc = await transaction.get(weekDocRef);
-                if (!weekDoc.exists()) {
-                    throw new Error("No se encontró la asignación de turnos para esta semana. Un administrador debe modificarla primero.");
+                const docSnap = await transaction.get(docRef);
+                if (!docSnap.exists()) {
+                    throw new Error("No se encontró el documento para actualizar la tarea.");
                 }
-                const currentData = weekDoc.data() as ShiftAssignment;
+                const currentData = docSnap.data() as (ShiftAssignment | SpecialEvent);
                 const updatedTasks = currentData.tasks?.map(task => 
                     task.id === taskId ? { ...task, completed: !task.completed } : task
                 );
                 
                 if(updatedTasks) {
-                    transaction.update(weekDocRef, { tasks: updatedTasks });
+                    transaction.update(docRef, { tasks: updatedTasks });
                 }
             });
         } catch (error) {
             console.error("Error al actualizar la tarea:", error);
-            alert("No se pudo actualizar el estado de la tarea.");
+            alert(`No se pudo actualizar el estado de la tarea. ${error instanceof Error ? error.message : ''}`);
         }
     }, [user]);
 
@@ -336,31 +354,131 @@ const App: React.FC = () => {
         }
     }, []);
     
+    const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEventId?: string): Promise<boolean> => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
+            alert("Acción no permitida para su rol.");
+            return false;
+        }
+
+        const { id: date, name, startTime, endTime, spaceIds, tasks, observations } = eventData;
+        const originalEvent = originalEventId ? specialEvents[originalEventId] : null;
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                // If date changes, delete old event doc
+                if (originalEventId && originalEventId !== date) {
+                    transaction.delete(doc(db, 'specialEvents', originalEventId));
+                }
+                const eventDocRef = doc(db, 'specialEvents', date);
+
+                // 1. Determine old booking keys to delete
+                const oldKeysToDelete: string[] = [];
+                if (originalEvent && originalEvent.startTime && originalEvent.endTime && originalEvent.spaceIds) {
+                     const oldTimeSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
+                     originalEvent.spaceIds.forEach(spaceId => {
+                         oldTimeSlots.forEach(time => {
+                             oldKeysToDelete.push(`${spaceId}-${originalEvent.id}-${time}`);
+                         });
+                     });
+                }
+
+                // 2. Determine new booking keys to create
+                const newKeysToCreate: string[] = [];
+                if (startTime && endTime && spaceIds) {
+                    const newTimeSlots = TIME_SLOTS.filter(t => t >= startTime && t < endTime);
+                    spaceIds.forEach(spaceId => {
+                        newTimeSlots.forEach(time => {
+                            newKeysToCreate.push(`${spaceId}-${date}-${time}`);
+                        });
+                    });
+                }
+
+                // 3. Check for conflicts
+                const keysToCheck = newKeysToCreate.filter(k => !oldKeysToDelete.includes(k));
+                if (keysToCheck.length > 0) {
+                    const bookingDocsRefs = keysToCheck.map(key => doc(db, 'bookings', key));
+                    const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
+                    if (bookingDocsSnapshots.some(snap => snap.exists())) {
+                        throw new Error("Conflicto: Uno o más espacios ya están reservados en el nuevo horario del evento.");
+                    }
+                }
+                
+                // 4. Perform writes
+                oldKeysToDelete.forEach(key => transaction.delete(doc(db, 'bookings', key)));
+                const bookingDetails: BookingDetails = { name: `EVENTO: ${name}` };
+                newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), bookingDetails));
+                
+                const eventToSave: SpecialEvent = { id: date, name, tasks, observations, startTime, endTime, spaceIds };
+                transaction.set(eventDocRef, eventToSave);
+            });
+
+            setSelectedSpecialEvent(null);
+            setView('agenda');
+            return true;
+
+        } catch (e: any) {
+            console.error("Error al guardar evento especial:", e);
+            alert(e.message || "No se pudo guardar el evento especial.");
+            return false;
+        }
+    }, [userRole, specialEvents]);
+
+    const handleDeleteSpecialEvent = useCallback(async (eventToDelete: SpecialEvent) => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
+            alert("Acción no permitida para su rol.");
+            return;
+        }
+        if (!window.confirm(`¿Está seguro de que desea eliminar el evento "${eventToDelete.name}"? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+
+        try {
+            const batch = writeBatch(db);
+            // Delete associated bookings
+            if (eventToDelete.startTime && eventToDelete.endTime && eventToDelete.spaceIds) {
+                const timeSlots = TIME_SLOTS.filter(t => t >= eventToDelete.startTime! && t < eventToDelete.endTime!);
+                eventToDelete.spaceIds.forEach(spaceId => {
+                    timeSlots.forEach(time => {
+                        batch.delete(doc(db, 'bookings', `${spaceId}-${eventToDelete.id}-${time}`));
+                    });
+                });
+            }
+            // Delete event document
+            batch.delete(doc(db, 'specialEvents', eventToDelete.id));
+            await batch.commit();
+
+            setSelectedSpecialEvent(null);
+            setView('agenda');
+
+        } catch(e) {
+            console.error("Error eliminando evento especial:", e);
+            alert("No se pudo eliminar el evento.");
+        }
+    }, [userRole]);
+    
     if (isLoadingAuth) {
-        return (
-            <div className="min-h-screen flex items-center justify-center text-white text-xl">
-                Cargando...
-            </div>
-        );
+        return <div className="min-h-screen flex items-center justify-center text-white text-xl">Cargando...</div>;
     }
     
     if (!user || !userRole) {
         return <Login />;
     }
 
-    const isReadOnly = userRole !== 'ADMIN';
+    const canEditBookings = userRole === 'ADMIN';
+    const canEditShifts = userRole === 'ADMIN';
+    const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
     const renderView = () => {
         switch (view) {
             case 'plano':
-                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={isReadOnly} />;
+                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
             case 'calendario':
-                return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} isReadOnly={isReadOnly} />;
+                return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} onToggleTask={handleToggleTaskCompletion} isReadOnly={isReadOnly} />;
+                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTaskCompletion} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'detalles':
                  if (selectedBooking) {
-                    return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={isReadOnly} />;
+                    return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={!canEditBookings} />;
                 }
                 return null;
             case 'turnos':
@@ -371,7 +489,7 @@ const App: React.FC = () => {
                     onUpdateShifts={handleUpdateShifts}
                     onToggleTask={handleToggleTaskCompletion}
                     onResetWeekShifts={handleResetWeekShifts}
-                    isReadOnly={isReadOnly}
+                    isReadOnly={!canEditShifts}
                 />;
             case 'servicios':
                 return <ExternalServicesView
@@ -382,8 +500,29 @@ const App: React.FC = () => {
                     onUpdateCleaningTime={handleUpdateCleaningTime}
                     onUpdateCleaningObservations={handleUpdateCleaningObservations}
                 />;
+            case 'eventos':
+                return <SpecialEventView
+                    bookings={bookings}
+                    onSaveEvent={handleSaveSpecialEvent}
+                    onBack={() => setView('agenda')}
+                    eventToEdit={selectedSpecialEvent}
+                    onEditDone={() => setSelectedSpecialEvent(null)}
+                    isReadOnly={!canEditSpecialEvents}
+                />;
+            case 'detalles_evento':
+                if (selectedSpecialEvent) {
+                    return <SpecialEventDetailsView
+                        event={selectedSpecialEvent}
+                        onBack={() => { setView('agenda'); setSelectedSpecialEvent(null); }}
+                        onEdit={() => setView('eventos')}
+                        onDelete={handleDeleteSpecialEvent}
+                        onToggleTask={(taskId) => handleToggleTaskCompletion(selectedSpecialEvent.id, taskId, 'specialEvents')}
+                        canEdit={canEditSpecialEvents}
+                    />
+                }
+                return null;
             default:
-                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={isReadOnly} />;
+                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
         }
     };
 

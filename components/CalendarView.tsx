@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails } from '../types';
+import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
+import StarIcon from './icons/StarIcon';
 import { consolidateBookingsForDay } from '../utils/bookingUtils';
 import DownloadIcon from './icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateCalendarPDF } from '../utils/pdfUtils';
@@ -15,11 +16,13 @@ interface CalendarViewProps {
     onDateChange: (date: Date) => void;
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
+    specialEvents: SpecialEvents;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onAddBooking, isReadOnly }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onSelectSpecialEvent, isReadOnly }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -185,6 +188,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
 
                             {weekDays.map((d, j) => {
                                 const dayBookings = consolidateBookingsForDay(bookings, d);
+                                const specialEvent = specialEvents[formatDateForBookingKey(d)];
                                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
                                 const isSelected = isSameDay(d, selectedDate);
                                 
@@ -209,22 +213,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                             {hasOverride && <span className="h-2 w-2 bg-blue-400 rounded-full" title="Horario especial"></span>}
                                         </div>
 
-                                        {dayBookings.length > 0 && (
-                                            <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
-                                                {dayBookings.map((booking, index) => (
-                                                    <div 
-                                                        key={index} 
-                                                        className={`bg-black/30 rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
-                                                        title={`${booking.startTime} - ${booking.details.name}`}
-                                                        draggable={!isReadOnly}
-                                                        onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
-                                                        onDragEnd={!isReadOnly ? handleDragEnd : undefined}
-                                                    >
-                                                        <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
+                                            {specialEvent && (
+                                                <div 
+                                                    className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
+                                                    onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(specialEvent); }}
+                                                >
+                                                   <StarIcon className="w-3 h-3 flex-shrink-0" />
+                                                   <span className="truncate">{specialEvent.name}</span>
+                                                </div>
+                                            )}
+                                            {dayBookings.map((booking, index) => (
+                                                <div 
+                                                    key={index} 
+                                                    className={`bg-black/30 rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
+                                                    title={`${booking.startTime} - ${booking.details.name}`}
+                                                    draggable={!isReadOnly}
+                                                    onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                                    onDragEnd={!isReadOnly ? handleDragEnd : undefined}
+                                                >
+                                                    <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </button>
                                 );
                             })}
