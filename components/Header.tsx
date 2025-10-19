@@ -7,6 +7,7 @@ import EmbassyLogo from './icons/EmbassyLogo';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import PlusIcon from './icons/PlusIcon';
 import UsersIcon from './icons/UsersIcon';
+import BriefcaseIcon from './icons/BriefcaseIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -58,6 +59,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
 
     const isReservasActive = ['plano', 'calendario', 'agenda', 'detalles'].includes(currentView);
     const isTurnosActive = currentView === 'turnos';
+    const isServiciosActive = currentView === 'servicios';
 
     return (
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
@@ -125,6 +127,17 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
                        >
                            <UsersIcon className="h-5 w-5" />
                            <span className="hidden sm:inline">Turnos</span>
+                       </button>
+                       <button
+                           onClick={() => setView('servicios')}
+                           className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                               isServiciosActive
+                                   ? 'bg-orange-600 text-white'
+                                   : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                           }`}
+                       >
+                           <BriefcaseIcon className="h-5 w-5" />
+                           <span className="hidden sm:inline">Servicios</span>
                        </button>
                     </nav>
                 </div>

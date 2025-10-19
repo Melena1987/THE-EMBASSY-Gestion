@@ -1,19 +1,22 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment } from './types';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments } from './types';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
 import AgendaView from './components/AgendaView';
 import BookingDetailsView from './components/BookingDetailsView';
 import ShiftsView from './components/ShiftsView';
+import ExternalServicesView from './components/ExternalServicesView';
 import ConfirmationModal from './components/ConfirmationModal';
 import { findRelatedBookings } from './utils/bookingUtils';
+import { formatDateForBookingKey } from './utils/dateUtils';
 
 const App: React.FC = () => {
     const [bookings, setBookings] = useState<Bookings>({});
     const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
+    const [cleaningAssignments, setCleaningAssignments] = useState<CleaningAssignments>({});
 
     const [view, setView] = useState<View>('plano');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -47,11 +50,22 @@ const App: React.FC = () => {
             });
             setShiftAssignments(newShiftAssignments);
         });
+        
+        // Listener para servicios de limpieza
+        const cleaningCol = collection(db, 'cleaningAssignments');
+        const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot) => {
+            const newAssignments: CleaningAssignments = {};
+            snapshot.forEach((doc) => {
+                newAssignments[doc.id] = doc.data() as { startTime: string };
+            });
+            setCleaningAssignments(newAssignments);
+        });
 
         // Limpieza de listeners al desmontar el componente
         return () => {
             unsubscribeBookings();
             unsubscribeShifts();
+            unsubscribeCleaning();
         };
     }, []);
 
@@ -233,6 +247,20 @@ const App: React.FC = () => {
         }
     }, []);
 
+    const handleUpdateCleaningTime = useCallback(async (date: Date, startTime: string) => {
+        const docId = formatDateForBookingKey(date);
+        try {
+            if (startTime) {
+                await setDoc(doc(db, 'cleaningAssignments', docId), { startTime });
+            } else {
+                await deleteDoc(doc(db, 'cleaningAssignments', docId));
+            }
+        } catch (error) {
+            console.error("Error al actualizar la hora de limpieza:", error);
+            alert("No se pudo guardar la hora de limpieza.");
+        }
+    }, []);
+
 
     const renderView = () => {
         switch (view) {
@@ -254,6 +282,13 @@ const App: React.FC = () => {
                     onDateChange={setSelectedDate} 
                     onUpdateShifts={handleUpdateShifts}
                     onResetWeekShifts={handleResetWeekShifts}
+                />;
+            case 'servicios':
+                return <ExternalServicesView
+                    cleaningAssignments={cleaningAssignments}
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                    onUpdateCleaningTime={handleUpdateCleaningTime}
                 />;
             default:
                 return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;

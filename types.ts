@@ -1,4 +1,4 @@
-export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos';
+export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios';
 
 export interface Space {
   id: string;
@@ -43,3 +43,6 @@ export interface ShiftAssignment {
     observations?: string;
 }
 export type ShiftAssignments = Record<string, ShiftAssignment>;
+
+// Key format: "YYYY-MM-DD"
+export type CleaningAssignments = Record<string, { startTime: string }>;

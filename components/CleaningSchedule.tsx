@@ -1,0 +1,113 @@
+
+import React, { useMemo, useState } from 'react';
+import type { CleaningAssignments } from '../types';
+import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
+import DownloadIcon from './icons/DownloadIcon';
+import { ensurePdfLibsLoaded, generateCleaningPDF } from '../utils/pdfUtils';
+import TrashIcon from './icons/TrashIcon';
+
+interface CleaningScheduleProps {
+    cleaningAssignments: CleaningAssignments;
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    onUpdateCleaningTime: (date: Date, startTime: string) => void;
+}
+
+const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments, selectedDate, onDateChange, onUpdateCleaningTime }) => {
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const { week: weekNumber, year } = getWeekData(selectedDate);
+
+    const weekDays = useMemo(() => {
+        const startOfWeek = new Date(selectedDate);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1);
+        startOfWeek.setDate(diff);
+        return Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            return date;
+        });
+    }, [selectedDate]);
+
+    const changeWeek = (offset: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(selectedDate.getDate() + offset * 7);
+        onDateChange(newDate);
+    };
+
+    const handleTimeChange = (date: Date, time: string) => {
+        onUpdateCleaningTime(date, time);
+    };
+
+    const handleDownloadPDF = async () => {
+        setIsDownloading(true);
+        const loaded = await ensurePdfLibsLoaded();
+        if (loaded) {
+            await generateCleaningPDF(weekNumber, year, weekDays, cleaningAssignments);
+        }
+        setIsDownloading(false);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
+                    <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
+                    <h2 className="text-xl font-bold text-white text-center">
+                        Agenda de Limpieza - Semana {weekNumber}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={isDownloading}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar horario de limpieza en PDF"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF'}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+                {weekDays.map(day => {
+                    const dayKey = formatDateForBookingKey(day);
+                    const assignment = cleaningAssignments[dayKey];
+
+                    return (
+                        <div key={day.toISOString()} className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-inner border border-white/10 flex flex-col items-center">
+                            <h3 className="font-bold text-white capitalize text-center border-b border-white/20 pb-2 mb-4 w-full">
+                                {day.toLocaleDateString('es-ES', { weekday: 'long' })}
+                                <span className="block text-sm text-gray-400 font-normal">{day.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' })}</span>
+                            </h3>
+                            <div className="flex flex-col items-center justify-center gap-2 w-full">
+                                <label htmlFor={`time-${dayKey}`} className="text-sm text-gray-300">Hora de inicio</label>
+                                <input 
+                                    id={`time-${dayKey}`}
+                                    type="time" 
+                                    value={assignment?.startTime || ''}
+                                    onChange={(e) => handleTimeChange(day, e.target.value)}
+                                    className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                                />
+                                {assignment && (
+                                    <button 
+                                        onClick={() => handleTimeChange(day, '')}
+                                        className="text-red-400 hover:text-red-300 p-1 rounded-full hover:bg-white/10 transition-colors"
+                                        title="Limpiar hora"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+export default CleaningSchedule;
