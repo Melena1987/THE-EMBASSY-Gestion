@@ -26,14 +26,15 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
     const weekDays = useMemo(() => {
-        const startOfWeek = new Date(selectedDate);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Adjust to make Monday the first day
-        startOfWeek.setDate(diff);
+        const referenceDate = new Date(selectedDate);
+        const dayOfWeek = referenceDate.getDay();
+        const diffToMonday = referenceDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+        const monday = new Date(referenceDate.setDate(diffToMonday));
+    
         return Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(startOfWeek);
-            date.setDate(startOfWeek.getDate() + i);
-            return date;
+            const day = new Date(monday);
+            day.setDate(monday.getDate() + i);
+            return day;
         });
     }, [selectedDate]);
 
@@ -51,7 +52,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
-        newDate.setDate(selectedDate.getDate() + offset * 7);
+        newDate.setDate(newDate.getDate() + offset * 7);
         onDateChange(newDate);
     };
 
