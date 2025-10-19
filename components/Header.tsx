@@ -125,7 +125,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                     </div>
                     
                     {/* --- Center Part: Desktop Navigation --- */}
-                    <nav className="hidden md:flex items-center justify-center space-x-1 sm:space-x-2">
+                    <nav className="hidden md:flex flex-1 items-center justify-center space-x-1 sm:space-x-2">
                        <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setIsMenuOpen(prev => !prev)}
@@ -223,7 +223,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
                     {/* --- Right Part: User, Notifications, Logout --- */}
                     <div className="flex-1 flex items-center justify-end">
-                        <div className="flex items-center gap-4">
+                        <div className="hidden md:flex items-center gap-4">
                             <div className="relative" ref={tasksRef}>
                                 <button
                                     onClick={() => setIsTasksOpen(prev => !prev)}
@@ -246,7 +246,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 )}
                             </div>
                             
-                            <div className="text-right hidden md:block">
+                            <div className="text-right">
                                 <p className="text-sm font-medium text-white">{userEmail}</p>
                                 <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
                             </div>
@@ -254,21 +254,21 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                             <button 
                                 onClick={onLogout}
                                 title="Cerrar Sesión"
-                                className="hidden md:block p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
                             >
                                 <LogoutIcon className="h-5 w-5" />
                             </button>
+                        </div>
 
-                            {/* --- Mobile Hamburger Button --- */}
-                            <div className="md:hidden">
-                               <button
-                                    onClick={() => setIsMobileMenuOpen(true)}
-                                    className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                    title="Abrir menú"
-                               >
-                                   <MenuIcon className="h-6 w-6" />
-                               </button>
-                            </div>
+                        {/* --- Mobile Hamburger Button --- */}
+                        <div className="md:hidden">
+                           <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                title="Abrir menú"
+                           >
+                               <MenuIcon className="h-6 w-6" />
+                           </button>
                         </div>
                     </div>
                 </div>
@@ -276,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
              {/* --- Mobile Menu Panel --- */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 bg-[#0c1a2e] z-30 flex flex-col" role="dialog" aria-modal="true">
+                <div className="md:hidden fixed inset-0 bg-gray-900 z-30 flex flex-col" role="dialog" aria-modal="true">
                     <div className="flex items-center justify-between h-16 px-4 sm:px-6 border-b border-white/10">
                         <div className="flex items-center gap-2">
                             <EmbassyLogo className="h-7 w-auto text-orange-400" />
