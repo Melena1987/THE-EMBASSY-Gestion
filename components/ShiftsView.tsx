@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task } from '../types';
+import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent } from '../types';
 import { WORKERS } from '../constants';
-import { getWeekData } from '../utils/dateUtils';
+import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
@@ -10,18 +10,30 @@ import RefreshCcwIcon from './icons/RefreshCcwIcon';
 import DownloadIcon from './icons/DownloadIcon';
 import TrashIcon from './icons/TrashIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
+import CheckIcon from './icons/CheckIcon';
+import StarIcon from './icons/StarIcon';
 
 interface ShiftsViewProps {
     shiftAssignments: ShiftAssignments;
+    specialEvents: SpecialEvents;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
-    onToggleTask: (weekId: string, taskId: string) => void;
+    onToggleTask: (weekId: string, taskId: string, collectionName?: 'shiftAssignments' | 'specialEvents') => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
 }
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
+type CombinedTask = (Task & {
+    type: 'shift';
+    sourceId: string;
+}) | (Task & {
+    type: 'event';
+    sourceId: string;
+    eventName: string;
+});
+
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
@@ -51,6 +63,41 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
 
     const currentShifts = shiftAssignments[weekId] || defaultAssignments;
     const isCustomized = !!shiftAssignments[weekId];
+
+    const allTasks = useMemo(() => {
+        const weeklyTasks: CombinedTask[] = (currentShifts.tasks || []).map(task => ({
+            ...task,
+            type: 'shift',
+            sourceId: weekId,
+        }));
+        
+        const eventTasks: CombinedTask[] = [];
+        const weekDateStrings = new Set(weekDays.map(d => formatDateForBookingKey(d)));
+
+        for (const event of Object.values(specialEvents) as SpecialEvent[]) {
+            if (event.tasks && event.tasks.length > 0) {
+                let overlaps = false;
+                for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+                    if (weekDateStrings.has(formatDateForBookingKey(d))) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (overlaps) {
+                    event.tasks.forEach(task => {
+                        eventTasks.push({
+                            ...task,
+                            type: 'event',
+                            sourceId: event.id,
+                            eventName: event.name,
+                        });
+                    });
+                }
+            }
+        }
+        return [...weeklyTasks, ...eventTasks];
+    }, [currentShifts.tasks, specialEvents, weekDays, weekId]);
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -175,7 +222,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateShiftsPDF(weekNumber, year, weekDays, currentShifts);
+            await generateShiftsPDF(weekNumber, year, weekDays, currentShifts, allTasks);
         }
         setIsDownloading(false);
     };
@@ -306,7 +353,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                             type="text"
                             value={newTaskText}
                             onChange={(e) => setNewTaskText(e.target.value)}
-                            placeholder="Descripción de la tarea..."
+                            placeholder="Descripción de la nueva tarea de turno..."
                             className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
                         />
                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -327,33 +374,48 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                             onClick={handleAddTask}
                             className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
                         >
-                            Añadir Tarea
+                            Añadir Tarea de Turno
                         </button>
                     </div>
                 )}
                 <div className="space-y-2">
-                    {currentShifts.tasks && currentShifts.tasks.length > 0 ? (
-                        currentShifts.tasks.map(task => (
-                            <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
-                                <input
-                                    type="checkbox"
-                                    checked={task.completed}
-                                    onChange={() => onToggleTask(weekId, task.id)}
-                                    className="h-5 w-5 rounded bg-black/30 border-white/20 text-orange-500 focus:ring-orange-500 cursor-pointer flex-shrink-0"
-                                />
-                                <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>
-                                    {task.text}
-                                </span>
-                                <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                    {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
-                                </span>
-                                {!isReadOnly && (
-                                    <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
-                                        <TrashIcon className="w-4 h-4" />
+                    {allTasks.length > 0 ? (
+                        allTasks.map(task => {
+                            const isEventTask = task.type === 'event';
+                            return (
+                                <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
+                                    {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
+                                    <button
+                                        onClick={() => onToggleTask(
+                                            task.sourceId,
+                                            task.id,
+                                            isEventTask ? 'specialEvents' : 'shiftAssignments'
+                                        )}
+                                        disabled={isReadOnly}
+                                        className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 disabled:cursor-not-allowed ${
+                                            task.completed
+                                                ? 'bg-green-500 hover:bg-green-600'
+                                                : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
+                                        }`}
+                                        aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                    >
+                                        {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                     </button>
-                                )}
-                            </div>
-                        ))
+                                    <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                        {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                        {task.text}
+                                    </span>
+                                    <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
+                                        {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
+                                    </span>
+                                    {!isReadOnly && task.type === 'shift' && (
+                                        <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })
                     ) : (
                         <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
                     )}

@@ -1,4 +1,5 @@
 
+
 import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments, CleaningObservations, SpecialEvents, SpecialEvent, Task } from '../types';
 import { getDefaultDailyShift } from './shiftUtils';
 import { consolidateBookingsForDay } from './bookingUtils';
@@ -49,7 +50,16 @@ export const ensurePdfLibsLoaded = async (): Promise<boolean> => {
     }
 };
 
-export const generateShiftsPDF = async (weekNumber: number, year: number, weekDays: Date[], shifts: ShiftAssignment) => {
+type CombinedTaskForPDF = (Task & {
+    type: 'shift';
+    sourceId: string;
+}) | (Task & {
+    type: 'event';
+    sourceId: string;
+    eventName: string;
+});
+
+export const generateShiftsPDF = async (weekNumber: number, year: number, weekDays: Date[], shifts: ShiftAssignment, allTasks: CombinedTaskForPDF[]) => {
     const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
@@ -175,55 +185,43 @@ export const generateShiftsPDF = async (weekNumber: number, year: number, weekDa
     y -= 25;
     
     // Tasks section
-    if (shifts.tasks && shifts.tasks.length > 0) {
+    if (allTasks && allTasks.length > 0) {
         y -= 10;
         page.drawText('Tareas de la Semana:', { x: margin, y: y, font: fontBold, size: 16, color: rgb(0.96, 0.45, 0.09) });
         y -= 20;
 
-        shifts.tasks.forEach(task => {
+        allTasks.forEach(task => {
             if (y < margin) return;
 
-            const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0);
+            const isEventTask = task.type === 'event';
+            const taskColor = task.completed ? rgb(0.5, 0.5, 0.5) : (isEventTask ? rgb(0.5, 0.2, 0.8) : rgb(0, 0, 0));
             const assignees = Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo;
             const boxSize = 10;
-            const boxY = y + 1; // Vertically align with text
+            const boxY = y + 1;
 
-            // Draw checkbox
-            page.drawRectangle({
-                x: margin,
-                y: boxY,
-                width: boxSize,
-                height: boxSize,
-                borderWidth: 1,
-                borderColor: taskColor,
-            });
+            page.drawRectangle({ x: margin, y: boxY, width: boxSize, height: boxSize, borderWidth: 1, borderColor: taskColor });
 
             if (task.completed) {
-                // Draw checkmark
-                page.drawLine({
-                    start: { x: margin + 2, y: boxY + 5 },
-                    end: { x: margin + 4, y: boxY + 2 },
-                    thickness: 1.5,
-                    color: taskColor
-                });
-                page.drawLine({
-                    start: { x: margin + 4, y: boxY + 2 },
-                    end: { x: margin + 8, y: boxY + 8 },
-                    thickness: 1.5,
-                    color: taskColor
-                });
+                page.drawLine({ start: { x: margin + 2, y: boxY + 5 }, end: { x: margin + 4, y: boxY + 2 }, thickness: 1.5, color: taskColor });
+                page.drawLine({ start: { x: margin + 4, y: boxY + 2 }, end: { x: margin + 8, y: boxY + 8 }, thickness: 1.5, color: taskColor });
             }
 
-            page.drawText(`${task.text} (Asignado a: ${assignees})`, {
+            const taskText = isEventTask ? `[${task.eventName}] ${task.text}` : task.text;
+            const fullText = `${taskText} (Asignado a: ${assignees})`;
+            const maxWidthTasks = width - margin * 2 - (boxSize + 5);
+            
+            page.drawText(fullText, {
                 x: margin + boxSize + 5,
                 y: y,
                 font: font,
-                size: 12,
+                size: 10,
                 color: taskColor,
-                maxWidth: width - margin * 2 - (boxSize + 5),
+                maxWidth: maxWidthTasks,
+                lineHeight: 12,
             });
 
-            y -= 18;
+            const lines = getLinesOfText(fullText, font, 10, maxWidthTasks);
+            y -= lines.length * 12 + 6;
         });
         y -= 15;
     }
@@ -284,15 +282,6 @@ const getLinesOfText = (text: string, font: any, size: number, maxWidth: number)
     return lines;
 };
 
-
-type CombinedTaskForPDF = (Task & {
-    type: 'shift';
-    sourceId: string;
-}) | (Task & {
-    type: 'event';
-    sourceId: string;
-    eventName: string;
-});
 
 export const generateAgendaPDF = async (
     weekNumber: number,

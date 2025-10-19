@@ -647,6 +647,7 @@ const App: React.FC = () => {
             case 'turnos':
                  return <ShiftsView 
                     shiftAssignments={shiftAssignments} 
+                    specialEvents={specialEvents}
                     selectedDate={selectedDate} 
                     onDateChange={setSelectedDate} 
                     onUpdateShifts={handleUpdateShifts}

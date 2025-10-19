@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useMemo, useState } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
@@ -113,7 +114,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingShifts(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts);
+            // FIX: Added missing `allTasks` argument to the function call.
+            await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts, allTasks);
         }
         setIsDownloadingShifts(false);
     };
