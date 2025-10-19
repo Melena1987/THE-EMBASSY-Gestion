@@ -45,7 +45,6 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     }, [weekNumber]);
 
     const currentWeekShifts = shiftAssignments[weekId] || defaultAssignments;
-    const hasOverrides = !!(shiftAssignments[weekId]?.dailyOverrides && Object.keys(shiftAssignments[weekId]!.dailyOverrides!).length > 0);
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -66,7 +65,6 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            // FIX: Pass the 'year' to generateAgendaPDF.
             await generateAgendaPDF(weekNumber, year, weekDays, bookings);
         }
         setIsDownloadingAgenda(false);
@@ -161,22 +159,36 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
                     </div>
                 </div>
-                 <div className="text-center bg-black/20 p-3 rounded-md grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                        <p className="font-semibold text-orange-400">Turno Mañana (defecto)</p>
-                        <p>{currentWeekShifts.morning}</p>
-                    </div>
-                    <div>
-                        <p className="font-semibold text-yellow-400">Turno Tarde (defecto)</p>
-                        <p>{currentWeekShifts.evening}</p>
-                    </div>
-                </div>
-                {hasOverrides && (
-                    <div className="text-center text-sm text-blue-300 bg-blue-900/40 p-2 rounded-md mt-2">
-                        <p>⚠️ Esta semana contiene días con horarios especiales.</p>
-                    </div>
-                )}
             </div>
+
+            {(currentWeekShifts.tasks?.length > 0 || currentWeekShifts.observations) && (
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {currentWeekShifts.tasks && currentWeekShifts.tasks.length > 0 && (
+                        <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                            <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                {currentWeekShifts.tasks.map(task => (
+                                    <div key={task.id} className="flex items-center gap-3 text-sm">
+                                        <div className={`w-4 h-4 rounded-full flex-shrink-0 ${task.completed ? 'bg-green-500' : 'border-2 border-gray-500'}`}></div>
+                                        <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>
+                                            {task.text}
+                                        </span>
+                                        <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
+                                            {task.assignedTo}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {currentWeekShifts.observations && (
+                         <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                            <h3 className="text-lg font-semibold text-orange-400 mb-3">Observaciones</h3>
+                            <p className="text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto pr-2">{currentWeekShifts.observations}</p>
+                         </div>
+                    )}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
                 {weekDays.map(day => {
@@ -186,14 +198,9 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     const dayIndex = day.getDay() === 0 ? 6 : day.getDay() - 1;
                     const dailyOverride = shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
 
-                    const shiftsText: string[] = [];
-                    if (dailyOverride?.morning.active) {
-                        shiftsText.push(`M: ${dailyOverride.morning.start}-${dailyOverride.morning.end} (${dailyOverride.morning.worker})`);
-                    }
-                    if (dailyOverride?.evening.active) {
-                        shiftsText.push(`T: ${dailyOverride.evening.start}-${dailyOverride.evening.end} (${dailyOverride.evening.worker})`);
-                    }
-                    
+                    const morningWorker = dailyOverride?.morning.active ? dailyOverride.morning.worker : currentWeekShifts.morning;
+                    const eveningWorker = dailyOverride?.evening.active ? dailyOverride.evening.worker : currentWeekShifts.evening;
+
                     return (
                         <div 
                             key={day.toISOString()} 
@@ -206,13 +213,21 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 <h3 className="font-bold capitalize text-white">
                                     {day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
                                 </h3>
-                                {dailyOverride && (
+                                {dailyOverride ? (
                                     <div className="text-xs text-blue-300 mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>
-                                        {shiftsText.length > 0 ? (
-                                            shiftsText.map((text, index) => <p key={index} className="leading-tight">{text}</p>)
+                                        {dailyOverride.morning.active || dailyOverride.evening.active ? (
+                                            <>
+                                                {dailyOverride.morning.active && <p className="leading-tight">M: {morningWorker}</p>}
+                                                {dailyOverride.evening.active && <p className="leading-tight">T: {eveningWorker}</p>}
+                                            </>
                                         ) : (
                                             <p className="text-red-400 font-semibold">Cerrado</p>
                                         )}
+                                    </div>
+                                ) : (
+                                     <div className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>
+                                        <p className="leading-tight">M: {morningWorker}</p>
+                                        <p className="leading-tight">T: {eveningWorker}</p>
                                     </div>
                                 )}
                             </div>

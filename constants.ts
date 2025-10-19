@@ -12,7 +12,7 @@ export const SPACES: Space[] = [
   { id: 'locker_room2', name: 'Vestuario 2', group: 'Vestuarios' },
 ];
 
-export const WORKERS: string[] = ['Olga', 'Dani'];
+export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso'];
 
 export const TIME_SLOTS: string[] = [];
 // Generate time slots for the entire day in 30-minute intervals.

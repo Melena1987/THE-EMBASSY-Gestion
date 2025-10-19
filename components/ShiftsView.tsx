@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail } from '../types';
+import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task } from '../types';
 import { WORKERS } from '../constants';
 import { getWeekData } from '../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
@@ -8,6 +8,7 @@ import MoonIcon from './icons/MoonIcon';
 import SwitchIcon from './icons/SwitchIcon';
 import RefreshCcwIcon from './icons/RefreshCcwIcon';
 import DownloadIcon from './icons/DownloadIcon';
+import TrashIcon from './icons/TrashIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF } from '../utils/pdfUtils';
 
 interface ShiftsViewProps {
@@ -15,12 +16,15 @@ interface ShiftsViewProps {
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    onToggleTask: (weekId: string, taskId: string) => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
 }
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onResetWeekShifts, isReadOnly }) => {
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
+    const [newTaskText, setNewTaskText] = useState('');
+    const [newTaskAssignee, setNewTaskAssignee] = useState(WORKERS[0]);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
@@ -83,13 +87,11 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
     };
     
     const handleDailyShiftChange = (dayIndex: number, period: 'morning' | 'evening', field: keyof ShiftPeriodDetail, value: string | boolean) => {
-        // The base state is either the customized state for the week, or the default one.
         const baseShifts: ShiftAssignment = shiftAssignments[weekId] || { 
             morning: defaultAssignments.morning, 
             evening: defaultAssignments.evening 
         };
         
-        // The complex logic is now in a pure utility function.
         const newShifts = calculateUpdatedShifts(
             baseShifts,
             dayIndex,
@@ -98,7 +100,6 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
             value
         );
 
-        // The component's only job is to dispatch the update.
         onUpdateShifts(weekId, newShifts);
     };
 
@@ -124,6 +125,37 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
             delete newShifts.observations;
         }
 
+        onUpdateShifts(weekId, newShifts);
+    };
+
+    const handleAddTask = () => {
+        if (!newTaskText.trim()) return;
+
+        const newTask: Task = {
+            id: Date.now().toString(),
+            text: newTaskText.trim(),
+            assignedTo: newTaskAssignee,
+            completed: false,
+        };
+
+        const newShifts: ShiftAssignment = {
+            ...currentShifts,
+            tasks: [...(currentShifts.tasks || []), newTask],
+        };
+        onUpdateShifts(weekId, newShifts);
+        setNewTaskText('');
+        setNewTaskAssignee(WORKERS[0]);
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        const newTasks = currentShifts.tasks?.filter(task => task.id !== taskId);
+        
+        const newShifts: ShiftAssignment = { ...currentShifts };
+        if (newTasks && newTasks.length > 0) {
+            newShifts.tasks = newTasks;
+        } else {
+            delete newShifts.tasks;
+        }
         onUpdateShifts(weekId, newShifts);
     };
 
@@ -253,6 +285,62 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                     );
                 })}
             </div>
+
+            <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                {!isReadOnly && (
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-4 p-3 bg-black/20 rounded-md">
+                        <input 
+                            type="text"
+                            value={newTaskText}
+                            onChange={(e) => setNewTaskText(e.target.value)}
+                            placeholder="Descripción de la tarea..."
+                            className="flex-grow bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                        <select
+                            value={newTaskAssignee}
+                            onChange={(e) => setNewTaskAssignee(e.target.value)}
+                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                        >
+                            {WORKERS.map(w => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                        <button
+                            onClick={handleAddTask}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors whitespace-nowrap"
+                        >
+                            Añadir Tarea
+                        </button>
+                    </div>
+                )}
+                <div className="space-y-2">
+                    {currentShifts.tasks && currentShifts.tasks.length > 0 ? (
+                        currentShifts.tasks.map(task => (
+                            <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
+                                <input
+                                    type="checkbox"
+                                    checked={task.completed}
+                                    onChange={() => onToggleTask(weekId, task.id)}
+                                    className="h-5 w-5 rounded bg-black/30 border-white/20 text-orange-500 focus:ring-orange-500 cursor-pointer flex-shrink-0"
+                                />
+                                <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>
+                                    {task.text}
+                                </span>
+                                <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
+                                    {task.assignedTo}
+                                </span>
+                                {!isReadOnly && (
+                                    <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
+                    )}
+                </div>
+            </div>
+
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                 <label htmlFor="weekObservations" className="text-lg font-semibold text-orange-400 mb-2 block">
                     Observaciones de la Semana

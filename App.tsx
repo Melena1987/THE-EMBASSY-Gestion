@@ -252,12 +252,37 @@ const App: React.FC = () => {
             return;
         }
         try {
-            await setDoc(doc(db, 'shiftAssignments', weekId), newShifts);
+            await setDoc(doc(db, 'shiftAssignments', weekId), newShifts, { merge: true });
         } catch (error) {
             console.error("Error al actualizar los turnos:", error);
             alert("No se pudieron guardar los cambios en los turnos.");
         }
     }, [userRole]);
+    
+    const handleToggleTaskCompletion = useCallback(async (weekId: string, taskId: string) => {
+        if (!user) return;
+        const weekDocRef = doc(db, 'shiftAssignments', weekId);
+        try {
+            await runTransaction(db, async (transaction) => {
+                const weekDoc = await transaction.get(weekDocRef);
+                if (!weekDoc.exists()) {
+                    throw new Error("No se encontró la asignación de turnos para esta semana. Un administrador debe modificarla primero.");
+                }
+                const currentData = weekDoc.data() as ShiftAssignment;
+                const updatedTasks = currentData.tasks?.map(task => 
+                    task.id === taskId ? { ...task, completed: !task.completed } : task
+                );
+                
+                if(updatedTasks) {
+                    transaction.update(weekDocRef, { tasks: updatedTasks });
+                }
+            });
+        } catch (error) {
+            console.error("Error al actualizar la tarea:", error);
+            alert("No se pudo actualizar el estado de la tarea.");
+        }
+    }, [user]);
+
 
     const handleResetWeekShifts = useCallback(async (weekId: string) => {
         if (userRole !== 'ADMIN') {
@@ -319,6 +344,7 @@ const App: React.FC = () => {
                     selectedDate={selectedDate} 
                     onDateChange={setSelectedDate} 
                     onUpdateShifts={handleUpdateShifts}
+                    onToggleTask={handleToggleTaskCompletion}
                     onResetWeekShifts={handleResetWeekShifts}
                     isReadOnly={isReadOnly}
                 />;

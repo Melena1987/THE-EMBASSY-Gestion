@@ -37,12 +37,20 @@ export interface DailyShift {
     evening: ShiftPeriodDetail;
 }
 
+export interface Task {
+  id: string;
+  text: string;
+  assignedTo: string;
+  completed: boolean;
+}
+
 // Key format: "YYYY-WW" e.g., "2024-32"
 export interface ShiftAssignment {
     morning: string; // Default worker name for the week
     evening: string; // Default worker name for the week
     dailyOverrides?: Record<string, DailyShift>; // Key is day index '0'-'6' from Monday
     observations?: string;
+    tasks?: Task[];
 }
 export type ShiftAssignments = Record<string, ShiftAssignment>;
 
