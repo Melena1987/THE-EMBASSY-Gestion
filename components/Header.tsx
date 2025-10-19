@@ -117,13 +117,15 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     {/* --- Left Part: Logo --- */}
-                    <div className="flex items-center gap-2">
-                        <EmbassyLogo className="h-7 w-auto text-orange-400" />
-                        <span className="text-orange-400 font-light hidden sm:inline">Gestión</span>
+                    <div className="flex-1 flex items-center justify-start">
+                        <div className="flex items-center gap-2">
+                            <EmbassyLogo className="h-7 w-auto text-orange-400" />
+                            <span className="text-orange-400 font-light hidden sm:inline">Gestión</span>
+                        </div>
                     </div>
                     
                     {/* --- Center Part: Desktop Navigation --- */}
-                    <nav className="hidden md:flex items-center space-x-1 sm:space-x-2">
+                    <nav className="hidden md:flex items-center justify-center space-x-1 sm:space-x-2">
                        <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setIsMenuOpen(prev => !prev)}
@@ -141,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                             </button>
                             {isMenuOpen && (
                                 <div 
-                                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-56 origin-top bg-black/50 backdrop-blur-xl border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+                                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-56 origin-top bg-gray-900 border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
                                     role="menu"
                                     aria-orientation="vertical"
                                 >
@@ -220,51 +222,53 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                     </nav>
 
                     {/* --- Right Part: User, Notifications, Logout --- */}
-                    <div className="flex items-center gap-4">
-                        <div className="relative" ref={tasksRef}>
-                            <button
-                                onClick={() => setIsTasksOpen(prev => !prev)}
-                                className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                title="Mis Tareas Pendientes"
-                            >
-                                <BellIcon className="h-5 w-5" />
-                                {pendingTasks.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
-                                        {pendingTasks.length}
-                                    </span>
+                    <div className="flex-1 flex items-center justify-end">
+                        <div className="flex items-center gap-4">
+                            <div className="relative" ref={tasksRef}>
+                                <button
+                                    onClick={() => setIsTasksOpen(prev => !prev)}
+                                    className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                    title="Mis Tareas Pendientes"
+                                >
+                                    <BellIcon className="h-5 w-5" />
+                                    {pendingTasks.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                                            {pendingTasks.length}
+                                        </span>
+                                    )}
+                                </button>
+                                {isTasksOpen && (
+                                    <TasksDropdown 
+                                        tasks={pendingTasks} 
+                                        onToggleTask={onToggleTask} 
+                                        onClose={() => setIsTasksOpen(false)}
+                                    />
                                 )}
+                            </div>
+                            
+                            <div className="text-right hidden md:block">
+                                <p className="text-sm font-medium text-white">{userEmail}</p>
+                                <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
+                            </div>
+                            
+                            <button 
+                                onClick={onLogout}
+                                title="Cerrar Sesión"
+                                className="hidden md:block p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                            >
+                                <LogoutIcon className="h-5 w-5" />
                             </button>
-                            {isTasksOpen && (
-                                <TasksDropdown 
-                                    tasks={pendingTasks} 
-                                    onToggleTask={onToggleTask} 
-                                    onClose={() => setIsTasksOpen(false)}
-                                />
-                            )}
-                        </div>
-                        
-                        <div className="text-right hidden md:block">
-                            <p className="text-sm font-medium text-white">{userEmail}</p>
-                            <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
-                        </div>
-                        
-                        <button 
-                            onClick={onLogout}
-                            title="Cerrar Sesión"
-                            className="hidden md:block p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                        >
-                            <LogoutIcon className="h-5 w-5" />
-                        </button>
 
-                        {/* --- Mobile Hamburger Button --- */}
-                        <div className="md:hidden">
-                           <button
-                                onClick={() => setIsMobileMenuOpen(true)}
-                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                title="Abrir menú"
-                           >
-                               <MenuIcon className="h-6 w-6" />
-                           </button>
+                            {/* --- Mobile Hamburger Button --- */}
+                            <div className="md:hidden">
+                               <button
+                                    onClick={() => setIsMobileMenuOpen(true)}
+                                    className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                    title="Abrir menú"
+                               >
+                                   <MenuIcon className="h-6 w-6" />
+                               </button>
+                            </div>
                         </div>
                     </div>
                 </div>

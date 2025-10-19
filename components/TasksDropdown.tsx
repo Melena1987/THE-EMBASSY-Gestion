@@ -23,7 +23,7 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, onToggleTask, onCl
 
     return (
         <div 
-            className="absolute right-0 mt-2 w-80 origin-top-right bg-black/60 backdrop-blur-xl border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+            className="absolute right-0 mt-2 w-80 origin-top-right bg-gray-900 border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
             role="menu"
             aria-orientation="vertical"
         >
@@ -46,7 +46,7 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, onToggleTask, onCl
                                             className={`w-5 h-5 rounded-md mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors duration-200 border-2 border-gray-500 hover:bg-white/10`}
                                             aria-label="Marcar como completada"
                                         >
-                                            {/* This part was missing */}
+                                            <CheckIcon className="w-3 h-3 text-white opacity-0" />
                                         </button>
                                         <span className="flex-grow text-gray-200">{task.text}</span>
                                     </div>
