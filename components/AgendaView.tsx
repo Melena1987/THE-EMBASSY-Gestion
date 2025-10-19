@@ -1,6 +1,7 @@
 
+
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent } from '../types';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
@@ -24,6 +25,16 @@ interface AgendaViewProps {
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
 }
+
+type CombinedTask = (Task & {
+    type: 'shift';
+    sourceId: string;
+}) | (Task & {
+    type: 'event';
+    sourceId: string;
+    eventName: string;
+});
+
 
 const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
@@ -53,6 +64,43 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     }, [weekNumber]);
 
     const currentWeekShifts = shiftAssignments[weekId] || defaultAssignments;
+
+    const allTasks = useMemo(() => {
+        const weeklyTasks: CombinedTask[] = (currentWeekShifts.tasks || []).map(task => ({
+            ...task,
+            type: 'shift',
+            sourceId: weekId,
+        }));
+        
+        const eventTasks: CombinedTask[] = [];
+        const weekDateStrings = new Set(weekDays.map(d => formatDateForBookingKey(d)));
+
+        // FIX: Explicitly cast the result of Object.values to SpecialEvent[] to resolve type inference issues where `event` was being inferred as `unknown`.
+        for (const event of Object.values(specialEvents) as SpecialEvent[]) {
+            if (event.tasks && event.tasks.length > 0) {
+                let overlaps = false;
+                for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+                    if (weekDateStrings.has(formatDateForBookingKey(d))) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (overlaps) {
+                    event.tasks.forEach(task => {
+                        eventTasks.push({
+                            ...task,
+                            type: 'event',
+                            sourceId: event.id,
+                            eventName: event.name,
+                        });
+                    });
+                }
+            }
+        }
+        return [...weeklyTasks, ...eventTasks];
+    }, [currentWeekShifts.tasks, specialEvents, weekDays, weekId]);
+
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -169,33 +217,42 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                 </div>
             </div>
 
-            {(currentWeekShifts.tasks?.length > 0 || currentWeekShifts.observations) && (
+            {(allTasks.length > 0 || currentWeekShifts.observations) && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {currentWeekShifts.tasks && currentWeekShifts.tasks.length > 0 && (
+                    {allTasks.length > 0 && (
                         <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                             <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                                {currentWeekShifts.tasks.map(task => (
-                                    <div key={task.id} className="flex items-center gap-3 text-sm">
-                                        <button
-                                            onClick={() => onToggleTask(weekId, task.id)}
-                                            className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
-                                                task.completed 
-                                                    ? 'bg-green-500 hover:bg-green-600' 
-                                                    : 'border-2 border-gray-500 hover:bg-white/10'
-                                            }`}
-                                            aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
-                                        >
-                                            {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
-                                        </button>
-                                        <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>
-                                            {task.text}
-                                        </span>
-                                        <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                            {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
-                                        </span>
-                                    </div>
-                                ))}
+                                {allTasks.map(task => {
+                                    const isEventTask = task.type === 'event';
+                                    return (
+                                        <div key={task.id} className="flex items-center gap-3 text-sm p-2 bg-black/20 rounded-md">
+                                            {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
+                                            <button
+                                                onClick={() => onToggleTask(
+                                                    task.sourceId,
+                                                    task.id,
+                                                    isEventTask ? 'specialEvents' : 'shiftAssignments'
+                                                )}
+                                                className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
+                                                    task.completed 
+                                                        ? 'bg-green-500 hover:bg-green-600' 
+                                                        : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
+                                                }`}
+                                                aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                            >
+                                                {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
+                                            </button>
+                                            <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                                {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                                {task.text}
+                                            </span>
+                                            <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
+                                                {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
