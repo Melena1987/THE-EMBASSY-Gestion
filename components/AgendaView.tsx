@@ -192,7 +192,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     </div>
 
                     {/* Title */}
-                    <div className="flex-shrink-0 order-first sm:order-none w-full text-center">
+                    <div className="flex-shrink-0 order-first sm:order-none w-full sm:w-auto text-center">
                         <h2 className="text-xl font-bold text-white">
                             Semana {weekNumber}
                         </h2>
