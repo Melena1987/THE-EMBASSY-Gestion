@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Bookings, Space, SpecialEvent, Task } from '../types';
 import { SPACES, TIME_SLOTS, WORKERS } from '../constants';
@@ -62,7 +63,8 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
             for (const time of relevantTimeSlots) {
                 const key = `${space.id}-${dateStr}-${time}`;
                 if (bookings[key]) {
-                    // If editing, ignore conflicts with the event's own current bookings
+                    if (bookings[key].name.startsWith('EVENTO:')) continue;
+
                     const isOwnBooking = isEditingThisEvent &&
                                          eventToEdit.spaceIds?.includes(space.id) &&
                                          eventToEdit.startTime && eventToEdit.endTime &&
@@ -124,10 +126,17 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
         }
     };
     
-    const groupedSpaces = useMemo(() => SPACES.reduce((acc, space) => {
-        (acc[space.group] = acc[space.group] || []).push(space);
-        return acc;
-    }, {} as Record<string, Space[]>), []);
+    // FIX: Replaced complex `reduce` with a clearer, more type-safe loop to avoid type inference issues with `Object.entries`.
+    const groupedSpaces = useMemo(() => {
+        const groups: Record<string, Space[]> = {};
+        for (const space of SPACES) {
+            if (!groups[space.group]) {
+                groups[space.group] = [];
+            }
+            groups[space.group].push(space);
+        }
+        return groups;
+    }, []);
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -172,12 +181,16 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                                 const { isBooked, bookingName } = spaceStatuses[space.id] || {};
                                 const isSelected = selectedSpaces.includes(space.id);
                                 return (
-                                <button key={space.id} onClick={() => handleSpaceClick(space.id)} disabled={isBooked || isReadOnly}
+                                <button key={space.id} onClick={() => handleSpaceClick(space.id)} disabled={isReadOnly}
+                                    title={isBooked ? `Este espacio está reservado por '${bookingName}'. Al guardar, se eliminará esa reserva.` : space.name}
                                     className={`p-3 rounded-md text-sm font-medium transition-all h-20 flex items-center justify-center text-center ${
-                                        isBooked ? 'bg-red-600/80 cursor-not-allowed' : 
-                                        isSelected ? 'bg-blue-600 ring-2 ring-white' :
-                                        'bg-black/20 hover:bg-black/40'}`}>
-                                    {isBooked ? `Ocupado: ${bookingName}` : space.name}
+                                        isSelected ? 'bg-blue-600 ring-2 ring-white' : 'bg-black/20 hover:bg-black/40'
+                                    } ${
+                                        isBooked ? 'border-2 border-red-500' : ''
+                                    } ${
+                                        isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'
+                                    }`}>
+                                    {isBooked ? `SOBRESCRIBIR: ${bookingName}` : space.name}
                                 </button>
                                 );
                             })}

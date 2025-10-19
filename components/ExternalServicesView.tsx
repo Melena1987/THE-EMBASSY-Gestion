@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import CleaningSchedule from './CleaningSchedule';
 import type { CleaningAssignments, CleaningObservations } from '../types';
@@ -10,10 +9,12 @@ interface ExternalServicesViewProps {
     onDateChange: (date: Date) => void;
     onUpdateCleaningTime: (date: Date, startTime: string) => void;
     onUpdateCleaningObservations: (weekId: string, observations: string) => void;
+    isReadOnly: boolean;
 }
 
 const ExternalServicesView: React.FC<ExternalServicesViewProps> = (props) => {
     const [activeTab, setActiveTab] = useState('limpieza');
+    const { isReadOnly, ...rest } = props;
 
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -37,7 +38,7 @@ const ExternalServicesView: React.FC<ExternalServicesViewProps> = (props) => {
             </div>
 
             <div className="mt-4">
-                {activeTab === 'limpieza' && <CleaningSchedule {...props} />}
+                {activeTab === 'limpieza' && <CleaningSchedule {...rest} isReadOnly={isReadOnly} />}
             </div>
         </div>
     );

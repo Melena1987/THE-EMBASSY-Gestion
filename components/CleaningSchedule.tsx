@@ -12,9 +12,10 @@ interface CleaningScheduleProps {
     onDateChange: (date: Date) => void;
     onUpdateCleaningTime: (date: Date, startTime: string) => void;
     onUpdateCleaningObservations: (weekId: string, observations: string) => void;
+    isReadOnly: boolean;
 }
 
-const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments, cleaningObservations, selectedDate, onDateChange, onUpdateCleaningTime, onUpdateCleaningObservations }) => {
+const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments, cleaningObservations, selectedDate, onDateChange, onUpdateCleaningTime, onUpdateCleaningObservations, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
@@ -76,7 +77,7 @@ const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 ${isReadOnly ? 'opacity-70' : ''}`}>
                 {weekDays.map(day => {
                     const dayKey = formatDateForBookingKey(day);
                     const assignment = cleaningAssignments[dayKey];
@@ -94,9 +95,10 @@ const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments
                                     type="time" 
                                     value={assignment?.startTime || ''}
                                     onChange={(e) => handleTimeChange(day, e.target.value)}
-                                    className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                                    disabled={isReadOnly}
+                                    className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 disabled:cursor-not-allowed"
                                 />
-                                {assignment && (
+                                {assignment && !isReadOnly && (
                                     <button 
                                         onClick={() => handleTimeChange(day, '')}
                                         className="text-red-400 hover:text-red-300 p-1 rounded-full hover:bg-white/10 transition-colors"
@@ -121,7 +123,8 @@ const CleaningSchedule: React.FC<CleaningScheduleProps> = ({ cleaningAssignments
                     onChange={(e) => onUpdateCleaningObservations(weekId, e.target.value)}
                     rows={4}
                     placeholder="Anotaciones sobre la limpieza de la semana, productos necesarios, etc."
-                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y"
+                    disabled={isReadOnly}
+                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y disabled:cursor-not-allowed"
                 />
             </div>
         </div>

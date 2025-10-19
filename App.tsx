@@ -1,9 +1,10 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent } from './types';
-import { TIME_SLOTS } from './constants';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task } from './types';
+import { TIME_SLOTS, SPACES, WORKERS } from './constants';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
 import CalendarView from './components/CalendarView';
@@ -307,6 +308,7 @@ const App: React.FC = () => {
                     transaction.update(docRef, { tasks: updatedTasks });
                 }
             });
+        // FIX: Corrected invalid catch block syntax. `catch (error) =>` is not valid; it should be `catch (error) {`.
         } catch (error) {
             console.error("Error al actualizar la tarea:", error);
             alert(`No se pudo actualizar el estado de la tarea. ${error instanceof Error ? error.message : ''}`);
@@ -328,6 +330,10 @@ const App: React.FC = () => {
     }, [userRole]);
 
     const handleUpdateCleaningTime = useCallback(async (date: Date, startTime: string) => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') {
+            alert("Acción no permitida para su rol.");
+            return;
+        }
         const docId = formatDateForBookingKey(date);
         try {
             if (startTime) {
@@ -339,9 +345,13 @@ const App: React.FC = () => {
             console.error("Error al actualizar la hora de limpieza:", error);
             alert("No se pudo guardar la hora de limpieza.");
         }
-    }, []);
+    }, [userRole]);
 
     const handleUpdateCleaningObservations = useCallback(async (weekId: string, observations: string) => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') {
+            alert("Acción no permitida para su rol.");
+            return;
+        }
         try {
             if (observations.trim()) {
                 await setDoc(doc(db, 'cleaningObservations', weekId), { observations });
@@ -352,7 +362,7 @@ const App: React.FC = () => {
             console.error("Error al actualizar las observaciones de limpieza:", error);
             alert("No se pudo guardar las observaciones de limpieza.");
         }
-    }, []);
+    }, [userRole]);
     
     const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEventId?: string): Promise<boolean> => {
         if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
@@ -365,13 +375,11 @@ const App: React.FC = () => {
 
         try {
             await runTransaction(db, async (transaction) => {
-                // If date changes, delete old event doc
                 if (originalEventId && originalEventId !== date) {
                     transaction.delete(doc(db, 'specialEvents', originalEventId));
                 }
                 const eventDocRef = doc(db, 'specialEvents', date);
-
-                // 1. Determine old booking keys to delete
+                
                 const oldKeysToDelete: string[] = [];
                 if (originalEvent && originalEvent.startTime && originalEvent.endTime && originalEvent.spaceIds) {
                      const oldTimeSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
@@ -381,8 +389,7 @@ const App: React.FC = () => {
                          });
                      });
                 }
-
-                // 2. Determine new booking keys to create
+                
                 const newKeysToCreate: string[] = [];
                 if (startTime && endTime && spaceIds) {
                     const newTimeSlots = TIME_SLOTS.filter(t => t >= startTime && t < endTime);
@@ -392,23 +399,48 @@ const App: React.FC = () => {
                         });
                     });
                 }
+                
+                const cancellationTasks: Task[] = [];
+                const conflictingBookingRefsToDelete: DocumentReference[] = [];
+                const keysToCheckForConflict = newKeysToCreate.filter(k => !oldKeysToDelete.includes(k));
 
-                // 3. Check for conflicts
-                const keysToCheck = newKeysToCreate.filter(k => !oldKeysToDelete.includes(k));
-                if (keysToCheck.length > 0) {
-                    const bookingDocsRefs = keysToCheck.map(key => doc(db, 'bookings', key));
+                if (keysToCheckForConflict.length > 0) {
+                    const bookingDocsRefs = keysToCheckForConflict.map(key => doc(db, 'bookings', key));
                     const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
-                    if (bookingDocsSnapshots.some(snap => snap.exists())) {
-                        throw new Error("Conflicto: Uno o más espacios ya están reservados en el nuevo horario del evento.");
+                    const processedBookingsForTasks = new Set<string>();
+
+                    for (const docSnap of bookingDocsSnapshots) {
+                        if (docSnap.exists()) {
+                            conflictingBookingRefsToDelete.push(docSnap.ref);
+                            const bookingDetails = docSnap.data() as BookingDetails;
+                            const key = docSnap.id;
+                            
+                            const compositeKey = `${bookingDetails.name}-${key.split('-').slice(1,4).join('-')}`;
+                            if (!processedBookingsForTasks.has(compositeKey)) {
+                                processedBookingsForTasks.add(compositeKey);
+                                const keyParts = key.split('-');
+                                const dateStr = keyParts.slice(-4, -1).join('-');
+                                const spaceName = SPACES.find(s => s.id === keyParts.slice(0, -4).join('-'))?.name || 'Espacio Desconocido';
+                                
+                                cancellationTasks.push({
+                                    id: `cancel-${Date.now()}-${cancellationTasks.length}`,
+                                    text: `URGENTE: Cancelar y notificar reserva "${bookingDetails.name}" en ${spaceName} el ${dateStr} por evento especial.`,
+                                    assignedTo: ['Manu'],
+                                    completed: false,
+                                });
+                            }
+                        }
                     }
                 }
                 
-                // 4. Perform writes
                 oldKeysToDelete.forEach(key => transaction.delete(doc(db, 'bookings', key)));
-                const bookingDetails: BookingDetails = { name: `EVENTO: ${name}` };
-                newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), bookingDetails));
+                conflictingBookingRefsToDelete.forEach(ref => transaction.delete(ref));
                 
-                const eventToSave: SpecialEvent = { id: date, name, tasks, observations, startTime, endTime, spaceIds };
+                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${name}` };
+                newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
+                
+                const finalTasks = [...(tasks || []), ...cancellationTasks];
+                const eventToSave: SpecialEvent = { id: date, name, observations, tasks: finalTasks.length > 0 ? finalTasks : undefined, startTime, endTime, spaceIds };
                 transaction.set(eventDocRef, eventToSave);
             });
 
@@ -434,7 +466,6 @@ const App: React.FC = () => {
 
         try {
             const batch = writeBatch(db);
-            // Delete associated bookings
             if (eventToDelete.startTime && eventToDelete.endTime && eventToDelete.spaceIds) {
                 const timeSlots = TIME_SLOTS.filter(t => t >= eventToDelete.startTime! && t < eventToDelete.endTime!);
                 eventToDelete.spaceIds.forEach(spaceId => {
@@ -443,7 +474,6 @@ const App: React.FC = () => {
                     });
                 });
             }
-            // Delete event document
             batch.delete(doc(db, 'specialEvents', eventToDelete.id));
             await batch.commit();
 
@@ -467,6 +497,7 @@ const App: React.FC = () => {
     const canEditBookings = userRole === 'ADMIN';
     const canEditShifts = userRole === 'ADMIN';
     const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
+    const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';
 
     const renderView = () => {
         switch (view) {
@@ -499,6 +530,7 @@ const App: React.FC = () => {
                     onDateChange={setSelectedDate}
                     onUpdateCleaningTime={handleUpdateCleaningTime}
                     onUpdateCleaningObservations={handleUpdateCleaningObservations}
+                    isReadOnly={!canEditServices}
                 />;
             case 'eventos':
                 return <SpecialEventView
