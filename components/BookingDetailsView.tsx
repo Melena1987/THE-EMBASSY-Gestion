@@ -7,13 +7,13 @@ interface BookingDetailsViewProps {
     booking: ConsolidatedBooking;
     onBack: () => void;
     onEdit: () => void;
-    onDelete: (keys: string[]) => void;
+    onDelete: (booking: ConsolidatedBooking) => void;
 }
 
 const BookingDetailsView: React.FC<BookingDetailsViewProps> = ({ booking, onBack, onEdit, onDelete }) => {
     
     const handleDelete = () => {
-        onDelete(booking.keys);
+        onDelete(booking);
     };
     
     // The date string is "YYYY-MM-DD", create date as UTC to avoid timezone shifts.

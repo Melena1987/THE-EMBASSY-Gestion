@@ -178,3 +178,64 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
         return a.space.localeCompare(b.space);
     });
 };
+
+export const findRelatedBookings = (selectedBooking: ConsolidatedBooking, allBookings: Bookings): { date: string, keys: string[] }[] => {
+    const { name, observations } = selectedBooking.details;
+    const startTime = selectedBooking.startTime;
+    const endTime = selectedBooking.endTime;
+    
+    const selectedSpaceIds = new Set(selectedBooking.keys.map(key => key.split('-').slice(0, -4).join('-')));
+
+    if (selectedSpaceIds.size === 0) return [{ date: selectedBooking.date, keys: selectedBooking.keys }];
+
+    const relevantTimeSlots = new Set<string>();
+    let currentTime = startTime;
+    while (currentTime < endTime) {
+        relevantTimeSlots.add(currentTime);
+        const [h, m] = currentTime.split(':').map(Number);
+        const d = new Date(2000, 0, 1, h, m + 30); // Use a fixed date to avoid DST issues
+        currentTime = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    const potentialSlots = Object.entries(allBookings).filter(([key, details]) => {
+        const keyParts = key.split('-');
+        if (keyParts.length < 5) return false;
+
+        const keyTime = keyParts.slice(-1)[0];
+        const keySpaceId = keyParts.slice(0, -4).join('-');
+        
+        return details.name === name &&
+               details.observations === observations &&
+               selectedSpaceIds.has(keySpaceId) &&
+               relevantTimeSlots.has(keyTime);
+    });
+
+    const bookingsByDate: Record<string, string[]> = {};
+    potentialSlots.forEach(([key]) => {
+        const keyDate = key.split('-').slice(-4, -1).join('-');
+        if (!bookingsByDate[keyDate]) {
+            bookingsByDate[keyDate] = [];
+        }
+        bookingsByDate[keyDate].push(key);
+    });
+    
+    const relatedOccurrences = Object.entries(bookingsByDate).filter(([, keys]) => {
+        const groupSpaceIds = new Set(keys.map(key => key.split('-').slice(0, -4).join('-')));
+        
+        if (groupSpaceIds.size !== selectedSpaceIds.size) {
+            return false;
+        }
+        
+        const timeSlotsPerSpace = keys.length / groupSpaceIds.size;
+        if (timeSlotsPerSpace !== relevantTimeSlots.size) {
+            return false;
+        }
+
+        for (const id of selectedSpaceIds) {
+            if (!groupSpaceIds.has(id)) return false;
+        }
+        return true;
+    }).map(([date, keys]) => ({ date, keys }));
+    
+    return relatedOccurrences.sort((a, b) => a.date.localeCompare(b.date));
+};
