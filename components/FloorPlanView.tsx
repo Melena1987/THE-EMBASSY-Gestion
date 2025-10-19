@@ -13,27 +13,48 @@ interface FloorPlanViewProps {
     onPreFillComplete: () => void;
 }
 
+const WEEKDAYS = [
+    { label: 'L', value: 1 }, { label: 'M', value: 2 }, { label: 'X', value: 3 },
+    { label: 'J', value: 4 }, { label: 'V', value: 5 }, { label: 'S', value: 6 },
+    { label: 'D', value: 0 }
+];
+
+
 const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete }) => {
     const [selectedStartTime, setSelectedStartTime] = useState('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState('10:00');
     const [reservationName, setReservationName] = useState('');
     const [observations, setObservations] = useState('');
-    const [repeatOption, setRepeatOption] = useState('none');
     const [pendingSelections, setPendingSelections] = useState<string[]>([]);
+    
+    // State for the new repetition logic
+    const [repeatOption, setRepeatOption] = useState('none');
+    const [repeatEndDate, setRepeatEndDate] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 1);
+        return d;
+    });
+    const [selectedWeekdays, setSelectedWeekdays] = useState(new Set([new Date().getDay()]));
+
+     useEffect(() => {
+        // When the main selectedDate changes, update the defaults for the repetition controls
+        const newDay = selectedDate.getDay();
+        setSelectedWeekdays(new Set([newDay]));
+
+        const newEndDate = new Date(selectedDate);
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
+        setRepeatEndDate(newEndDate);
+    }, [selectedDate]);
 
     useEffect(() => {
         if (bookingToPreFill) {
-            // Consistent date parsing: ensure the pre-filled date string is handled as local time.
             onDateChange(new Date(`${bookingToPreFill.date}T00:00:00`));
             setSelectedStartTime(bookingToPreFill.startTime);
             setSelectedEndTime(bookingToPreFill.endTime);
             setReservationName(bookingToPreFill.details.name);
             setObservations(bookingToPreFill.details.observations || '');
-
-            // For editing, we don't want to repeat the creation logic.
             setRepeatOption('none');
 
-            // Extract unique space IDs from the keys. A key is like "spaceId-YYYY-MM-DD-HH:mm"
             const spaceIds = [...new Set(bookingToPreFill.keys.map(key => key.split('-').slice(0, -4).join('-')))];
             setPendingSelections(spaceIds);
 
@@ -42,9 +63,6 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
     }, [bookingToPreFill, onPreFillComplete, onDateChange]);
 
     const groupedSpaces = useMemo(() => {
-        // Definitive FIX: Replaced the `reduce` method with a standard `for...of` loop.
-        // This approach provides more stable and reliable type inference in TypeScript,
-        // permanently resolving the "'map' does not exist on type 'unknown'" error.
         const groups: Record<string, Space[]> = {};
         for (const space of SPACES) {
             const group = space.group;
@@ -57,11 +75,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
     }, []);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // To prevent timezone issues where new Date("YYYY-MM-DD") is interpreted as UTC midnight,
-        // we explicitly parse it in the local timezone by appending a time component.
-        // This ensures that selecting '21/10/2025' results in a Date object for that day
-        // at midnight *in the user's local timezone*, avoiding off-by-one day errors.
-        const dateStr = e.target.value; // "YYYY-MM-DD"
+        const dateStr = e.target.value;
         if (dateStr) {
             onDateChange(new Date(`${dateStr}T00:00:00`));
         }
@@ -80,7 +94,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
         const relevantTimeSlots = TIME_SLOTS.filter(time => time >= selectedStartTime && time < selectedEndTime);
 
         SPACES.forEach(space => {
-            statuses[space.id] = { isBooked: false }; // Default
+            statuses[space.id] = { isBooked: false };
             for (const time of relevantTimeSlots) {
                 const key = `${space.id}-${formatDateForBookingKey(selectedDate)}-${time}`;
                 if (bookings[key]) {
@@ -94,13 +108,25 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
     }, [bookings, selectedDate, selectedStartTime, selectedEndTime]);
 
     const handleSpaceClick = (spaceId: string) => {
-        // This function is now only called for available spaces,
-        // as the button is disabled for booked ones.
         setPendingSelections(prev =>
             prev.includes(spaceId)
                 ? prev.filter(id => id !== spaceId)
                 : [...prev, spaceId]
         );
+    };
+
+    const handleWeekdaySelect = (dayValue: number) => {
+        setSelectedWeekdays(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(dayValue)) {
+                if (newSet.size > 1) { // Prevent deselecting the last day
+                    newSet.delete(dayValue);
+                }
+            } else {
+                newSet.add(dayValue);
+            }
+            return newSet;
+        });
     };
     
     const handleConfirmBooking = async () => {
@@ -120,7 +146,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
         }
         
         const initialDate = new Date(selectedDate.getTime());
-        const datesToBook = Array.from(generateRepeatingDates(initialDate, repeatOption));
+        const datesToBook = Array.from(generateRepeatingDates(initialDate, repeatOption, repeatEndDate, selectedWeekdays));
 
         if (datesToBook.length === 0) {
             alert("La regla de repetición no generó ninguna fecha válida para la selección actual.");
@@ -185,39 +211,78 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                 <h2 className="text-lg font-bold text-white border-b border-white/20 pb-2">Selector de Reserva</h2>
                 
                 <div className="space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-end gap-4">
-                        <div className="w-full md:flex-1">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="lg:col-span-2">
                             <label htmlFor="reservationName" className="text-xs text-gray-400 block mb-1">Nombre de la reserva</label>
                             <input id="reservationName" type="text" placeholder="Ej: Entrenamiento John Doe" value={reservationName} onChange={(e) => setReservationName(e.target.value)}
                                 className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
                         </div>
-                        <div className="w-full md:w-auto">
-                            <label htmlFor="reservationDate" className="text-xs text-gray-400 block mb-1">Fecha</label>
-                            <input id="reservationDate" type="date" value={formatDateForBookingKey(selectedDate)} onChange={handleDateChange}
-                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
-                        </div>
-                        <div className="w-full md:w-auto">
+                        <div>
                             <label htmlFor="startTime" className="text-xs text-gray-400 block mb-1">Hora de inicio</label>
                             <input id="startTime" type="time" value={selectedStartTime} onChange={(e) => setSelectedStartTime(e.target.value)}
                                 className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
                         </div>
-                        <div className="w-full md:w-auto">
+                        <div>
                             <label htmlFor="endTime" className="text-xs text-gray-400 block mb-1">Hora de fin</label>
                             <input id="endTime" type="time" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}
                                 className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
                         </div>
-                        <div className="w-full md:w-auto">
-                            <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetir</label>
-                            <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-white/10 pt-4">
+                        <div>
+                             <label htmlFor="reservationDate" className="text-xs text-gray-400 block mb-1">Fecha de inicio</label>
+                            <input id="reservationDate" type="date" value={formatDateForBookingKey(selectedDate)} onChange={handleDateChange}
+                                className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                        </div>
+                        <div className="lg:col-span-2">
+                             <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetición</label>
+                             <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)}
                                 className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500">
-                                <option value="none">No repetir</option>
-                                <option value="daily">Todos los días (1 mes)</option>
-                                <option value="weekdays">Días laborables (L-V, 1 mes)</option>
-                                <option value="weekly">Semanalmente (3 meses)</option>
-                                <option value="monthly">Mensualmente (6 meses)</option>
+                                <option value="none">No se repite</option>
+                                <option value="daily">Diariamente</option>
+                                <option value="weekdays">Días laborables (L-V)</option>
+                                <option value="weekly">Semanalmente</option>
+                                <option value="monthly">Mensualmente</option>
                             </select>
                         </div>
                     </div>
+                    
+                    {repeatOption !== 'none' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                           {repeatOption === 'weekly' && (
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-2">Repetir los días</label>
+                                    <div className="flex items-center justify-around bg-black/20 p-2 rounded-md">
+                                        {WEEKDAYS.map(({label, value}) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => handleWeekdaySelect(value)}
+                                                className={`w-8 h-8 rounded-full font-bold text-sm transition-colors duration-200 flex items-center justify-center ${
+                                                    selectedWeekdays.has(value) ? 'bg-orange-600 text-white' : 'bg-black/30 hover:bg-white/10 text-gray-300'
+                                                }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                           )}
+                           <div className={repeatOption !== 'weekly' ? 'md:col-span-2' : ''}>
+                                <label htmlFor="repeatEndDate" className="text-xs text-gray-400 block mb-1">Finaliza el</label>
+                                <input 
+                                    id="repeatEndDate" 
+                                    type="date" 
+                                    value={formatDateForBookingKey(repeatEndDate)} 
+                                    onChange={(e) => e.target.value && setRepeatEndDate(new Date(`${e.target.value}T00:00:00`))}
+                                    min={formatDateForBookingKey(selectedDate)}
+                                    className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                            </div>
+                        </div>
+                    )}
+
+
                     <div>
                         <label htmlFor="observations" className="text-xs text-gray-400 block mb-1">Observaciones (opcional)</label>
                         <textarea id="observations" placeholder="Añadir material, personal necesario, etc." value={observations} onChange={(e) => setObservations(e.target.value)}
@@ -225,6 +290,7 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
                             className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 resize-y" />
                     </div>
                 </div>
+
 
                 {pendingSelections.length > 0 && (
                     <div className="flex items-center justify-between gap-2 pt-4 mt-2 border-t border-white/20">

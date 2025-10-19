@@ -39,26 +39,42 @@ export const formatDateForBookingKey = (date: Date): string => {
  * A generator function that yields a sequence of dates based on a starting date and a repeat option.
  * @param startDate The initial date for the sequence.
  * @param repeatOption A string indicating the repetition rule ('none', 'daily', 'weekdays', 'weekly', 'monthly').
+ * @param endDate The date until which the repetition should occur (inclusive).
+ * @param weeklyDays A Set of numbers (0-6, Sunday-Saturday) for weekly repetitions.
  * @returns A Generator that yields Date objects.
  */
-export function* generateRepeatingDates(startDate: Date, repeatOption: string): Generator<Date> {
-    const initialDate = new Date(startDate.getTime()); // Ensure we don't modify the original
+export function* generateRepeatingDates(
+    startDate: Date, 
+    repeatOption: string,
+    endDate: Date,
+    weeklyDays?: Set<number>
+): Generator<Date> {
+    const initialDate = new Date(startDate.getTime());
 
+    // Ensure endDate is at the end of the day for correct comparison
+    const limitDate = new Date(endDate.getTime());
+    limitDate.setHours(23, 59, 59, 999);
+
+    if (initialDate > limitDate) {
+        if (repeatOption === 'none') {
+             yield initialDate;
+        }
+        return;
+    }
+    
     switch (repeatOption) {
         case 'none':
             yield initialDate;
             break;
+
         case 'daily': {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 1);
             for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
                 yield new Date(d);
             }
             break;
         }
+
         case 'weekdays': {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 1);
             for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
                 const day = d.getDay();
                 if (day > 0 && day < 6) { // Monday to Friday
@@ -67,25 +83,32 @@ export function* generateRepeatingDates(startDate: Date, repeatOption: string): 
             }
             break;
         }
+
         case 'weekly': {
-            const limitDate = new Date(initialDate);
-            limitDate.setMonth(limitDate.getMonth() + 3);
-            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 7)) {
-                yield new Date(d);
+            const daysToRepeat = weeklyDays && weeklyDays.size > 0 ? weeklyDays : new Set([initialDate.getDay()]);
+            for (let d = new Date(initialDate); d <= limitDate; d.setDate(d.getDate() + 1)) {
+                if (daysToRepeat.has(d.getDay())) {
+                    yield new Date(d);
+                }
             }
             break;
         }
+
         case 'monthly': {
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; ; i++) {
                 const nextDate = new Date(initialDate);
                 nextDate.setMonth(initialDate.getMonth() + i);
-                // Only yield if the day of the month hasn't changed (e.g., avoids booking Jan 31 -> Feb 28 -> Mar 31 becoming Mar 3)
+                
+                if (nextDate > limitDate) break;
+
+                // Only yield if the day of the month hasn't changed (avoids Jan 31 becoming Mar 3)
                 if (nextDate.getDate() === initialDate.getDate()) {
                     yield nextDate;
                 }
             }
             break;
         }
+        
         default:
             yield initialDate; // Fallback to 'none'
             break;
