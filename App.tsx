@@ -89,43 +89,6 @@ const App: React.FC = () => {
         }
     }, []);
     
-    const handleMoveBooking = useCallback(async (
-        originalKeys: string[],
-        newKeys: string[],
-        bookingDetails: BookingDetails
-    ): Promise<boolean> => {
-        if (newKeys.length === 0 || originalKeys.length === 0) {
-            return false;
-        }
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                const newBookingDocsRefs = newKeys.map(key => doc(db, 'bookings', key));
-                
-                const newBookingDocsSnapshots = await Promise.all(newBookingDocsRefs.map(ref => transaction.get(ref)));
-
-                for (const docSnapshot of newBookingDocsSnapshots) {
-                    if (docSnapshot.exists()) {
-                         throw new Error("Conflicto de reserva: El nuevo horario ya está ocupado.");
-                    }
-                }
-                
-                originalKeys.forEach(key => {
-                    transaction.delete(doc(db, 'bookings', key));
-                });
-
-                newKeys.forEach(key => {
-                    transaction.set(doc(db, 'bookings', key), bookingDetails);
-                });
-            });
-            return true;
-        } catch (e: any) {
-            console.error("Error al mover la reserva:", e);
-            alert(e.message || "No se pudo mover la reserva.");
-            return false;
-        }
-    }, []);
-
     const handleSelectBooking = (booking: ConsolidatedBooking) => {
         setSelectedBooking(booking);
         setView('detalles');
@@ -276,7 +239,7 @@ const App: React.FC = () => {
             case 'plano':
                 return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} />;
             case 'calendario':
-                return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} onMoveBooking={handleMoveBooking} />;
+                return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} />;
             case 'agenda':
                 return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} onAddBooking={handleAddBooking} />;
             case 'detalles':

@@ -15,10 +15,10 @@ interface CalendarViewProps {
     onDateChange: (date: Date) => void;
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
-    onMoveBooking: (originalKeys: string[], newKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
+    onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onMoveBooking }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, onAddBooking }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -97,7 +97,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         try {
             const bookingData: ConsolidatedBooking = JSON.parse(e.dataTransfer.getData('application/json'));
             if (formatDateForBookingKey(targetDate) === bookingData.date) {
-                return; // No se puede soltar en el mismo día
+                return; // No se puede soltar en el mismo día para duplicar
             }
             
             const { startTime, endTime, details, keys: originalKeys } = bookingData;
@@ -110,11 +110,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                 timeSlots.map(time => `${spaceId}-${targetDateStr}-${time}`)
             );
             
-            await onMoveBooking(originalKeys, newKeys, details);
+            // Conflict check
+            for (const key of newKeys) {
+                if (bookings[key]) {
+                    alert(`Conflicto de reserva: El horario de ${startTime} a ${endTime} ya está ocupado el ${targetDate.toLocaleDateString('es-ES')}.`);
+                    return;
+                }
+            }
+
+            await onAddBooking(newKeys, details);
 
         } catch (error) {
-            console.error("Error al soltar la reserva:", error);
-            alert("No se pudo mover la reserva.");
+            console.error("Error al duplicar la reserva:", error);
+            alert("No se pudo duplicar la reserva.");
         }
     };
 
