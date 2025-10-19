@@ -24,7 +24,7 @@ interface ShiftsViewProps {
 const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
-    const [newTaskAssignee, setNewTaskAssignee] = useState(WORKERS[0]);
+    const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
@@ -128,13 +128,24 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
         onUpdateShifts(weekId, newShifts);
     };
 
+    const handleAssigneeChange = (worker: string) => {
+        setNewTaskAssignees(prev =>
+            prev.includes(worker)
+                ? prev.filter(w => w !== worker)
+                : [...prev, worker]
+        );
+    };
+
     const handleAddTask = () => {
-        if (!newTaskText.trim()) return;
+        if (!newTaskText.trim() || newTaskAssignees.length === 0) {
+            alert("La tarea debe tener una descripción y al menos un asignado.");
+            return;
+        }
 
         const newTask: Task = {
             id: Date.now().toString(),
             text: newTaskText.trim(),
-            assignedTo: newTaskAssignee,
+            assignedTo: newTaskAssignees,
             completed: false,
         };
 
@@ -144,7 +155,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
         };
         onUpdateShifts(weekId, newShifts);
         setNewTaskText('');
-        setNewTaskAssignee(WORKERS[0]);
+        setNewTaskAssignees([]);
     };
 
     const handleDeleteTask = (taskId: string) => {
@@ -289,24 +300,31 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                 <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
                 {!isReadOnly && (
-                    <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-4 p-3 bg-black/20 rounded-md">
+                    <div className="space-y-3 mb-4 p-3 bg-black/20 rounded-md">
                         <input 
                             type="text"
                             value={newTaskText}
                             onChange={(e) => setNewTaskText(e.target.value)}
                             placeholder="Descripción de la tarea..."
-                            className="flex-grow bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
                         />
-                        <select
-                            value={newTaskAssignee}
-                            onChange={(e) => setNewTaskAssignee(e.target.value)}
-                            className="bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"
-                        >
-                            {WORKERS.map(w => <option key={w} value={w}>{w}</option>)}
-                        </select>
+                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <span className="text-sm font-medium text-gray-300">Asignar a:</span>
+                            {WORKERS.map(w => (
+                                <label key={w} className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newTaskAssignees.includes(w)}
+                                        onChange={() => handleAssigneeChange(w)}
+                                        className="h-4 w-4 rounded bg-black/40 border-white/30 text-orange-500 focus:ring-orange-500"
+                                    />
+                                    <span className="text-white">{w}</span>
+                                </label>
+                            ))}
+                        </div>
                         <button
                             onClick={handleAddTask}
-                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors whitespace-nowrap"
+                            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
                         >
                             Añadir Tarea
                         </button>
@@ -326,7 +344,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, selectedDate,
                                     {task.text}
                                 </span>
                                 <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                    {task.assignedTo}
+                                    {task.assignedTo.join(', ')}
                                 </span>
                                 {!isReadOnly && (
                                     <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">

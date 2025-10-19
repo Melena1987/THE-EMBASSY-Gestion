@@ -40,7 +40,7 @@ export interface DailyShift {
 export interface Task {
   id: string;
   text: string;
-  assignedTo: string;
+  assignedTo: string[];
   completed: boolean;
 }
 
