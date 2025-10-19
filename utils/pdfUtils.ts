@@ -1,3 +1,4 @@
+
 import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments, CleaningObservations, SpecialEvents, SpecialEvent, Task } from '../types';
 import { getDefaultDailyShift } from './shiftUtils';
 import { consolidateBookingsForDay } from './bookingUtils';
@@ -476,10 +477,11 @@ export const generateAgendaPDF = async (
     URL.revokeObjectURL(link.href);
 };
 
-export const generateCalendarPDF = async (days: Date[], month: Date, bookings: Bookings) => {
+export const generateCalendarPDF = async (days: Date[], month: Date, bookings: Bookings, specialEvents: SpecialEvents) => {
     const { PDFDocument, rgb, StandardFonts } = (window as any).PDFLib;
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage({ layout: 'landscape' });
+    // FIX: Create a landscape A4 page using explicit dimensions.
+    const page = pdfDoc.addPage([841.89, 595.28]);
     const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -490,7 +492,6 @@ export const generateCalendarPDF = async (days: Date[], month: Date, bookings: B
     page.drawText(month.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase(), { x: margin, y: y, font: fontBold, size: 28, color: rgb(0.96, 0.45, 0.09) });
     y -= 40;
 
-    const tableTop = y;
     const colWidth = (width - 2 * margin) / 7;
     const headerRowHeight = 20;
 
@@ -507,6 +508,7 @@ export const generateCalendarPDF = async (days: Date[], month: Date, bookings: B
             const date = days[week * 7 + day];
             if (!date) continue;
 
+            const dayKey = formatDateForBookingKey(date);
             const isCurrentMonth = date.getMonth() === month.getMonth();
             const cellX = margin + day * colWidth;
             const cellY = y - week * rowHeight;
@@ -514,16 +516,45 @@ export const generateCalendarPDF = async (days: Date[], month: Date, bookings: B
             page.drawRectangle({ x: cellX, y: cellY - rowHeight, width: colWidth, height: rowHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 0.5 });
             page.drawText(date.getDate().toString(), { x: cellX + 5, y: cellY - 15, font: fontBold, size: 12, color: isCurrentMonth ? rgb(0, 0, 0) : rgb(0.6, 0.6, 0.6) });
 
+            const eventsForDay = Object.values(specialEvents).filter((event: SpecialEvent) => dayKey >= event.startDate && dayKey <= event.endDate);
             const dayBookings = consolidateBookingsForDay(bookings, date);
-            let bookingY = cellY - 30;
-            dayBookings.slice(0, 4).forEach(booking => {
-                if (bookingY > cellY - rowHeight + 10) {
-                     page.drawText(`${booking.startTime} ${booking.details.name}`, { x: cellX + 5, y: bookingY, font: font, size: 7, color: isCurrentMonth ? rgb(0.2, 0.2, 0.2) : rgb(0.7, 0.7, 0.7), maxWidth: colWidth - 10, wordBreaks: [' '] });
-                    bookingY -= 9;
+
+            const itemsToDisplay = [
+                ...eventsForDay.map(e => ({ type: 'event', data: e })),
+                ...dayBookings.map(b => ({ type: 'booking', data: b }))
+            ];
+            
+            let contentY = cellY - 30;
+            const contentLimit = cellY - rowHeight + 10;
+            const maxItems = 4;
+
+            itemsToDisplay.slice(0, maxItems).forEach(item => {
+                if (contentY > contentLimit) {
+                    let text: string;
+                    let drawOptions: any;
+
+                    if (item.type === 'event') {
+                        const event = item.data as SpecialEvent;
+                        text = `★ ${event.name}`;
+                        drawOptions = { font: fontBold, size: 7, color: isCurrentMonth ? rgb(0.5, 0.2, 0.8) : rgb(0.7, 0.6, 0.8) };
+                    } else {
+                        const booking = item.data as ConsolidatedBooking;
+                        text = `${booking.startTime} ${booking.details.name}`;
+                        drawOptions = { font: font, size: 7, color: isCurrentMonth ? rgb(0.2, 0.2, 0.2) : rgb(0.7, 0.7, 0.7) };
+                    }
+
+                    page.drawText(text, {
+                        x: cellX + 5,
+                        y: contentY,
+                        ...drawOptions,
+                        maxWidth: colWidth - 10,
+                    });
+                    contentY -= 9;
                 }
             });
-            if (dayBookings.length > 4) {
-                 page.drawText('...', { x: cellX + 5, y: bookingY, font: font, size: 8, color: rgb(0.5, 0.5, 0.5) });
+
+            if (itemsToDisplay.length > maxItems && contentY > contentLimit) {
+                page.drawText('...', { x: cellX + 5, y: contentY, font: font, size: 8, color: rgb(0.5, 0.5, 0.5) });
             }
         }
     }

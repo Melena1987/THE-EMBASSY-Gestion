@@ -71,7 +71,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateCalendarPDF(days, currentMonth, bookings);
+            await generateCalendarPDF(days, currentMonth, bookings, specialEvents);
         }
         setIsDownloading(false);
     };
