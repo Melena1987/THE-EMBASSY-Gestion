@@ -24,7 +24,7 @@ const App: React.FC = () => {
     const [userRole, setUserRole] = useState<UserRole>(null);
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-    const [view, setView] = useState<View>('plano');
+    const [view, setView] = useState<View>('agenda');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedBooking, setSelectedBooking] = useState<ConsolidatedBooking | null>(null);
     const [bookingToPreFill, setBookingToPreFill] = useState<ConsolidatedBooking | null>(null);
