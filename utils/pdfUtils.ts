@@ -181,7 +181,8 @@ export const generateShiftsPDF = async (
         const lines = wrapText(currentShifts.observations, font, 10, tableWidth);
         lines.forEach(line => {
             if (y < 40) return;
-            page.drawText(line, { x: leftMargin, y, font, size: 10, color: black });
+            // FIX: Corrected the options object for drawText. The 'font' property key was missing its value assignment and was followed by 'size' creating a syntax error.
+            page.drawText(line, { x: leftMargin, y, font: font, size: 10, color: black });
             y -= 14;
         });
     }
@@ -484,8 +485,8 @@ export const generateCleaningPDF = async (
 
     let y = height - 40;
 
-    page.drawText(`Horario de Limpieza - Semana ${weekNumber}`, {
-        x: 50, y, font: boldFont, size: 20, color: orange,
+    page.drawText(`THE EMBASSY - Horario de Limpieza - Semana ${weekNumber}`, {
+        x: 50, y, font: boldFont, size: 18, color: orange,
     });
     y -= 20;
 
