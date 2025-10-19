@@ -2,23 +2,24 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// La configuración de Firebase se carga automáticamente desde las variables de entorno
-// proporcionadas por el entorno de despliegue (ej. Netlify).
-// No es necesario modificar este fichero manualmente.
+// --- INSTRUCCIONES DE CONFIGURACIÓN ---
+// Por favor, reemplace los valores de marcador de posición a continuación con la configuración
+// real de su proyecto de Firebase. Puede encontrar esta información en la consola de Firebase,
+// en la configuración de su proyecto (Project Settings > General > Your apps > Firebase SDK snippet).
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID,
+  apiKey: "YOUR_API_KEY", // Reemplazar con su API Key
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Reemplazar con su Auth Domain
+  projectId: "YOUR_PROJECT_ID", // Reemplazar con su Project ID
+  storageBucket: "YOUR_PROJECT_ID.appspot.com", // Reemplazar con su Storage Bucket
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Reemplazar con su Messaging Sender ID
+  appId: "YOUR_APP_ID", // Reemplazar con su App ID
 };
 
-// Validación para asegurar que las variables de entorno cruciales estén presentes.
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.error(
-        "Error de configuración de Firebase: Faltan variables de entorno esenciales. " +
-        "Asegúrate de que VITE_FIREBASE_API_KEY y VITE_FIREBASE_PROJECT_ID estén configuradas en tu entorno de despliegue."
+// Validación para asegurar que la configuración de Firebase ha sido actualizada.
+if (firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "YOUR_PROJECT_ID") {
+    console.warn(
+        "Configuración de Firebase incompleta: Por favor, edite el fichero 'firebase.ts' " +
+        "y reemplace los valores de marcador de posición con las credenciales reales de su proyecto de Firebase."
     );
 }
 
