@@ -1,11 +1,11 @@
 
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
-import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task } from './types';
+import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task, Sponsors, Sponsor } from './types';
 import { TIME_SLOTS, SPACES, WORKERS } from './constants';
 import Header from './components/Header';
 import FloorPlanView from './components/FloorPlanView';
@@ -16,6 +16,7 @@ import ShiftsView from './components/ShiftsView';
 import ExternalServicesView from './components/ExternalServicesView';
 import SpecialEventView from './components/SpecialEventView';
 import SpecialEventDetailsView from './components/SpecialEventDetailsView';
+import SponsorsView from './components/SponsorsView';
 import ConfirmationModal from './components/ConfirmationModal';
 import Login from './components/Login';
 import { findRelatedBookings } from './utils/bookingUtils';
@@ -27,10 +28,12 @@ const App: React.FC = () => {
     const [cleaningAssignments, setCleaningAssignments] = useState<CleaningAssignments>({});
     const [cleaningObservations, setCleaningObservations] = useState<CleaningObservations>({});
     const [specialEvents, setSpecialEvents] = useState<SpecialEvents>({});
+    const [sponsors, setSponsors] = useState<Sponsors>({});
     
     const [user, setUser] = useState<User | null>(null);
     const [userRole, setUserRole] = useState<UserRole>(null);
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+    const [isInitialSetupDone, setIsInitialSetupDone] = useState(false);
 
     const [view, setView] = useState<View>('agenda');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -55,6 +58,25 @@ const App: React.FC = () => {
                     const role = userDocSnap.data().role as UserRole;
                     setUserRole(role);
                     setUser(currentUser);
+
+                    if (!isInitialSetupDone) {
+                        if (role === 'ADMIN' || role === 'EVENTOS') {
+                            const cleardentRef = doc(db, 'sponsors', 'cleardent');
+                            const cleardentSnap = await getDoc(cleardentRef);
+                            if (!cleardentSnap.exists()) {
+                                const defaultCleardentTasks: Task[] = [
+                                    { id: 'cl-1', text: 'Presencia del logo y banner de Clínicas Cleardent en la web oficial de THE EMBASSY TEAM 3X3', assignedTo: [], completed: false },
+                                    { id: 'cl-2', text: 'Presencia del logo de Clínicas Cleardent en ropa OFICIAL DEL CLUB PROFESIONAL (Masc. y femen.) SUPERBASKET y ACADEMIA 3x3 (Cantera)', assignedTo: [], completed: false },
+                                    { id: 'cl-3', text: 'Logo de Clínicas Cleardent en photocall, carteles, vídeos, etc de todos los eventos 3X3 organizados por THE EMBASSY', assignedTo: [], completed: false },
+                                    { id: 'cl-4', text: 'Espacio reservado para la instalación de stand exclusivo de Clínicas Cleardent en la Fan Zone de eventos 3x3 organizados por THE EMBASSY.', assignedTo: [], completed: false },
+                                    { id: 'cl-5', text: 'Presencia física de un representante de Clínicas Cleardent en todos los eventos organizados por el Universo The Embassy (Pro y Social)', assignedTo: [], completed: false }
+                                ];
+                                await setDoc(cleardentRef, { name: 'Cleardent', tasks: defaultCleardentTasks });
+                            }
+                        }
+                        setIsInitialSetupDone(true);
+                    }
+
                 } else {
                     console.error("No role document found for user:", currentUser.uid);
                     setUserRole(null);
@@ -68,7 +90,7 @@ const App: React.FC = () => {
             setIsLoadingAuth(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [isInitialSetupDone]);
 
     useEffect(() => {
         if (!user) return;
@@ -117,12 +139,22 @@ const App: React.FC = () => {
             setSpecialEvents(newEvents);
         });
 
+        const sponsorsCol = collection(db, 'sponsors');
+        const unsubscribeSponsors = onSnapshot(sponsorsCol, (snapshot) => {
+            const newSponsors: Sponsors = {};
+            snapshot.forEach((doc) => {
+                newSponsors[doc.id] = { ...doc.data(), id: doc.id } as Sponsor;
+            });
+            setSponsors(newSponsors);
+        });
+
         return () => {
             unsubscribeBookings();
             unsubscribeShifts();
             unsubscribeCleaning();
             unsubscribeCleaningObs();
             unsubscribeSpecialEvents();
+            unsubscribeSponsors();
         };
     }, [user]);
 
@@ -542,6 +574,20 @@ const App: React.FC = () => {
             alert("No se pudo eliminar el evento.");
         }
     }, [userRole]);
+
+    const handleUpdateSponsor = useCallback(async (sponsorId: string, newSponsorData: Sponsor) => {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
+            alert("Acción no permitida para su rol.");
+            return;
+        }
+        try {
+            const { id, ...dataToSave } = newSponsorData;
+            await setDoc(doc(db, 'sponsors', sponsorId), dataToSave, { merge: true });
+        } catch (error) {
+            console.error("Error al actualizar el patrocinador:", error);
+            alert("No se pudieron guardar los cambios del patrocinador.");
+        }
+    }, [userRole]);
     
     if (isLoadingAuth) {
         return <div className="min-h-screen flex items-center justify-center text-white text-xl">Cargando...</div>;
@@ -555,6 +601,7 @@ const App: React.FC = () => {
     const canEditShifts = userRole === 'ADMIN';
     const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';
+    const canManageSponsors = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
     const renderView = () => {
         switch (view) {
@@ -613,6 +660,12 @@ const App: React.FC = () => {
                     }
                 }
                 return null;
+            case 'sponsors':
+                 return <SponsorsView
+                    sponsors={sponsors}
+                    onUpdateSponsor={handleUpdateSponsor}
+                    isReadOnly={!canManageSponsors}
+                 />;
             default:
                 return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
         }

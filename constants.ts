@@ -14,6 +14,8 @@ export const SPACES: Space[] = [
 
 export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso'];
 
+export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
+
 export const TIME_SLOTS: string[] = [];
 // Generate time slots for the entire day in 30-minute intervals.
 for (let h = 0; h < 24; h++) {

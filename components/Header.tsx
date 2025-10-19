@@ -10,6 +10,7 @@ import UsersIcon from './icons/UsersIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
 import LogoutIcon from './icons/LogoutIcon';
 import StarIcon from './icons/StarIcon';
+import HeartIcon from './icons/HeartIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -65,6 +66,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
     const isTurnosActive = currentView === 'turnos';
     const isServiciosActive = currentView === 'servicios';
+    const isSponsorsActive = currentView === 'sponsors';
 
     return (
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
@@ -157,6 +159,19 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                <BriefcaseIcon className="h-5 w-5" />
                                <span className="hidden sm:inline">Servicios</span>
                            </button>
+                           {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
+                               <button
+                                   onClick={() => setView('sponsors')}
+                                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                       isSponsorsActive
+                                           ? 'bg-orange-600 text-white'
+                                           : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                   }`}
+                               >
+                                   <HeartIcon className="h-5 w-5" />
+                                   <span className="hidden sm:inline">Patrocinadores</span>
+                               </button>
+                           )}
                         </nav>
                         <button 
                             onClick={onLogout}

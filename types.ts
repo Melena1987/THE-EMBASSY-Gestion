@@ -1,4 +1,4 @@
-export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento';
+export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento' | 'sponsors';
 
 export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | null;
 
@@ -73,3 +73,10 @@ export interface SpecialEvent {
   posterUrl?: string;
 }
 export type SpecialEvents = Record<string, SpecialEvent>; // Key is unique id
+
+export interface Sponsor {
+  id: string; // Document ID from Firestore
+  name: string;
+  tasks?: Task[];
+}
+export type Sponsors = Record<string, Sponsor>; // Key is the sponsor ID
