@@ -535,7 +535,7 @@ export const generateCalendarPDF = async (days: Date[], month: Date, bookings: B
 
                     if (item.type === 'event') {
                         const event = item.data as SpecialEvent;
-                        text = `★ ${event.name}`;
+                        text = `* ${event.name}`;
                         drawOptions = { font: fontBold, size: 7, color: isCurrentMonth ? rgb(0.5, 0.2, 0.8) : rgb(0.7, 0.6, 0.8) };
                     } else {
                         const booking = item.data as ConsolidatedBooking;
