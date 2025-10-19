@@ -1,5 +1,6 @@
 
 
+
 import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments, CleaningObservations, SpecialEvents, SpecialEvent, Task } from '../types';
 import { getDefaultDailyShift } from './shiftUtils';
 import { consolidateBookingsForDay } from './bookingUtils';
@@ -393,11 +394,12 @@ export const generateAgendaPDF = async (
         }
 
         if (index > 0) {
+            y -= 10; // Gutter/space after previous day's content.
             page.drawLine({ start: { x: margin, y: y + 10 }, end: { x: width - margin, y: y + 10 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
         }
         
         page.drawText(sanitizeText(day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })), { x: margin, y: y, font: fontBold, size: 14, color: rgb(0.047, 0.102, 0.18) });
-        y -= 25;
+        y -= 22; // Space after title.
 
         if (eventsForDay.length > 0) {
             eventsForDay.forEach(event => {
@@ -407,7 +409,7 @@ export const generateAgendaPDF = async (
                     x: margin + 10, y: y, font: fontBold, size: 9, color: rgb(0.5, 0.2, 0.8), lineHeight: lineHeightEvent, maxWidth
                 });
                 const lines = getLinesOfText(sanitizedEventText, fontBold, 9, maxWidth);
-                y -= lines.length * lineHeightEvent + 5;
+                y -= lines.length * lineHeightEvent + 8; // Space between items.
             });
         }
         
@@ -419,7 +421,7 @@ export const generateAgendaPDF = async (
                     x: margin + 10, y: y, font: font, size: 9, color: rgb(0.2, 0.2, 0.2), lineHeight: lineHeightBooking, maxWidth
                 });
                 const lines = getLinesOfText(sanitizedText, font, 9, maxWidth);
-                y -= lines.length * lineHeightBooking + 5;
+                y -= lines.length * lineHeightBooking + 8; // Space between items.
             });
         } else if (eventsForDay.length === 0) {
              page.drawText('Sin reservas', { x: margin + 10, y: y, font: font, size: 9, color: rgb(0.5, 0.5, 0.5) });
