@@ -22,6 +22,7 @@ declare global {
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 // Lee las variables de entorno de Vite/Netlify de forma segura
 const firebaseConfig = {
@@ -39,5 +40,6 @@ const app = initializeApp(firebaseConfig);
 // Exporta los servicios que necesitas
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 export default app;

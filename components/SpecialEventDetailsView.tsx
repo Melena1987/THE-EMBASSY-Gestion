@@ -22,6 +22,9 @@ const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event
     const formattedDate = dateObj.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
     const bookedSpacesNames = event.spaceIds?.map(id => SPACES.find(s => s.id === id)?.name || id).join(', ') || 'Ninguno';
+    
+    const posterUrl = event.posterUrl;
+    const isImage = posterUrl && /\.(jpg|jpeg|png|gif|webp)$/i.test(posterUrl);
 
     return (
         <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-lg max-w-4xl mx-auto border border-white/10" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -38,6 +41,21 @@ const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event
                     <p><strong className="text-gray-400 w-28 inline-block">Espacios:</strong> <span className="text-white capitalize">{bookedSpacesNames}</span></p>
                 </div>
                 
+                {posterUrl && (
+                    <div className="row-span-2 flex flex-col items-center">
+                        <strong className="text-gray-400 block mb-2">Cartel del Evento:</strong>
+                        <a href={posterUrl} target="_blank" rel="noopener noreferrer" className="block">
+                            {isImage ? (
+                                <img src={posterUrl} alt={`Cartel de ${event.name}`} className="max-w-xs max-h-60 rounded-md object-contain border border-white/20 hover:opacity-80 transition-opacity" />
+                            ) : (
+                                <div className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+                                    Ver Cartel (PDF)
+                                </div>
+                            )}
+                        </a>
+                    </div>
+                )}
+
                 {event.observations && (
                     <div className="md:col-span-2">
                         <strong className="text-gray-400 block mb-1">Observaciones:</strong>

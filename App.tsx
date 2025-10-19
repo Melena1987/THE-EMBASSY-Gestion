@@ -2,7 +2,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { ref, deleteObject } from 'firebase/storage';
+import { db, auth, storage } from './firebase';
 import type { View, Bookings, BookingDetails, ConsolidatedBooking, ShiftAssignments, ShiftAssignment, CleaningAssignments, UserRole, CleaningObservations, SpecialEvents, SpecialEvent, Task } from './types';
 import { TIME_SLOTS, SPACES, WORKERS } from './constants';
 import Header from './components/Header';
@@ -370,7 +371,7 @@ const App: React.FC = () => {
             return false;
         }
 
-        const { id: date, name, startTime, endTime, spaceIds, tasks, observations } = eventData;
+        const { id: date, name, startTime, endTime, spaceIds, tasks, observations, posterUrl } = eventData;
         const originalEvent = originalEventId ? specialEvents[originalEventId] : null;
 
         try {
@@ -440,7 +441,7 @@ const App: React.FC = () => {
                 newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
                 
                 const finalTasks = [...(tasks || []), ...cancellationTasks];
-                const eventToSave: SpecialEvent = { id: date, name, observations, tasks: finalTasks.length > 0 ? finalTasks : undefined, startTime, endTime, spaceIds };
+                const eventToSave: SpecialEvent = { id: date, name, observations, tasks: finalTasks.length > 0 ? finalTasks : undefined, startTime, endTime, spaceIds, posterUrl };
                 transaction.set(eventDocRef, eventToSave);
             });
 
@@ -474,6 +475,16 @@ const App: React.FC = () => {
                     });
                 });
             }
+
+            if (eventToDelete.posterUrl) {
+                try {
+                    const posterRef = ref(storage, eventToDelete.posterUrl);
+                    await deleteObject(posterRef);
+                } catch (storageError) {
+                     console.warn(`Failed to delete poster for event ${eventToDelete.id}. The event will be deleted, but the file may remain in storage.`, storageError);
+                }
+            }
+
             batch.delete(doc(db, 'specialEvents', eventToDelete.id));
             await batch.commit();
 

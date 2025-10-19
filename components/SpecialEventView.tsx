@@ -1,5 +1,8 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { storage } from '../firebase';
 import type { Bookings, Space, SpecialEvent, Task } from '../types';
 import { SPACES, TIME_SLOTS, WORKERS } from '../constants';
 import { formatDateForBookingKey } from '../utils/dateUtils';
@@ -22,6 +25,13 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
     const [observations, setObservations] = useState('');
     const [tasks, setTasks] = useState<Task[]>([]);
     const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+    
+    // State for poster management
+    const [posterFile, setPosterFile] = useState<File | null>(null);
+    const [initialPosterUrl, setInitialPosterUrl] = useState<string | undefined>();
+    const [isPosterMarkedForDeletion, setIsPosterMarkedForDeletion] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
@@ -35,6 +45,9 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
             setObservations(eventToEdit.observations || '');
             setTasks(eventToEdit.tasks || []);
             setSelectedSpaces(eventToEdit.spaceIds || []);
+            setInitialPosterUrl(eventToEdit.posterUrl);
+            setPosterFile(null);
+            setIsPosterMarkedForDeletion(false);
         }
         return () => {
             if (eventToEdit) onEditDone();
@@ -100,6 +113,18 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
         setTasks(prev => prev.filter(task => task.id !== taskId));
     };
 
+     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setPosterFile(e.target.files[0]);
+            setIsPosterMarkedForDeletion(false);
+        }
+    };
+
+    const handleRemovePoster = () => {
+        setIsPosterMarkedForDeletion(true);
+        setPosterFile(null);
+    };
+
     const handleSave = async () => {
         if (!eventName.trim()) {
             alert("El nombre del evento no puede estar vacío.");
@@ -110,23 +135,60 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
             return;
         }
 
-        const eventData: SpecialEvent = {
-            id: formatDateForBookingKey(eventDate),
-            name: eventName.trim(),
-            observations: observations.trim() || undefined,
-            tasks: tasks.length > 0 ? tasks : undefined,
-            startTime: startTime || undefined,
-            endTime: endTime || undefined,
-            spaceIds: selectedSpaces.length > 0 ? selectedSpaces : undefined,
-        };
-        
-        const success = await onSaveEvent(eventData, eventToEdit?.id);
-        if (success) {
-            // State will be cleared by unmounting or navigating away
+        const eventId = formatDateForBookingKey(eventDate);
+        let finalPosterUrl = initialPosterUrl;
+
+        // Step 1: Handle poster deletion if marked
+        if (isPosterMarkedForDeletion && initialPosterUrl) {
+            try {
+                const oldPosterRef = ref(storage, initialPosterUrl);
+                await deleteObject(oldPosterRef);
+                finalPosterUrl = undefined;
+            } catch (error) {
+                console.warn("Could not delete old poster, it may have already been removed.", error);
+            }
+        }
+
+        // Step 2: Handle new poster upload
+        if (posterFile) {
+            setIsUploading(true);
+            setUploadProgress(0);
+            
+            // If replacing an existing poster that wasn't marked for deletion, delete it now.
+            if (!isPosterMarkedForDeletion && initialPosterUrl) {
+                try {
+                    const oldPosterRef = ref(storage, initialPosterUrl);
+                    await deleteObject(oldPosterRef);
+                } catch (error) {
+                    console.warn("Could not delete old poster during replacement.", error);
+                }
+            }
+
+            const fileExtension = posterFile.name.split('.').pop();
+            const storageRef = ref(storage, `events/${eventId}/poster.${fileExtension}`);
+            const uploadTask = uploadBytesResumable(storageRef, posterFile);
+
+            uploadTask.on('state_changed',
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                (error) => {
+                    console.error("Upload failed:", error);
+                    alert("La subida del cartel falló.");
+                    setIsUploading(false);
+                },
+                async () => {
+                    finalPosterUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                    const eventData: SpecialEvent = { id: eventId, name: eventName.trim(), observations: observations.trim() || undefined, tasks: tasks.length > 0 ? tasks : undefined, startTime: startTime || undefined, endTime: endTime || undefined, spaceIds: selectedSpaces.length > 0 ? selectedSpaces : undefined, posterUrl: finalPosterUrl };
+                    await onSaveEvent(eventData, eventToEdit?.id);
+                    setIsUploading(false);
+                }
+            );
+        } else {
+            // Step 3: No new file, just save other data
+            const eventData: SpecialEvent = { id: eventId, name: eventName.trim(), observations: observations.trim() || undefined, tasks: tasks.length > 0 ? tasks : undefined, startTime: startTime || undefined, endTime: endTime || undefined, spaceIds: selectedSpaces.length > 0 ? selectedSpaces : undefined, posterUrl: finalPosterUrl };
+            await onSaveEvent(eventData, eventToEdit?.id);
         }
     };
     
-    // FIX: Replaced complex `reduce` with a clearer, more type-safe loop to avoid type inference issues with `Object.entries`.
     const groupedSpaces = useMemo(() => {
         const groups: Record<string, Space[]> = {};
         for (const space of SPACES) {
@@ -142,7 +204,7 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
         <div className="space-y-6 max-w-7xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
             <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-lg border border-white/10">
                  <h2 className="text-2xl font-bold text-white border-b border-white/20 pb-3 mb-4">{eventToEdit ? 'Editar' : 'Crear'} Evento Especial</h2>
-                <fieldset disabled={isReadOnly} className={`space-y-4 ${isReadOnly ? 'opacity-70' : ''}`}>
+                <fieldset disabled={isReadOnly || isUploading} className={`space-y-4 ${isReadOnly || isUploading ? 'opacity-70' : ''}`}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <div className="md:col-span-2">
                             <label htmlFor="eventName" className="text-xs text-gray-400 block mb-1">Nombre del Evento</label>
@@ -160,9 +222,36 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                 </fieldset>
             </div>
 
+             <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-lg border border-white/10">
+                <h3 className="text-xl font-bold text-white border-b border-white/20 pb-3 mb-4">Cartel del Evento (Opcional)</h3>
+                <fieldset disabled={isReadOnly || isUploading} className={`space-y-4 ${isReadOnly || isUploading ? 'opacity-70' : ''}`}>
+                    {initialPosterUrl && !isPosterMarkedForDeletion && !posterFile && (
+                        <div>
+                            <p className="text-sm text-gray-400 mb-2">Cartel actual:</p>
+                            <div className="flex items-center gap-4 p-2 bg-black/20 rounded-md">
+                                <a href={initialPosterUrl} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:underline">Ver Cartel</a>
+                                <button onClick={handleRemovePoster} className="text-red-400 hover:text-red-300" title="Eliminar cartel">
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                     <div>
+                        <label htmlFor="posterFile" className="text-xs text-gray-400 block mb-1">{initialPosterUrl ? 'Reemplazar' : 'Subir'} cartel (PDF o Imagen)</label>
+                        <input id="posterFile" type="file" onChange={handleFileChange} accept="image/*,application/pdf" className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-600 file:text-white hover:file:bg-orange-700"/>
+                        {posterFile && <p className="text-xs text-gray-400 mt-1">Seleccionado: {posterFile.name}</p>}
+                    </div>
+                    {isUploading && (
+                         <div className="w-full bg-gray-700 rounded-full h-2.5">
+                            <div className="bg-orange-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                    )}
+                </fieldset>
+            </div>
+
             <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-lg border border-white/10">
                 <h3 className="text-xl font-bold text-white border-b border-white/20 pb-3 mb-4">Reserva de Espacios (Opcional)</h3>
-                 <fieldset disabled={isReadOnly} className={`space-y-4 ${isReadOnly ? 'opacity-70' : ''}`}>
+                 <fieldset disabled={isReadOnly || isUploading} className={`space-y-4 ${isReadOnly || isUploading ? 'opacity-70' : ''}`}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="startTime" className="text-xs text-gray-400 block mb-1">Hora de inicio</label>
@@ -173,36 +262,40 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                             <input id="endTime" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
                         </div>
                     </div>
-                    {Object.entries(groupedSpaces).map(([group, spaces]) => (
-                        <div key={group}>
-                             <h4 className="text-lg font-semibold text-orange-400 mt-4 mb-2">{group}</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                            {spaces.map(space => {
-                                const { isBooked, bookingName } = spaceStatuses[space.id] || {};
-                                const isSelected = selectedSpaces.includes(space.id);
-                                return (
-                                <button key={space.id} onClick={() => handleSpaceClick(space.id)} disabled={isReadOnly}
-                                    title={isBooked ? `Este espacio está reservado por '${bookingName}'. Al guardar, se eliminará esa reserva.` : space.name}
-                                    className={`p-3 rounded-md text-sm font-medium transition-all h-20 flex items-center justify-center text-center ${
-                                        isSelected ? 'bg-blue-600 ring-2 ring-white' : 'bg-black/20 hover:bg-black/40'
-                                    } ${
-                                        isBooked ? 'border-2 border-red-500' : ''
-                                    } ${
-                                        isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'
-                                    }`}>
-                                    {isBooked ? `SOBRESCRIBIR: ${bookingName}` : space.name}
-                                </button>
-                                );
-                            })}
+                    {/* FIX: The error indicates a type inference issue with `Object.entries`. Rewriting the loop using `Object.keys` is a safer way to iterate and ensure correct types. */}
+                    {Object.keys(groupedSpaces).map((group) => {
+                        const spaces = groupedSpaces[group];
+                        return (
+                            <div key={group}>
+                                 <h4 className="text-lg font-semibold text-orange-400 mt-4 mb-2">{group}</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                {spaces.map(space => {
+                                    const { isBooked, bookingName } = spaceStatuses[space.id] || {};
+                                    const isSelected = selectedSpaces.includes(space.id);
+                                    return (
+                                    <button key={space.id} onClick={() => handleSpaceClick(space.id)} disabled={isReadOnly}
+                                        title={isBooked ? `Este espacio está reservado por '${bookingName}'. Al guardar, se eliminará esa reserva.` : space.name}
+                                        className={`p-3 rounded-md text-sm font-medium transition-all h-20 flex items-center justify-center text-center ${
+                                            isSelected ? 'bg-blue-600 ring-2 ring-white' : 'bg-black/20 hover:bg-black/40'
+                                        } ${
+                                            isBooked ? 'border-2 border-red-500' : ''
+                                        } ${
+                                            isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'
+                                        }`}>
+                                        {isBooked ? `SOBRESCRIBIR: ${bookingName}` : space.name}
+                                    </button>
+                                    );
+                                })}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                  </fieldset>
             </div>
             
             <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-lg border border-white/10">
                  <h3 className="text-xl font-bold text-white border-b border-white/20 pb-3 mb-4">Tareas Asignables</h3>
-                 <fieldset disabled={isReadOnly} className={`space-y-4 ${isReadOnly ? 'opacity-70' : ''}`}>
+                 <fieldset disabled={isReadOnly || isUploading} className={`space-y-4 ${isReadOnly || isUploading ? 'opacity-70' : ''}`}>
                     <div className="p-3 bg-black/20 rounded-md space-y-3">
                         <input type="text" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} placeholder="Descripción de la tarea..." className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"/>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -231,7 +324,9 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
             <div className="flex justify-between items-center mt-6">
                 <button onClick={onBack} className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-md">&larr; Volver</button>
                 {!isReadOnly && (
-                    <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md">{eventToEdit ? 'Guardar Cambios' : 'Crear Evento'}</button>
+                    <button onClick={handleSave} disabled={isUploading} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-wait">
+                        {isUploading ? `Subiendo... ${uploadProgress.toFixed(0)}%` : (eventToEdit ? 'Guardar Cambios' : 'Crear Evento')}
+                    </button>
                 )}
             </div>
         </div>

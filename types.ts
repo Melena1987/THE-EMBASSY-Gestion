@@ -68,5 +68,6 @@ export interface SpecialEvent {
   spaceIds?: string[];
   tasks?: Task[];
   observations?: string;
+  posterUrl?: string;
 }
 export type SpecialEvents = Record<string, SpecialEvent>; // Key is id (date)
