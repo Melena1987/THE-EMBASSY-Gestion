@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo, useState } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
@@ -121,7 +122,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts);
+            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts, specialEvents, allTasks);
         }
         setIsDownloadingAgenda(false);
     }
