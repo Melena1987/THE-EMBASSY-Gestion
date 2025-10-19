@@ -1,4 +1,5 @@
 
+
 import type { ShiftAssignment, Bookings, ConsolidatedBooking, CleaningAssignments, CleaningObservations, SpecialEvents, SpecialEvent, Task } from '../types';
 import { getDefaultDailyShift } from './shiftUtils';
 import { consolidateBookingsForDay } from './bookingUtils';
@@ -57,12 +58,16 @@ export const ensurePdfLibsLoaded = async (): Promise<boolean> => {
 const sanitizeText = (text: string | undefined | null): string => {
     if (!text) return '';
     // This regex replaces some common unsupported characters like checkmarks,
-    // smart quotes, and em-dashes with their ASCII equivalents or removes them.
-    return String(text).replace(/[☑☐’‘“”—]/g, (char) => {
+    // smart quotes, em-dashes, and newlines with their ASCII equivalents or removes them.
+    // It also replaces newline characters with spaces, as pdf-lib doesn't handle them.
+    return String(text).replace(/[☑☐’‘“”—\r\n]/g, (char) => {
         switch (char) {
             case '’': case '‘': return "'";
             case '“': case '”': return '"';
             case '—': return '-';
+            case '\r':
+            case '\n':
+                return ' ';
             default: return ''; // Remove unsupported chars like checkmarks
         }
     });
