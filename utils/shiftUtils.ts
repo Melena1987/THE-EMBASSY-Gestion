@@ -16,7 +16,7 @@ export const getDefaultDailyShift = (dayIndex: number, weeklyMorningWorker: stri
     return {
         morning: {
             worker: weeklyMorningWorker,
-            start: isSaturday ? '10:00' : '09:00',
+            start: '09:00',
             end: '14:00',
             active: !isSunday,
         },
