@@ -37,7 +37,7 @@ type CombinedTask = (Task & {
 const timelineConfig = {
   startHour: 9, // 9 AM
   endHour: 23, // 11 PM
-  pixelsPerMinute: 0.8,
+  pixelsPerMinute: 0.6,
 };
 
 const timeToMinutes = (time: string): number => {
@@ -362,7 +362,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                             }
 
                                             const top = (startMinutes - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
-                                            const height = (endMinutes - startMinutes) * timelineConfig.pixelsPerMinute;
+                                            const height = Math.max(1, ((endMinutes - startMinutes) * timelineConfig.pixelsPerMinute) - 2);
 
                                             return (
                                                 <div 
