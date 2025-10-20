@@ -34,25 +34,29 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, onToggleTask, onCl
 
             <div className="py-2 px-1 max-h-96 overflow-y-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
                 {tasks.length > 0 ? (
-                    Object.entries(groupedTasks).map(([sourceName, taskGroup]) => (
-                        <div key={sourceName} className="mb-3">
-                            <h4 className="px-3 py-1 text-xs font-bold text-orange-400 uppercase">{sourceName}</h4>
-                            <div className="space-y-1 mt-1">
-                                {taskGroup.map(task => (
-                                    <div key={task.id} className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors">
-                                        <button
-                                            onClick={() => onToggleTask(task.sourceId, task.id, task.sourceCollection)}
-                                            className={`w-5 h-5 rounded-md mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors duration-200 border-2 border-gray-500 hover:bg-white/10`}
-                                            aria-label="Marcar como completada"
-                                        >
-                                            <CheckIcon className="w-3 h-3 text-white opacity-0" />
-                                        </button>
-                                        <span className="flex-grow text-gray-200">{task.text}</span>
-                                    </div>
-                                ))}
+                    // FIX: Changed from Object.entries to Object.keys to fix a type inference issue with stricter TypeScript settings where the value in an entry could be 'unknown'.
+                    Object.keys(groupedTasks).map(sourceName => {
+                        const taskGroup = groupedTasks[sourceName];
+                        return (
+                            <div key={sourceName} className="mb-3">
+                                <h4 className="px-3 py-1 text-xs font-bold text-orange-400 uppercase">{sourceName}</h4>
+                                <div className="space-y-1 mt-1">
+                                    {taskGroup.map(task => (
+                                        <div key={task.id} className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors">
+                                            <button
+                                                onClick={() => onToggleTask(task.sourceId, task.id, task.sourceCollection)}
+                                                className={`w-5 h-5 rounded-md mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors duration-200 border-2 border-gray-500 hover:bg-white/10`}
+                                                aria-label="Marcar como completada"
+                                            >
+                                                <CheckIcon className="w-3 h-3 text-white opacity-0" />
+                                            </button>
+                                            <span className="flex-grow text-gray-200">{task.text}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center p-6 text-gray-400">
                         <BellIcon className="w-8 h-8 mb-2"/>
