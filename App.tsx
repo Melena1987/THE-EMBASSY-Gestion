@@ -181,7 +181,7 @@ const App: React.FC = () => {
         for (const [weekId, assignment] of Object.entries(shiftAssignments) as [string, ShiftAssignment][]) {
             if (assignment.tasks) {
                 assignment.tasks.forEach(task => {
-                    if (task.completed) return;
+                    if (task.completed || !Array.isArray(task.assignedTo)) return;
 
                     const isAssignedToMe = task.assignedTo.some(assignee => {
                         if (assignee === currentUserName) {
@@ -226,7 +226,8 @@ const App: React.FC = () => {
         for (const event of Object.values(specialEvents) as SpecialEvent[]) {
             if (event.tasks) {
                 event.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    if (task.completed || !Array.isArray(task.assignedTo)) return;
+                    if (task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: event.id, sourceName: `Evento: ${event.name}` });
                     }
                 });
@@ -237,7 +238,8 @@ const App: React.FC = () => {
         for (const sponsor of Object.values(sponsors) as Sponsor[]) {
             if (sponsor.tasks) {
                 sponsor.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    if (task.completed || !Array.isArray(task.assignedTo)) return;
+                    if (task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: sponsor.id, sourceName: `Patrocinador: ${sponsor.name}` });
                     }
                 });
