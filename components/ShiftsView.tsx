@@ -61,7 +61,8 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         return { morning, evening };
     }, [weekNumber]);
 
-    const currentShifts = shiftAssignments[weekId] || defaultAssignments;
+    // FIX: Explicitly type `currentShifts` as `ShiftAssignment` to resolve type inference issues.
+    const currentShifts: ShiftAssignment = shiftAssignments[weekId] || defaultAssignments;
     const isCustomized = !!shiftAssignments[weekId];
 
     const allTasks = useMemo(() => {

@@ -61,7 +61,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         return { morning, evening };
     }, [weekNumber]);
 
-    const currentWeekShifts = shiftAssignments[weekId] || defaultAssignments;
+    // FIX: Explicitly type `currentWeekShifts` as `ShiftAssignment` to resolve type inference issues.
+    const currentWeekShifts: ShiftAssignment = shiftAssignments[weekId] || defaultAssignments;
 
     const allTasks = useMemo(() => {
         const weeklyTasks: CombinedTask[] = (currentWeekShifts.tasks || []).map(task => ({
