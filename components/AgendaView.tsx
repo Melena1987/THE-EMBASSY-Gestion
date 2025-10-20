@@ -37,7 +37,7 @@ type CombinedTask = (Task & {
 const timelineConfig = {
   startHour: 9, // 9 AM
   endHour: 23, // 11 PM
-  pixelsPerMinute: 0.6,
+  pixelsPerMinute: 0.7,
 };
 
 const timeToMinutes = (time: string): number => {
