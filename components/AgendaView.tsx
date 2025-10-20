@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection } from '../types';
+// FIX: Added missing 'ShiftAssignment' type import to resolve a TypeScript error.
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
