@@ -42,6 +42,7 @@ export interface Task {
   text: string;
   assignedTo: string[];
   completed: boolean;
+  date?: string; // "YYYY-MM-DD"
 }
 
 // Key format: "YYYY-WW" e.g., "2024-32"

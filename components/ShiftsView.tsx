@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection } from '../types';
 import { WORKERS } from '../constants';
-import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
+import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
 import SunIcon from './icons/SunIcon';
 import MoonIcon from './icons/MoonIcon';
@@ -19,6 +19,7 @@ interface ShiftsViewProps {
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    onAddRecurringTasks: (tasksByWeek: Record<string, Task[]>) => Promise<boolean | void>;
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
@@ -33,11 +34,17 @@ type CombinedTask = (Task & {
     eventName: string;
 });
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
+const WEEKDAYS = [
+    { label: 'L', value: 1 }, { label: 'M', value: 2 }, { label: 'X', value: 3 },
+    { label: 'J', value: 4 }, { label: 'V', value: 5 }, { label: 'S', value: 6 },
+    { label: 'D', value: 0 }
+];
+
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onAddRecurringTasks, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
-
+    
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
 
@@ -53,6 +60,28 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
             return day;
         });
     }, [selectedDate]);
+
+    // State for the new repetition logic
+    const [repeatOption, setRepeatOption] = useState('none');
+    const [taskStartDate, setTaskStartDate] = useState(weekDays[0]);
+    const [repeatEndDate, setRepeatEndDate] = useState(() => {
+        const d = new Date(weekDays[0]);
+        d.setMonth(d.getMonth() + 1);
+        return d;
+    });
+    const [selectedWeekdays, setSelectedWeekdays] = useState(new Set([weekDays[0].getDay()]));
+
+     useEffect(() => {
+        const monday = weekDays[0];
+        setTaskStartDate(monday);
+        const newDay = monday.getDay();
+        setSelectedWeekdays(new Set([newDay]));
+
+        const newEndDate = new Date(monday);
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
+        setRepeatEndDate(newEndDate);
+    }, [weekDays]);
+
 
     const defaultAssignments = useMemo(() => {
         const isEvenWeek = weekNumber % 2 === 0;
@@ -97,7 +126,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                 }
             }
         }
-        return [...weeklyTasks, ...eventTasks];
+        return [...weeklyTasks, ...eventTasks].sort((a,b) => (a.date || '0').localeCompare(b.date || '0'));
     }, [currentShifts.tasks, specialEvents, weekDays, weekId]);
 
     const changeWeek = (offset: number) => {
@@ -185,26 +214,59 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         );
     };
 
-    const handleAddTask = () => {
+    const handleWeekdaySelect = (dayValue: number) => {
+        setSelectedWeekdays(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(dayValue)) {
+                if (newSet.size > 1) { // Prevent deselecting the last day
+                    newSet.delete(dayValue);
+                }
+            } else {
+                newSet.add(dayValue);
+            }
+            return newSet;
+        });
+    };
+
+    const handleAddTask = async () => {
         if (!newTaskText.trim() || newTaskAssignees.length === 0) {
             alert("La tarea debe tener una descripción y al menos un asignado.");
             return;
         }
 
-        const newTask: Task = {
-            id: Date.now().toString(),
-            text: newTaskText.trim(),
-            assignedTo: newTaskAssignees,
-            completed: false,
-        };
+        if (repeatOption !== 'none' && repeatEndDate < taskStartDate) {
+            alert("La fecha de fin de la repetición no puede ser anterior a la fecha de inicio.");
+            return;
+        }
 
-        const newShifts: ShiftAssignment = {
-            ...currentShifts,
-            tasks: [...(currentShifts.tasks || []), newTask],
-        };
-        onUpdateShifts(weekId, newShifts);
-        setNewTaskText('');
-        setNewTaskAssignees([]);
+        const dates = Array.from(generateRepeatingDates(taskStartDate, repeatOption, repeatEndDate, selectedWeekdays));
+
+        const tasksByWeek: Record<string, Task[]> = {};
+        const commonId = Date.now();
+
+        dates.forEach((date, index) => {
+            const { year, week } = getWeekData(date);
+            const weekId = `${year}-${week.toString().padStart(2, '0')}`;
+            if (!tasksByWeek[weekId]) {
+                tasksByWeek[weekId] = [];
+            }
+            const newTask: Task = {
+                id: `${commonId}-${index}`,
+                text: newTaskText.trim(),
+                assignedTo: newTaskAssignees,
+                completed: false,
+                date: formatDateForBookingKey(date)
+            };
+            tasksByWeek[weekId].push(newTask);
+        });
+
+        const success = await onAddRecurringTasks(tasksByWeek);
+        
+        if (success) {
+            setNewTaskText('');
+            setNewTaskAssignees([]);
+            setRepeatOption('none');
+        }
     };
 
     const handleDeleteTask = (taskId: string) => {
@@ -349,7 +411,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                 <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
                 {!isReadOnly && (
-                    <div className="space-y-3 mb-4 p-3 bg-black/20 rounded-md">
+                    <fieldset disabled={isReadOnly} className={`space-y-3 mb-4 p-3 bg-black/20 rounded-md ${isReadOnly ? 'opacity-70' : ''}`}>
                         <input 
                             type="text"
                             value={newTaskText}
@@ -371,13 +433,65 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                 </label>
                             ))}
                         </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-white/10 pt-4">
+                            <div>
+                                <label htmlFor="taskStartDate" className="text-xs text-gray-400 block mb-1">Fecha de inicio</label>
+                                <input id="taskStartDate" type="date" value={formatDateForBookingKey(taskStartDate)} onChange={(e) => e.target.value && setTaskStartDate(new Date(`${e.target.value}T00:00:00`))} className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                            </div>
+                            <div className="lg:col-span-2">
+                                <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetición</label>
+                                <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500">
+                                    <option value="none">Una sola vez</option>
+                                    <option value="daily">Diariamente</option>
+                                    <option value="weekdays">Días laborables (L-V)</option>
+                                    <option value="weekly">Semanalmente</option>
+                                    <option value="monthly">Mensualmente</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {repeatOption !== 'none' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                            {repeatOption === 'weekly' && (
+                                    <div>
+                                        <label className="text-xs text-gray-400 block mb-2">Repetir los días</label>
+                                        <div className="flex items-center justify-around bg-black/30 p-2 rounded-md">
+                                            {WEEKDAYS.map(({label, value}) => (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    onClick={() => handleWeekdaySelect(value)}
+                                                    className={`w-8 h-8 rounded-full font-bold text-sm transition-colors duration-200 flex items-center justify-center ${
+                                                        selectedWeekdays.has(value) ? 'bg-orange-600 text-white' : 'bg-black/30 hover:bg-white/10 text-gray-300'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                            )}
+                            <div className={repeatOption !== 'weekly' ? 'md:col-span-2' : ''}>
+                                    <label htmlFor="repeatEndDate" className="text-xs text-gray-400 block mb-1">Finaliza el</label>
+                                    <input 
+                                        id="repeatEndDate" 
+                                        type="date" 
+                                        value={formatDateForBookingKey(repeatEndDate)} 
+                                        onChange={(e) => e.target.value && setRepeatEndDate(new Date(`${e.target.value}T00:00:00`))}
+                                        min={formatDateForBookingKey(taskStartDate)}
+                                        className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" />
+                                </div>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleAddTask}
                             className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
                         >
                             Añadir Tarea de Turno
                         </button>
-                    </div>
+                    </fieldset>
                 )}
                 <div className="space-y-2">
                     {allTasks.length > 0 ? (
@@ -403,6 +517,10 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                         {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                     </button>
                                     <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                        {task.date
+                                            ? <span className="font-semibold text-gray-400 mr-2">[{new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday:'short', day:'numeric'})}]</span>
+                                            : <span className="font-semibold text-gray-400 mr-2">[Semanal]</span>
+                                        }
                                         {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
                                         {task.text}
                                     </span>

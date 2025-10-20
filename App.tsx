@@ -386,6 +386,44 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
+    const handleAddRecurringTasks = useCallback(async (tasksByWeek: Record<string, Task[]>) => {
+        if (userRole !== 'ADMIN') {
+            alert("Acción no permitida para su rol.");
+            return false;
+        }
+        try {
+            const batch = writeBatch(db);
+            const weekIds = Object.keys(tasksByWeek);
+    
+            const docRefs = weekIds.map(weekId => doc(db, 'shiftAssignments', weekId));
+            const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
+    
+            docSnaps.forEach((docSnap, index) => {
+                const weekId = weekIds[index];
+                const tasksToAdd = tasksByWeek[weekId];
+                const docRef = docRefs[index];
+                
+                if (docSnap.exists()) {
+                    const existingTasks = docSnap.data().tasks || [];
+                    batch.update(docRef, { tasks: [...existingTasks, ...tasksToAdd] });
+                } else {
+                    const [year, week] = weekId.split('-').map(Number);
+                    const isEvenWeek = week % 2 === 0;
+                    const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
+                    const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+                    batch.set(docRef, { morning, evening, tasks: tasksToAdd });
+                }
+            });
+            
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error("Error al añadir tareas recurrentes:", error);
+            alert("No se pudieron guardar las tareas.");
+            return false;
+        }
+    }, [userRole]);
+
     const handleToggleTask = useCallback(async (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => {
         if (!user) return;
         const docRef = doc(db, collectionName, sourceId);
@@ -684,6 +722,7 @@ const App: React.FC = () => {
                     onUpdateShifts={handleUpdateShifts}
                     onToggleTask={handleToggleTask}
                     onResetWeekShifts={handleResetWeekShifts}
+                    onAddRecurringTasks={handleAddRecurringTasks}
                     isReadOnly={!canEditShifts}
                 />;
             case 'servicios':
