@@ -72,8 +72,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         return { morning, evening };
     }, [weekNumber]);
 
-    // FIX: Explicitly type `currentWeekShifts` as `ShiftAssignment` to resolve type inference issues.
-    const currentWeekShifts: ShiftAssignment = shiftAssignments[weekId] || defaultAssignments;
+    const currentWeekShifts: ShiftAssignment = { ...defaultAssignments, ...(shiftAssignments[weekId] || {}) };
 
     const allTasks = useMemo(() => {
         const weeklyTasks: CombinedTask[] = (currentWeekShifts.tasks || []).map(task => ({
@@ -215,58 +214,129 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     
                     {/* Mobile-only full-width nav */}
                     <div className="w-full flex justify-between items-center sm:hidden order-1">
-                        <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
-                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
+                        <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Ant</button>
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Sig &gt;</button>
                     </div>
 
-                    {/* Right side buttons */}
-                    <div className="flex sm:flex-1 items-center justify-center sm:justify-end gap-2 order-last">
-                        <button
+                    {/* Next button and PDF downloads (for sm and up) */}
+                    <div className="hidden sm:flex sm:flex-1 sm:justify-end items-center gap-2">
+                         <button
                             onClick={handleDownloadAgendaPDF}
                             disabled={isDownloadingAgenda}
-                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
-                            title="Descargar agenda de reservas en PDF"
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar agenda semanal en PDF"
                         >
                             <DownloadIcon className="w-5 h-5" />
-                            <span className="hidden sm:inline">{isDownloadingAgenda ? 'Generando...' : 'PDF Agenda'}</span>
-                            <span className="sm:hidden">{isDownloadingAgenda ? '...' : 'Agenda'}</span>
+                            <span className="hidden lg:inline">{isDownloadingAgenda ? 'Generando...' : 'PDF Agenda'}</span>
                         </button>
                         <button
                             onClick={handleDownloadShiftsPDF}
                             disabled={isDownloadingShifts}
-                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
                             title="Descargar horario de turnos en PDF"
                         >
                             <DownloadIcon className="w-5 h-5" />
-                            <span className="hidden sm:inline">{isDownloadingShifts ? 'Generando...' : 'PDF Turnos'}</span>
-                            <span className="sm:hidden">{isDownloadingShifts ? '...' : 'Turnos'}</span>
+                            <span className="hidden lg:inline">{isDownloadingShifts ? 'Generando...' : 'PDF Turnos'}</span>
                         </button>
-                        {/* Next button for sm and up */}
-                        <button onClick={() => changeWeek(1)} className="hidden sm:inline-block px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente &gt;</button>
+                        <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Siguiente Semana &gt;</button>
                     </div>
                 </div>
             </div>
 
-            {(allTasks.length > 0 || currentWeekShifts.observations) && (
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {allTasks.length > 0 && (
-                        <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                            <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                                {allTasks.map(task => {
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2 space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {weekDays.map((day, dayIndex) => {
+                            const dayKey = formatDateForBookingKey(day);
+                            const dayBookings = consolidateBookingsForDay(bookings, day);
+                            const eventsForDay = (Object.values(specialEvents) as SpecialEvent[]).filter(event => dayKey >= event.startDate && dayKey <= event.endDate);
+                            const dailyShift = currentWeekShifts.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
+                            
+                            const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour }, (_, i) => timelineConfig.startHour + i);
+                            
+                            const timedEvents = [
+                                ...eventsForDay.map(event => ({
+                                    type: 'event' as const,
+                                    id: event.id,
+                                    name: event.name,
+                                    startTime: event.startTime!,
+                                    endTime: event.endTime!,
+                                    spaceIds: event.spaceIds || [],
+                                })),
+                                ...dayBookings.map(booking => ({
+                                    type: 'booking' as const,
+                                    id: booking.keys.join('-'),
+                                    name: booking.details.name,
+                                    startTime: booking.startTime,
+                                    endTime: booking.endTime,
+                                    spaceIds: booking.keys.map(k => k.split('-').slice(0, -4).join('-')),
+                                    consolidatedBooking: booking,
+                                }))
+                            ].filter(e => e.startTime && e.endTime);
+
+                            return (
+                                <div key={day.toISOString()} className="bg-white/5 backdrop-blur-lg rounded-lg shadow-inner border border-white/10">
+                                    <div className="p-3 border-b border-white/20 text-center">
+                                        <h3 className="font-bold capitalize text-white">{day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}</h3>
+                                        <div className="text-xs text-gray-400">
+                                            <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="relative h-[500px] bg-black/10 rounded-b-md overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
+                                        {timelineHours.map(hour => (
+                                            <div key={hour} className="absolute w-full border-b border-white/5" style={{ top: `${(hour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute}px` }}>
+                                                <span className="absolute -top-2 left-1 text-gray-500 text-[10px]">{`${hour.toString().padStart(2, '0')}:00`}</span>
+                                            </div>
+                                        ))}
+                                        <div className="absolute top-0 left-0 w-full h-full">
+                                            {timedEvents.map((event, index) => {
+                                                const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
+                                                const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
+                                                const isEvent = event.type === 'event';
+                                                
+                                                return (
+                                                    <div
+                                                        key={event.id}
+                                                        onClick={() => isEvent ? onSelectSpecialEvent(specialEvents[event.id]) : onSelectBooking(event.consolidatedBooking!)}
+                                                        className={`absolute left-8 right-1 p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${
+                                                            isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
+                                                        } ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                                                        style={{ top: `${top}px`, height: `${Math.max(height - 2, 10)}px` }}
+                                                        title={event.name}
+                                                        draggable={!isReadOnly && !isEvent}
+                                                        onDragStart={(e) => !isReadOnly && !isEvent && handleDragStart(e, event.consolidatedBooking!)}
+                                                        onDragEnd={!isReadOnly && !isEvent ? handleDragEnd : undefined}
+                                                    >
+                                                        <p className="font-bold pointer-events-none">{event.name}</p>
+                                                        <p className="text-gray-300 pointer-events-none">{`${event.startTime} - ${event.endTime}`}</p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                        <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                             {allTasks.length > 0 ? (
+                                allTasks.map(task => {
                                     const isEventTask = task.type === 'event';
+                                    const taskCollection: TaskSourceCollection = isEventTask ? 'specialEvents' : 'shiftAssignments';
                                     return (
-                                        <div key={task.id} className="flex items-center gap-3 text-sm p-2 bg-black/20 rounded-md">
-                                            {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
+                                        <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
+                                            {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" title={`Evento: ${task.eventName}`} />}
                                             <button
-                                                onClick={() => onToggleTask(
-                                                    task.sourceId,
-                                                    task.id,
-                                                    isEventTask ? 'specialEvents' : 'shiftAssignments'
-                                                )}
+                                                onClick={() => onToggleTask(task.sourceId, task.id, taskCollection)}
+                                                disabled={isReadOnly}
                                                 className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
-                                                    task.completed 
-                                                        ? 'bg-green-500 hover:bg-green-600' 
+                                                    task.completed
+                                                        ? 'bg-green-500 hover:bg-green-600'
                                                         : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
                                                 }`}
                                                 aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
@@ -274,7 +344,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                 {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                             </button>
                                             <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
-                                                {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                                {task.date
+                                                    ? <span className="font-semibold text-gray-400 mr-2">[{new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday:'short', day:'numeric'})}]</span>
+                                                    : ''
+                                                }
                                                 {task.text}
                                             </span>
                                             <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
@@ -282,174 +355,33 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                             </span>
                                         </div>
                                     );
-                                })}
-                            </div>
+                                })
+                            ) : (
+                                <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
+                            )}
                         </div>
-                    )}
-                    {currentWeekShifts.observations && (
-                         <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                            <h3 className="text-lg font-semibold text-orange-400 mb-3">Observaciones</h3>
-                            <p className="text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto pr-2">{currentWeekShifts.observations}</p>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                        <h3 className="text-lg font-semibold text-orange-400 mb-2">Observaciones de la Semana</h3>
+                         <p className="text-sm text-gray-300 whitespace-pre-wrap">
+                            {currentWeekShifts.observations || 'No hay observaciones para esta semana.'}
+                        </p>
+                    </div>
+
+                    {!isReadOnly && (
+                         <div className="flex flex-col sm:flex-row gap-2">
+                             <button onClick={() => setView('plano')} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors">
+                                <PlusIcon className="w-5 h-5" />
+                                Nueva Reserva
+                            </button>
+                             <button onClick={() => setView('eventos')} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-md transition-colors">
+                                <StarIcon className="w-5 h-5" />
+                                Nuevo Evento
+                            </button>
                          </div>
                     )}
                 </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-                {weekDays.map(day => {
-                    const dayKey = formatDateForBookingKey(day);
-                    const dayWeekData = getWeekData(day);
-                    const dayWeekId = `${dayWeekData.year}-${dayWeekData.week.toString().padStart(2, '0')}`;
-                    const dayIndex = day.getDay() === 0 ? 6 : day.getDay() - 1;
-                    const dailyOverride = shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
-                    const dayBookings = consolidateBookingsForDay(bookings, day);
-                    const eventsForDay = Object.values(specialEvents).filter((event: SpecialEvent) => dayKey >= event.startDate && dayKey <= event.endDate);
-                    
-                    const allDayEvents = eventsForDay.filter(e => !e.startTime || !e.endTime);
-                    const timedEvents = eventsForDay.filter(e => e.startTime && e.endTime);
-
-                    const defaultDailyShift = getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
-                    const effectiveShifts = dailyOverride || defaultDailyShift;
-
-                    return (
-                        <div 
-                            key={day.toISOString()} 
-                            className="bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner min-h-[200px] flex flex-col border border-white/10 transition-all duration-300"
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, day)}
-                        >
-                            <div className="text-center border-b border-white/20 pb-2 mb-2">
-                                <h3 className="font-bold capitalize text-white">
-                                    {day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
-                                </h3>
-                                <div className={`text-xs mt-1 ${dailyOverride ? 'text-blue-300' : 'text-gray-400'}`} style={{ fontFamily: 'Arial, sans-serif' }}>
-                                    {effectiveShifts.morning.active || effectiveShifts.evening.active ? (
-                                        <>
-                                            {effectiveShifts.morning.active && (
-                                                <p className="leading-tight">M: {effectiveShifts.morning.worker} ({effectiveShifts.morning.start} - {effectiveShifts.morning.end})</p>
-                                            )}
-                                            {effectiveShifts.evening.active && (
-                                                <p className="leading-tight">T: {effectiveShifts.evening.worker} ({effectiveShifts.evening.start} - {effectiveShifts.evening.end})</p>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <p className="text-red-400 font-semibold">Cerrado</p>
-                                    )}
-                                </div>
-                            </div>
-                             <div className="flex-grow flex flex-col">
-                                <div className="space-y-2 mb-2">
-                                    {allDayEvents.map((event: SpecialEvent) => (
-                                        <button 
-                                            key={event.id}
-                                            onClick={() => onSelectSpecialEvent(event)}
-                                            className="w-full text-left bg-purple-800/50 p-2 rounded hover:bg-purple-700/50 transition-colors duration-200 border border-purple-400"
-                                        >
-                                            <p className="font-bold text-purple-200 pointer-events-none flex items-center gap-2 text-xs">
-                                                <StarIcon className="w-4 h-4 flex-shrink-0" />
-                                                <span className="truncate">{event.name}</span>
-                                            </p>
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="relative flex-grow" style={{ minHeight: `${(timelineConfig.endHour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute}px` }}>
-                                    {/* FIX: Explicitly type 'event' to resolve type inference issues where its properties could not be accessed. */}
-                                    {timedEvents.map((event: SpecialEvent) => {
-                                        const startMinutes = timeToMinutes(event.startTime!);
-                                        const endMinutes = timeToMinutes(event.endTime!);
-                                        const timelineStartMinutes = timelineConfig.startHour * 60;
-                                        const timelineEndMinutes = timelineConfig.endHour * 60;
-
-                                        if (endMinutes <= timelineStartMinutes || startMinutes >= timelineEndMinutes) {
-                                            return null;
-                                        }
-
-                                        const displayStartMinutes = Math.max(startMinutes, timelineStartMinutes);
-                                        const displayEndMinutes = Math.min(endMinutes, timelineEndMinutes);
-
-                                        const top = (displayStartMinutes - timelineStartMinutes) * timelineConfig.pixelsPerMinute;
-                                        const height = Math.max(1, ((displayEndMinutes - displayStartMinutes) * timelineConfig.pixelsPerMinute) - 2);
-
-                                        return (
-                                            <div
-                                                key={event.id}
-                                                onClick={() => onSelectSpecialEvent(event)}
-                                                className="absolute w-[98%] left-[1%] text-left bg-purple-800/50 p-1 rounded hover:bg-purple-700/50 transition-all duration-200 border border-purple-400 overflow-hidden flex flex-col justify-start cursor-pointer"
-                                                style={{ top: `${top}px`, height: `${height}px` }}
-                                                title={event.name}
-                                            >
-                                                <p className="font-semibold text-purple-200 pointer-events-none truncate text-[10px] leading-tight flex items-center gap-1">
-                                                    <StarIcon className="w-3 h-3 flex-shrink-0" /> {event.startTime} - {event.endTime}
-                                                </p>
-                                                <p className="text-white pointer-events-none truncate text-[10px] leading-tight font-medium">
-                                                    {event.name}
-                                                </p>
-                                            </div>
-                                        );
-                                    })}
-                                    
-                                    {dayBookings.map((booking, index) => {
-                                        const startMinutes = timeToMinutes(booking.startTime);
-                                        const endMinutes = timeToMinutes(booking.endTime);
-                                        const timelineStartMinutes = timelineConfig.startHour * 60;
-                                        const timelineEndMinutes = timelineConfig.endHour * 60;
-
-                                        if (endMinutes <= timelineStartMinutes || startMinutes >= timelineEndMinutes) {
-                                            return null;
-                                        }
-                                        
-                                        const displayStartMinutes = Math.max(startMinutes, timelineStartMinutes);
-                                        const displayEndMinutes = Math.min(endMinutes, timelineEndMinutes);
-
-                                        const top = (displayStartMinutes - timelineStartMinutes) * timelineConfig.pixelsPerMinute;
-                                        const height = Math.max(1, ((displayEndMinutes - displayStartMinutes) * timelineConfig.pixelsPerMinute) - 2);
-
-                                        return (
-                                            <div 
-                                                key={index} 
-                                                draggable={!isReadOnly}
-                                                onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
-                                                onDragEnd={!isReadOnly ? handleDragEnd : undefined}
-                                                onClick={() => onSelectBooking(booking)}
-                                                className={`absolute w-[98%] left-[1%] text-left bg-black/30 p-1 rounded hover:bg-black/40 transition-all duration-200 border border-transparent hover:border-orange-500 overflow-hidden flex flex-col justify-start ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
-                                                style={{ top: `${top}px`, height: `${height}px` }}
-                                            >
-                                                <p className="font-semibold text-orange-400 pointer-events-none truncate text-[10px] leading-tight">
-                                                    {booking.startTime} - {booking.endTime}
-                                                </p>
-                                                <p className="text-white pointer-events-none truncate text-[10px] leading-tight font-medium">
-                                                    {booking.details.name}
-                                                </p>
-                                                <p className="capitalize text-gray-300 pointer-events-none truncate text-[9px] leading-tight">
-                                                    {booking.space}
-                                                </p>
-                                            </div>
-                                        );
-                                    })}
-                                     
-                                    {dayBookings.length === 0 && timedEvents.length === 0 && allDayEvents.length === 0 && (
-                                        <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-center text-xs">
-                                            <p>Sin actividad</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                             <div className="flex justify-center pt-2 mt-auto">
-                                {!isReadOnly && (
-                                    <button 
-                                        onClick={() => { onDateChange(day); setView('plano'); }}
-                                        className="bg-black/20 hover:bg-black/40 text-orange-400 p-2 rounded-full transition-colors"
-                                        aria-label={`Añadir reserva para ${day.toLocaleDateString('es-ES')}`}
-                                        title={"Añadir reserva"}
-                                    >
-                                        <PlusIcon className="w-6 h-6" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );
