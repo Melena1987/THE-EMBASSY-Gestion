@@ -371,15 +371,18 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                     onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
                                                     onDragEnd={!isReadOnly ? handleDragEnd : undefined}
                                                     onClick={() => onSelectBooking(booking)}
-                                                    className={`absolute w-[98%] left-[1%] text-left bg-black/30 p-1 rounded hover:bg-black/40 transition-all duration-200 border border-transparent hover:border-orange-500 overflow-hidden flex flex-col justify-center ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
+                                                    className={`absolute w-[98%] left-[1%] text-left bg-black/30 p-1 rounded hover:bg-black/40 transition-all duration-200 border border-transparent hover:border-orange-500 overflow-hidden flex flex-col justify-start ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
                                                     style={{ top: `${top}px`, height: `${height}px` }}
                                                 >
-                                                        <p className="font-semibold text-orange-400 pointer-events-none truncate text-[10px] leading-tight">
-                                                            {booking.startTime} {booking.details.name}
-                                                        </p>
-                                                        <p className="capitalize text-gray-300 pointer-events-none truncate text-[9px] leading-tight">
-                                                            {booking.space}
-                                                        </p>
+                                                    <p className="font-semibold text-orange-400 pointer-events-none truncate text-[10px] leading-tight">
+                                                        {booking.startTime} - {booking.endTime}
+                                                    </p>
+                                                    <p className="text-white pointer-events-none truncate text-[10px] leading-tight font-medium">
+                                                        {booking.details.name}
+                                                    </p>
+                                                    <p className="capitalize text-gray-300 pointer-events-none truncate text-[9px] leading-tight">
+                                                        {booking.space}
+                                                    </p>
                                                 </div>
                                             );
                                         })
