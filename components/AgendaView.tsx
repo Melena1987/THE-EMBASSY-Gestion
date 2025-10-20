@@ -34,6 +34,16 @@ type CombinedTask = (Task & {
     eventName: string;
 });
 
+const timelineConfig = {
+  startHour: 9, // 9 AM
+  endHour: 23, // 11 PM
+  pixelsPerMinute: 0.8,
+};
+
+const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+};
 
 const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
@@ -325,44 +335,58 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     )}
                                 </div>
                             </div>
-                            <div className="space-y-2 text-xs flex-grow">
-                                {/* FIX: Explicitly type 'event' to resolve type inference issues. */}
-                                {eventsForDay.map((event: SpecialEvent) => (
-                                    <button 
-                                        key={event.id}
-                                        onClick={() => onSelectSpecialEvent(event)}
-                                        className="w-full text-left bg-purple-800/50 p-2 rounded hover:bg-purple-700/50 transition-colors duration-200 border border-purple-400"
-                                    >
-                                        <p className="font-bold text-purple-200 pointer-events-none flex items-center gap-2">
-                                            <StarIcon className="w-4 h-4 flex-shrink-0" />
-                                            <span className="truncate">{event.name}</span>
-                                        </p>
-                                    </button>
-                                ))}
-                                {dayBookings.length > 0 ? (
-                                    dayBookings.map((booking, index) => (
-                                        <div 
-                                            key={index} 
-                                            draggable={!isReadOnly}
-                                            onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
-                                            onDragEnd={!isReadOnly ? handleDragEnd : undefined}
-                                            className={`w-full text-left bg-black/20 p-2 rounded hover:bg-black/40 transition-colors duration-200 ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
+                             <div className="flex-grow flex flex-col">
+                                <div className="space-y-2 mb-2">
+                                    {/* FIX: Explicitly type 'event' to resolve type inference issues. */}
+                                    {eventsForDay.map((event: SpecialEvent) => (
+                                        <button 
+                                            key={event.id}
+                                            onClick={() => onSelectSpecialEvent(event)}
+                                            className="w-full text-left bg-purple-800/50 p-2 rounded hover:bg-purple-700/50 transition-colors duration-200 border border-purple-400"
                                         >
-                                            <button onClick={() => onSelectBooking(booking)} className="w-full text-left">
-                                                <p className="font-semibold text-orange-300 pointer-events-none">
-                                                    {booking.startTime} - {booking.endTime}
-                                                </p>
-                                                <ul className="list-disc list-inside pl-2 text-gray-300 pointer-events-none">
-                                                    <li className="capitalize">
-                                                        {booking.space}: <span className="font-semibold text-white">{booking.details.name}</span>
-                                                    </li>
-                                                </ul>
-                                            </button>
-                                        </div>
-                                    ))
-                                 ) : (
-                                    eventsForDay.length === 0 && <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center"><p>Sin reservas</p></div>
-                                )}
+                                            <p className="font-bold text-purple-200 pointer-events-none flex items-center gap-2 text-xs">
+                                                <StarIcon className="w-4 h-4 flex-shrink-0" />
+                                                <span className="truncate">{event.name}</span>
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="relative flex-grow" style={{ minHeight: `${(timelineConfig.endHour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute}px` }}>
+                                    {dayBookings.length > 0 ? (
+                                        dayBookings.map((booking, index) => {
+                                            const startMinutes = timeToMinutes(booking.startTime);
+                                            const endMinutes = timeToMinutes(booking.endTime);
+                                            
+                                            if (endMinutes <= timelineConfig.startHour * 60 || startMinutes >= timelineConfig.endHour * 60) {
+                                                return null;
+                                            }
+
+                                            const top = (startMinutes - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
+                                            const height = (endMinutes - startMinutes) * timelineConfig.pixelsPerMinute;
+
+                                            return (
+                                                <div 
+                                                    key={index} 
+                                                    draggable={!isReadOnly}
+                                                    onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                                    onDragEnd={!isReadOnly ? handleDragEnd : undefined}
+                                                    onClick={() => onSelectBooking(booking)}
+                                                    className={`absolute w-[98%] left-[1%] text-left bg-black/30 p-1 rounded hover:bg-black/40 transition-all duration-200 border border-transparent hover:border-orange-500 overflow-hidden flex flex-col justify-center ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`}
+                                                    style={{ top: `${top}px`, height: `${height}px` }}
+                                                >
+                                                        <p className="font-semibold text-orange-400 pointer-events-none truncate text-[10px] leading-tight">
+                                                            {booking.startTime} {booking.details.name}
+                                                        </p>
+                                                        <p className="capitalize text-gray-300 pointer-events-none truncate text-[9px] leading-tight">
+                                                            {booking.space}
+                                                        </p>
+                                                </div>
+                                            );
+                                        })
+                                     ) : (
+                                        eventsForDay.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-center text-xs"><p>Sin reservas</p></div>
+                                    )}
+                                </div>
                             </div>
                              <div className="flex justify-center pt-2 mt-auto">
                                 {!isReadOnly && (
