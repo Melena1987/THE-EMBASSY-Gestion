@@ -87,7 +87,7 @@ const SpecialEventDetailsView: React.FC<SpecialEventDetailsViewProps> = ({ event
                                         {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                     </button>
                                     <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'}`}>{task.text}</span>
-                                    <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">{task.assignedTo.join(', ')}</span>
+                                    <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">{Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}</span>
                                 </div>
                             ))}
                         </div>

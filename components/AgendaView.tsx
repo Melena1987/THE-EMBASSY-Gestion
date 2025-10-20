@@ -254,6 +254,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         {allTasks.length > 0 ? (
                             allTasks.map(task => {
                                 const isEventTask = task.type === 'event';
+                                const assignees = task.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]) : [];
                                 return (
                                     <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                         <button
@@ -277,12 +278,14 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                 {task.text}
                                             </span>
                                         </div>
-                                        {task.assignedTo && task.assignedTo.length > 0 && (
-                                            <div className="flex-shrink-0 flex items-center gap-1">
-                                                {task.assignedTo.map(assignee => (
-                                                    <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                                        {assignee}
-                                                    </span>
+                                        {assignees.length > 0 && (
+                                            <div className="flex-shrink-0 flex items-center flex-wrap gap-1 justify-end">
+                                                {assignees.map(assignee => (
+                                                    assignee && (
+                                                        <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                                            {assignee}
+                                                        </span>
+                                                    )
                                                 ))}
                                             </div>
                                         )}
