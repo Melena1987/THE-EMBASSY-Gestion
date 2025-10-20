@@ -341,7 +341,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
                                 </div>
                             </div>
-                            <div className="relative h-[500px] bg-black/10 rounded-b-md overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
+                            <div className="relative h-[600px] bg-black/10 rounded-b-md overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
                                 {timelineHours.map(hour => (
                                     <div key={hour} className="absolute w-full border-b border-white/5" style={{ top: `${(hour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute}px` }}>
                                         <span className="absolute -top-2 left-1 text-gray-500 text-[10px]">{`${hour.toString().padStart(2, '0')}:00`}</span>
