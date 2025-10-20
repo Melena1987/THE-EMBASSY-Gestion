@@ -314,4 +314,82 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                         onDragEnd={!isReadOnly && !isEvent ? handleDragEnd : undefined}
                                                     >
                                                         <p className="font-bold pointer-events-none">{event.name}</p>
-                                                        <p className="text-gray
+                                                        <p className="text-gray-300 pointer-events-none">{`${event.startTime} - ${event.endTime}`}</p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Right Column: Tasks and Observations */}
+                <div className="space-y-4">
+                    <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                        <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                            {allTasks.length > 0 ? (
+                                allTasks.map(task => {
+                                    const isEventTask = task.type === 'event';
+                                    return (
+                                        <div key={task.id} className="flex items-start gap-3 p-2 bg-black/20 rounded-md">
+                                            <button
+                                                onClick={() => onToggleTask(
+                                                    task.sourceId,
+                                                    task.id,
+                                                    isEventTask ? 'specialEvents' : 'shiftAssignments'
+                                                )}
+                                                className={`w-5 h-5 mt-0.5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
+                                                    task.completed
+                                                        ? 'bg-green-500 hover:bg-green-600'
+                                                        : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
+                                                }`}
+                                                aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                            >
+                                                {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
+                                            </button>
+                                            <div className="flex-grow text-sm">
+                                                {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                                <span className={` ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                                    {task.text}
+                                                </span>
+                                                <div className="text-xs text-blue-400 font-mono mt-1">
+                                                    Asignado a: {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                        <h3 className="text-lg font-semibold text-orange-400 mb-2">Observaciones de Turnos</h3>
+                        <div className="bg-black/20 p-3 rounded-md min-h-[100px]">
+                            <p className="text-sm text-gray-300 whitespace-pre-wrap">
+                                {currentWeekShifts?.observations || 'No hay observaciones para esta semana.'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {!isReadOnly && (
+                 <div className="fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3">
+                     <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
+                        <StarIcon className="w-6 h-6"/>
+                    </button>
+                    <button onClick={() => setView('plano')} className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Reserva">
+                        <PlusIcon className="w-6 h-6"/>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AgendaView;

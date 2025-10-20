@@ -75,9 +75,10 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         const weekDateStrings = new Set(weekDays.map(d => formatDateForBookingKey(d)));
 
         for (const event of Object.values(specialEvents)) {
-            if (event.tasks && event.tasks.length > 0) {
+            const typedEvent = event as SpecialEvent;
+            if (typedEvent.tasks && typedEvent.tasks.length > 0) {
                 let overlaps = false;
-                for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+                for (let d = new Date(`${typedEvent.startDate}T00:00:00`); d <= new Date(`${typedEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                     if (weekDateStrings.has(formatDateForBookingKey(d))) {
                         overlaps = true;
                         break;
@@ -85,12 +86,12 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                 }
 
                 if (overlaps) {
-                    event.tasks.forEach(task => {
+                    typedEvent.tasks.forEach(task => {
                         eventTasks.push({
                             ...task,
                             type: 'event',
-                            sourceId: event.id,
-                            eventName: event.name,
+                            sourceId: typedEvent.id,
+                            eventName: typedEvent.name,
                         });
                     });
                 }
