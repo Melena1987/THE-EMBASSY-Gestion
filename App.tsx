@@ -17,6 +17,8 @@ import SpecialEventDetailsView from './components/SpecialEventDetailsView';
 import SponsorsView from './components/SponsorsView';
 import ConfirmationModal from './components/ConfirmationModal';
 import Login from './components/Login';
+import WifiModal from './components/WifiModal';
+import WifiIcon from './components/icons/WifiIcon';
 import { findRelatedBookings } from './utils/bookingUtils';
 import { formatDateForBookingKey } from './utils/dateUtils';
 
@@ -39,6 +41,7 @@ const App: React.FC = () => {
     const [selectedBooking, setSelectedBooking] = useState<ConsolidatedBooking | null>(null);
     const [selectedSpecialEvent, setSelectedSpecialEvent] = useState<SpecialEvent | null>(null);
     const [bookingToPreFill, setBookingToPreFill] = useState<ConsolidatedBooking | null>(null);
+    const [isWifiModalOpen, setIsWifiModalOpen] = useState(false);
     
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -739,9 +742,19 @@ const App: React.FC = () => {
                 onConfirmFuture={() => handleModalConfirmation('future')}
                 onClose={handleModalClose}
             />
-            <footer className="text-center p-4 text-xs text-gray-400 bg-black/20 flex justify-center items-baseline gap-2" style={{ fontFamily: 'Arial, sans-serif' }}>
-                <span>Gestión THE EMBASSY © {new Date().getFullYear()}</span>
-                <span className="text-orange-400" style={{ fontFamily: 'Caveat, cursive', fontSize: '1.25rem', fontWeight: 'bold' }}>by Manu</span>
+            <WifiModal isOpen={isWifiModalOpen} onClose={() => setIsWifiModalOpen(false)} />
+            <footer className="text-center p-4 text-xs text-gray-400 bg-black/20 flex justify-center items-center gap-4" style={{ fontFamily: 'Arial, sans-serif' }}>
+                <div className="flex justify-center items-baseline gap-2">
+                    <span>Gestión THE EMBASSY © {new Date().getFullYear()}</span>
+                    <span className="text-orange-400" style={{ fontFamily: 'Caveat, cursive', fontSize: '1.25rem', fontWeight: 'bold' }}>by Manu</span>
+                </div>
+                <button
+                    onClick={() => setIsWifiModalOpen(true)}
+                    className="p-2 text-gray-400 hover:text-orange-400 rounded-full hover:bg-white/10 transition-colors"
+                    title="Conectar al WiFi"
+                >
+                    <WifiIcon className="w-5 h-5" />
+                </button>
             </footer>
         </div>
     );
