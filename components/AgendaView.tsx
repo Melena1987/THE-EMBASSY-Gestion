@@ -255,14 +255,14 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                             allTasks.map(task => {
                                 const isEventTask = task.type === 'event';
                                 return (
-                                    <div key={task.id} className="flex items-start gap-3 p-2 bg-black/20 rounded-md">
+                                    <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                         <button
                                             onClick={() => onToggleTask(
                                                 task.sourceId,
                                                 task.id,
                                                 isEventTask ? 'specialEvents' : 'shiftAssignments'
                                             )}
-                                            className={`w-5 h-5 mt-0.5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
+                                            className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
                                                 task.completed
                                                     ? 'bg-green-500 hover:bg-green-600'
                                                     : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
@@ -273,13 +273,19 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                         </button>
                                         <div className="flex-grow text-sm">
                                             {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
-                                            <span className={` ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                            <span className={`${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
                                                 {task.text}
                                             </span>
-                                            <div className="text-xs text-blue-400 font-mono mt-1">
-                                                Asignado a: {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : ''}
-                                            </div>
                                         </div>
+                                        {task.assignedTo && task.assignedTo.length > 0 && (
+                                            <div className="flex-shrink-0 flex items-center gap-1">
+                                                {task.assignedTo.map(assignee => (
+                                                    <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                                        {assignee}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })
