@@ -372,9 +372,21 @@ const App: React.FC = () => {
     }, [view, selectedBooking, selectedSpecialEvent]);
 
     const handleUpdateShifts = useCallback(async (weekId: string, newShifts: ShiftAssignment) => {
-        if (userRole !== 'ADMIN') {
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') {
             alert("Acción no permitida para su rol.");
             return;
+        }
+        // Workers can only update observations, Admins can update everything.
+        if (userRole === 'TRABAJADOR') {
+            const currentDoc = await getDoc(doc(db, 'shiftAssignments', weekId));
+            if(currentDoc.exists()) {
+                const currentData = currentDoc.data() as ShiftAssignment;
+                // Allow only observation changes
+                if(JSON.stringify({...currentData, observations: ''}) !== JSON.stringify({...newShifts, observations: ''})) {
+                     alert("No tiene permisos para modificar la configuración de turnos.");
+                     return;
+                }
+            }
         }
         try {
             await setDoc(doc(db, 'shiftAssignments', weekId), newShifts, { merge: true });
@@ -667,7 +679,22 @@ const App: React.FC = () => {
             case 'calendario':
                 return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
+                return <AgendaView 
+                    bookings={bookings} 
+                    selectedDate={selectedDate} 
+                    onDateChange={setSelectedDate} 
+                    onSelectBooking={handleSelectBooking} 
+                    setView={setView} 
+                    shiftAssignments={shiftAssignments} 
+                    specialEvents={specialEvents} 
+                    onAddBooking={handleAddBooking} 
+                    onToggleTask={handleToggleTask} 
+                    onSelectSpecialEvent={handleSelectSpecialEvent} 
+                    isReadOnly={!canEditBookings} 
+                    onUpdateShifts={handleUpdateShifts}
+                    currentUserName={currentUserName}
+                    userRole={userRole}
+                />;
             case 'detalles':
                  if (selectedBooking) {
                     return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={!canEditBookings} />;

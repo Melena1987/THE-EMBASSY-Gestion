@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection } from '../types';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
@@ -22,6 +22,9 @@ interface AgendaViewProps {
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
+    onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    currentUserName: string | null;
+    userRole: UserRole;
 }
 
 type CombinedTask = (Task & {
@@ -38,10 +41,11 @@ const timeToMinutes = (time: string): number => {
     return hours * 60 + minutes;
 };
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly, onUpdateShifts, currentUserName, userRole }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+    const [newObservationText, setNewObservationText] = useState('');
 
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
@@ -95,6 +99,31 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     }, [weekNumber]);
 
     const currentWeekShifts = shiftAssignments[weekId];
+    const canAddObservations = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';
+
+    const handleAddObservation = () => {
+        if (!newObservationText.trim() || !currentUserName) return;
+
+        const baseShifts = shiftAssignments[weekId] || {
+            morning: defaultAssignments.morning,
+            evening: defaultAssignments.evening,
+        };
+
+        const today = new Date();
+        const dateStamp = today.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+
+        const observationLine = `\n- [${dateStamp}] ${currentUserName}: ${newObservationText.trim()}`;
+        const existingObservations = baseShifts.observations || '';
+        const updatedObservations = (existingObservations ? existingObservations.trim() : '') + observationLine;
+        
+        const updatedShifts: ShiftAssignment = {
+            ...baseShifts,
+            observations: updatedObservations
+        };
+
+        onUpdateShifts(weekId, updatedShifts);
+        setNewObservationText('');
+    };
 
     const allTasks = useMemo(() => {
         const weeklyTasks: CombinedTask[] = (currentWeekShifts?.tasks || []).map(task => ({
@@ -333,11 +362,29 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                 </div>
                 <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                     <h3 className="text-lg font-semibold text-orange-400 mb-2">Observaciones de Turnos</h3>
-                    <div className="bg-black/20 p-3 rounded-md min-h-[100px]">
+                    <div className="bg-black/20 p-3 rounded-md min-h-[100px] max-h-[250px] overflow-y-auto">
                         <p className="text-sm text-gray-300 whitespace-pre-wrap">
                             {currentWeekShifts?.observations || 'No hay observaciones para esta semana.'}
                         </p>
                     </div>
+                     {canAddObservations && (
+                        <div className="mt-3 space-y-2">
+                            <textarea
+                                value={newObservationText}
+                                onChange={(e) => setNewObservationText(e.target.value)}
+                                rows={2}
+                                placeholder="Añadir una nueva observación..."
+                                className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500 resize-y"
+                            />
+                            <button
+                                onClick={handleAddObservation}
+                                disabled={!newObservationText.trim()}
+                                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Añadir Observación
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
