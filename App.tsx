@@ -170,9 +170,11 @@ const App: React.FC = () => {
 
         // Shift Tasks
         for (const [weekId, assignment] of Object.entries(shiftAssignments)) {
-            if (assignment.tasks) {
-                assignment.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+            // FIX: Cast assignment to ShiftAssignment to access its properties.
+            if ((assignment as ShiftAssignment).tasks) {
+                // FIX: Cast assignment to ShiftAssignment to access its properties.
+                (assignment as ShiftAssignment).tasks!.forEach(task => {
+                    if (!task.completed && Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: weekId, sourceName: `Turnos (Semana ${weekId.split('-')[1]})` });
                     }
                 });
@@ -181,10 +183,13 @@ const App: React.FC = () => {
 
         // Special Event Tasks
         for (const event of Object.values(specialEvents)) {
-            if (event.tasks) {
-                event.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
-                        allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: event.id, sourceName: `Evento: ${event.name}` });
+            // FIX: Cast event to SpecialEvent to access its properties.
+            if ((event as SpecialEvent).tasks) {
+                // FIX: Cast event to SpecialEvent to access its properties.
+                (event as SpecialEvent).tasks!.forEach(task => {
+                    if (!task.completed && Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUserName)) {
+                        // FIX: Cast event to SpecialEvent to access its properties.
+                        allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: (event as SpecialEvent).id, sourceName: `Evento: ${(event as SpecialEvent).name}` });
                     }
                 });
             }
@@ -192,10 +197,13 @@ const App: React.FC = () => {
 
         // Sponsor Tasks
         for (const sponsor of Object.values(sponsors)) {
-            if (sponsor.tasks) {
-                sponsor.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
-                        allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: sponsor.id, sourceName: `Patrocinador: ${sponsor.name}` });
+            // FIX: Cast sponsor to Sponsor to access its properties.
+            if ((sponsor as Sponsor).tasks) {
+                // FIX: Cast sponsor to Sponsor to access its properties.
+                (sponsor as Sponsor).tasks!.forEach(task => {
+                    if (!task.completed && Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUserName)) {
+                        // FIX: Cast sponsor to Sponsor to access its properties.
+                        allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: (sponsor as Sponsor).id, sourceName: `Patrocinador: ${(sponsor as Sponsor).name}` });
                     }
                 });
             }
