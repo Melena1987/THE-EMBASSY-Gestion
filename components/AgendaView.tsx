@@ -358,13 +358,18 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     {timedEvents.map((event: SpecialEvent) => {
                                         const startMinutes = timeToMinutes(event.startTime!);
                                         const endMinutes = timeToMinutes(event.endTime!);
-                                        
-                                        if (endMinutes <= timelineConfig.startHour * 60 || startMinutes >= timelineConfig.endHour * 60) {
+                                        const timelineStartMinutes = timelineConfig.startHour * 60;
+                                        const timelineEndMinutes = timelineConfig.endHour * 60;
+
+                                        if (endMinutes <= timelineStartMinutes || startMinutes >= timelineEndMinutes) {
                                             return null;
                                         }
 
-                                        const top = (startMinutes - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
-                                        const height = Math.max(1, ((endMinutes - startMinutes) * timelineConfig.pixelsPerMinute) - 2);
+                                        const displayStartMinutes = Math.max(startMinutes, timelineStartMinutes);
+                                        const displayEndMinutes = Math.min(endMinutes, timelineEndMinutes);
+
+                                        const top = (displayStartMinutes - timelineStartMinutes) * timelineConfig.pixelsPerMinute;
+                                        const height = Math.max(1, ((displayEndMinutes - displayStartMinutes) * timelineConfig.pixelsPerMinute) - 2);
 
                                         return (
                                             <div
@@ -387,13 +392,18 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     {dayBookings.map((booking, index) => {
                                         const startMinutes = timeToMinutes(booking.startTime);
                                         const endMinutes = timeToMinutes(booking.endTime);
-                                        
-                                        if (endMinutes <= timelineConfig.startHour * 60 || startMinutes >= timelineConfig.endHour * 60) {
+                                        const timelineStartMinutes = timelineConfig.startHour * 60;
+                                        const timelineEndMinutes = timelineConfig.endHour * 60;
+
+                                        if (endMinutes <= timelineStartMinutes || startMinutes >= timelineEndMinutes) {
                                             return null;
                                         }
+                                        
+                                        const displayStartMinutes = Math.max(startMinutes, timelineStartMinutes);
+                                        const displayEndMinutes = Math.min(endMinutes, timelineEndMinutes);
 
-                                        const top = (startMinutes - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
-                                        const height = Math.max(1, ((endMinutes - startMinutes) * timelineConfig.pixelsPerMinute) - 2);
+                                        const top = (displayStartMinutes - timelineStartMinutes) * timelineConfig.pixelsPerMinute;
+                                        const height = Math.max(1, ((displayEndMinutes - displayStartMinutes) * timelineConfig.pixelsPerMinute) - 2);
 
                                         return (
                                             <div 
