@@ -6,7 +6,7 @@ interface WifiModalProps {
   onClose: () => void;
 }
 
-const WIFI_QR_CODE_URL = 'https://firebasestorage.googleapis.com/v0/b/gestion-theembassy.firebasestorage.app/o/Recursos%2FCaptura%20de%20pantalla%202025-10-20%20094108.png?alt=media&token=cca6c102-a0a2-4a97-b56a-4b25679845da';
+const WIFI_QR_CODE_URL = 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1760952966355_Captura_de_pantalla_2025-10-20_094108.png?alt=media&token=58ce5bf8-4cb2-4d37-9bd9-00f97fe527f9';
 
 const WifiModal: React.FC<WifiModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
