@@ -743,7 +743,7 @@ const App: React.FC = () => {
                 onClose={handleModalClose}
             />
             <WifiModal isOpen={isWifiModalOpen} onClose={() => setIsWifiModalOpen(false)} />
-            <footer className="flex items-center justify-center gap-2 p-4 text-xs text-gray-400 bg-black/20" style={{ fontFamily: 'Arial, sans-serif' }}>
+            <footer className="flex items-baseline justify-center gap-2 p-4 text-xs text-gray-400 bg-black/20" style={{ fontFamily: 'Arial, sans-serif' }}>
                 <span>Gestión THE EMBASSY © 2025 </span>
                 <span className="text-orange-400" style={{ fontFamily: 'Caveat, cursive', fontSize: '1.25rem', fontWeight: 'bold' }}>by Manu</span>
                 <button
