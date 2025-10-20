@@ -14,8 +14,6 @@ export const SPACES: Space[] = [
 
 export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso'];
 
-export const SHIFT_ASSIGNEES: string[] = [...WORKERS, 'Mañana', 'Tarde'];
-
 export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
 
 export const USER_EMAIL_MAP: Record<string, string> = {

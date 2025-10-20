@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-// FIX: Added missing 'ShiftAssignment' type import to resolve a TypeScript error.
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
@@ -72,10 +71,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         return { morning, evening };
     }, [weekNumber]);
 
-    const currentWeekShifts: ShiftAssignment = { ...defaultAssignments, ...(shiftAssignments[weekId] || {}) };
+    const currentWeekShifts = shiftAssignments[weekId];
 
     const allTasks = useMemo(() => {
-        const weeklyTasks: CombinedTask[] = (currentWeekShifts.tasks || []).map(task => ({
+        const weeklyTasks: CombinedTask[] = (currentWeekShifts?.tasks || []).map(task => ({
             ...task,
             type: 'shift',
             sourceId: weekId,
@@ -84,8 +83,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         const eventTasks: CombinedTask[] = [];
         const weekDateStrings = new Set(weekDays.map(d => formatDateForBookingKey(d)));
 
-        // FIX: Explicitly cast the result of Object.values to SpecialEvent[] to resolve type inference issues where `event` was being inferred as `unknown`.
-        for (const event of Object.values(specialEvents) as SpecialEvent[]) {
+        for (const event of Object.values(specialEvents)) {
             if (event.tasks && event.tasks.length > 0) {
                 let overlaps = false;
                 for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
@@ -108,7 +106,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
             }
         }
         return [...weeklyTasks, ...eventTasks];
-    }, [currentWeekShifts.tasks, specialEvents, weekDays, weekId]);
+    }, [currentWeekShifts?.tasks, specialEvents, weekDays, weekId]);
 
 
     const changeWeek = (offset: number) => {
@@ -121,8 +119,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingShifts(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            // FIX: Added missing `allTasks` argument to the function call.
-            await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts, allTasks);
+            await generateShiftsPDF(weekNumber, year, weekDays, currentWeekShifts || defaultAssignments, allTasks);
         }
         setIsDownloadingShifts(false);
     };
@@ -131,7 +128,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts, specialEvents, allTasks);
+            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts || defaultAssignments, specialEvents, allTasks);
         }
         setIsDownloadingAgenda(false);
     }
@@ -249,8 +246,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         {weekDays.map((day, dayIndex) => {
                             const dayKey = formatDateForBookingKey(day);
                             const dayBookings = consolidateBookingsForDay(bookings, day);
-                            const eventsForDay = (Object.values(specialEvents) as SpecialEvent[]).filter(event => dayKey >= event.startDate && dayKey <= event.endDate);
-                            const dailyShift = currentWeekShifts.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts.morning, currentWeekShifts.evening);
+                            const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= event.startDate && dayKey <= event.endDate);
+                            const dailyShift = currentWeekShifts?.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts?.morning || defaultAssignments.morning, currentWeekShifts?.evening || defaultAssignments.evening);
                             
                             const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour }, (_, i) => timelineConfig.startHour + i);
                             
@@ -344,10 +341,6 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                 {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                             </button>
                                             <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
-                                                {task.date
-                                                    ? <span className="font-semibold text-gray-400 mr-2">[{new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday:'short', day:'numeric'})}]</span>
-                                                    : ''
-                                                }
                                                 {task.text}
                                             </span>
                                             <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
@@ -365,7 +358,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                         <h3 className="text-lg font-semibold text-orange-400 mb-2">Observaciones de la Semana</h3>
                          <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                            {currentWeekShifts.observations || 'No hay observaciones para esta semana.'}
+                            {currentWeekShifts?.observations || 'No hay observaciones para esta semana.'}
                         </p>
                     </div>
 

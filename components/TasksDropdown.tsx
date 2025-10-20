@@ -34,8 +34,7 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, onToggleTask, onCl
 
             <div className="py-2 px-1 max-h-96 overflow-y-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
                 {tasks.length > 0 ? (
-                    // FIX: Explicitly cast the result of Object.entries to resolve type inference issues where the result was being inferred as `unknown`.
-                    (Object.entries(groupedTasks) as [string, AggregatedTask[]][]).map(([sourceName, taskGroup]) => (
+                    Object.entries(groupedTasks).map(([sourceName, taskGroup]) => (
                         <div key={sourceName} className="mb-3">
                             <h4 className="px-3 py-1 text-xs font-bold text-orange-400 uppercase">{sourceName}</h4>
                             <div className="space-y-1 mt-1">

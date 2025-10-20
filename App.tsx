@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-// FIX: Added QuerySnapshot to imports to explicitly type snapshot objects from Firestore.
-import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference, QuerySnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
@@ -22,7 +21,6 @@ import WifiModal from './components/WifiModal';
 import WifiIcon from './components/icons/WifiIcon';
 import { findRelatedBookings } from './utils/bookingUtils';
 import { formatDateForBookingKey } from './utils/dateUtils';
-import { getDefaultDailyShift } from './utils/shiftUtils';
 
 const App: React.FC = () => {
     const [bookings, setBookings] = useState<Bookings>({});
@@ -59,8 +57,7 @@ const App: React.FC = () => {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    // FIX: Explicitly cast the returned user data to a typed object to safely access the 'role' property.
-                    const role = (userDocSnap.data() as { role: UserRole }).role;
+                    const role = userDocSnap.data().role;
                     setUserRole(role);
                     setCurrentUserName(USER_EMAIL_MAP[currentUser.email.toLowerCase()] || null);
                     setUser(currentUser);
@@ -103,8 +100,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!user) return;
         const bookingsCol = collection(db, 'bookings');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot) => {
             const newBookings: Bookings = {};
             snapshot.forEach((doc) => {
                 newBookings[doc.id] = doc.data() as BookingDetails;
@@ -113,8 +109,7 @@ const App: React.FC = () => {
         });
 
         const shiftsCol = collection(db, 'shiftAssignments');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot) => {
             const newShiftAssignments: ShiftAssignments = {};
             snapshot.forEach((doc) => {
                 newShiftAssignments[doc.id] = doc.data() as ShiftAssignment;
@@ -123,8 +118,7 @@ const App: React.FC = () => {
         });
         
         const cleaningCol = collection(db, 'cleaningAssignments');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot) => {
             const newAssignments: CleaningAssignments = {};
             snapshot.forEach((doc) => {
                 newAssignments[doc.id] = doc.data() as { startTime: string };
@@ -133,8 +127,7 @@ const App: React.FC = () => {
         });
 
         const cleaningObsCol = collection(db, 'cleaningObservations');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot) => {
             const newObservations: CleaningObservations = {};
             snapshot.forEach((doc) => {
                 newObservations[doc.id] = doc.data() as { observations: string };
@@ -143,8 +136,7 @@ const App: React.FC = () => {
         });
 
         const specialEventsCol = collection(db, 'specialEvents');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot) => {
             const newEvents: SpecialEvents = {};
             snapshot.forEach((doc) => {
                 newEvents[doc.id] = { ...doc.data(), id: doc.id } as SpecialEvent;
@@ -153,8 +145,7 @@ const App: React.FC = () => {
         });
 
         const sponsorsCol = collection(db, 'sponsors');
-        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
-        const unsubscribeSponsors = onSnapshot(sponsorsCol, (snapshot: QuerySnapshot) => {
+        const unsubscribeSponsors = onSnapshot(sponsorsCol, (snapshot) => {
             const newSponsors: Sponsors = {};
             snapshot.forEach((doc) => {
                 newSponsors[doc.id] = { ...doc.data(), id: doc.id } as Sponsor;
@@ -178,44 +169,10 @@ const App: React.FC = () => {
         const allTasks: AggregatedTask[] = [];
 
         // Shift Tasks
-        for (const [weekId, assignment] of Object.entries(shiftAssignments) as [string, ShiftAssignment][]) {
+        for (const [weekId, assignment] of Object.entries(shiftAssignments)) {
             if (assignment.tasks) {
                 assignment.tasks.forEach(task => {
-                    if (task.completed || !Array.isArray(task.assignedTo)) return;
-
-                    const isAssignedToMe = task.assignedTo.some(assignee => {
-                        if (assignee === currentUserName) {
-                            return true;
-                        }
-
-                        if (assignee === 'Mañana' || assignee === 'Tarde') {
-                            if (!task.date) return false;
-
-                            const taskDate = new Date(task.date + 'T00:00:00');
-                            const dayIndex = taskDate.getDay() === 0 ? 6 : taskDate.getDay() - 1;
-                            
-                            const dailyOverride = assignment.dailyOverrides?.[dayIndex];
-                            const isMorningTask = assignee === 'Mañana';
-
-                            let workerForShift: string;
-                            let isShiftActive: boolean;
-
-                            if (dailyOverride) {
-                                workerForShift = isMorningTask ? dailyOverride.morning.worker : dailyOverride.evening.worker;
-                                isShiftActive = isMorningTask ? dailyOverride.morning.active : dailyOverride.evening.active;
-                            } else {
-                                const defaultShiftForDay = getDefaultDailyShift(dayIndex, assignment.morning, assignment.evening);
-                                workerForShift = isMorningTask ? defaultShiftForDay.morning.worker : defaultShiftForDay.evening.worker;
-                                isShiftActive = isMorningTask ? defaultShiftForDay.morning.active : defaultShiftForDay.evening.active;
-                            }
-
-                            return isShiftActive && workerForShift === currentUserName;
-                        }
-                        
-                        return false;
-                    });
-
-                    if (isAssignedToMe) {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: weekId, sourceName: `Turnos (Semana ${weekId.split('-')[1]})` });
                     }
                 });
@@ -223,11 +180,10 @@ const App: React.FC = () => {
         }
 
         // Special Event Tasks
-        for (const event of Object.values(specialEvents) as SpecialEvent[]) {
+        for (const event of Object.values(specialEvents)) {
             if (event.tasks) {
                 event.tasks.forEach(task => {
-                    if (task.completed || !Array.isArray(task.assignedTo)) return;
-                    if (task.assignedTo.includes(currentUserName)) {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: event.id, sourceName: `Evento: ${event.name}` });
                     }
                 });
@@ -235,11 +191,10 @@ const App: React.FC = () => {
         }
 
         // Sponsor Tasks
-        for (const sponsor of Object.values(sponsors) as Sponsor[]) {
+        for (const sponsor of Object.values(sponsors)) {
             if (sponsor.tasks) {
                 sponsor.tasks.forEach(task => {
-                    if (task.completed || !Array.isArray(task.assignedTo)) return;
-                    if (task.assignedTo.includes(currentUserName)) {
+                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
                         allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: sponsor.id, sourceName: `Patrocinador: ${sponsor.name}` });
                     }
                 });
@@ -420,44 +375,6 @@ const App: React.FC = () => {
         }
     }, [userRole]);
     
-    const handleAddRecurringTasks = useCallback(async (tasksByWeek: Record<string, Task[]>) => {
-        if (userRole !== 'ADMIN') {
-            alert("Acción no permitida para su rol.");
-            return false;
-        }
-        try {
-            const batch = writeBatch(db);
-            const weekIds = Object.keys(tasksByWeek);
-    
-            const docRefs = weekIds.map(weekId => doc(db, 'shiftAssignments', weekId));
-            const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
-    
-            docSnaps.forEach((docSnap, index) => {
-                const weekId = weekIds[index];
-                const tasksToAdd = tasksByWeek[weekId];
-                const docRef = docRefs[index];
-                
-                if (docSnap.exists()) {
-                    const existingTasks = docSnap.data().tasks || [];
-                    batch.update(docRef, { tasks: [...existingTasks, ...tasksToAdd] });
-                } else {
-                    const [year, week] = weekId.split('-').map(Number);
-                    const isEvenWeek = week % 2 === 0;
-                    const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-                    const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
-                    batch.set(docRef, { morning, evening, tasks: tasksToAdd });
-                }
-            });
-            
-            await batch.commit();
-            return true;
-        } catch (error) {
-            console.error("Error al añadir tareas recurrentes:", error);
-            alert("No se pudieron guardar las tareas.");
-            return false;
-        }
-    }, [userRole]);
-
     const handleToggleTask = useCallback(async (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => {
         if (!user) return;
         const docRef = doc(db, collectionName, sourceId);
@@ -756,7 +673,6 @@ const App: React.FC = () => {
                     onUpdateShifts={handleUpdateShifts}
                     onToggleTask={handleToggleTask}
                     onResetWeekShifts={handleResetWeekShifts}
-                    onAddRecurringTasks={handleAddRecurringTasks}
                     isReadOnly={!canEditShifts}
                 />;
             case 'servicios':
