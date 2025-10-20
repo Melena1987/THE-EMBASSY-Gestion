@@ -33,12 +33,6 @@ type CombinedTask = (Task & {
     eventName: string;
 });
 
-const timelineConfig = {
-  startHour: 9, // 9 AM
-  endHour: 23, // 11 PM
-  pixelsPerMinute: 0.7,
-};
-
 const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
@@ -63,6 +57,34 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
 
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
+
+    const timelineConfig = useMemo(() => {
+        let earliestHour = 9; // Default start hour
+
+        weekDays.forEach(day => {
+            const dayKey = formatDateForBookingKey(day);
+            const dayBookings = consolidateBookingsForDay(bookings, day);
+            const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
+
+            const timedItems = [
+                ...(eventsForDay as SpecialEvent[]).filter(e => e.startTime).map(e => ({ startTime: e.startTime! })),
+                ...dayBookings.map(b => ({ startTime: b.startTime }))
+            ];
+
+            timedItems.forEach(item => {
+                const hour = parseInt(item.startTime.split(':')[0], 10);
+                if (hour < earliestHour) {
+                    earliestHour = hour;
+                }
+            });
+        });
+
+        return {
+            startHour: earliestHour,
+            endHour: 23,
+            pixelsPerMinute: 0.7,
+        };
+    }, [weekDays, bookings, specialEvents]);
 
     const defaultAssignments = useMemo(() => {
         const isEvenWeek = weekNumber % 2 === 0;
@@ -314,7 +336,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
                     const dailyShift = currentWeekShifts?.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts?.morning || defaultAssignments.morning, currentWeekShifts?.evening || defaultAssignments.evening);
                     
-                    const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour }, (_, i) => timelineConfig.startHour + i);
+                    const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour + 1 }, (_, i) => timelineConfig.startHour + i);
                     
                     const timedEvents = [
                         ...(eventsForDay as SpecialEvent[]).map(event => ({
@@ -344,37 +366,37 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
                                 </div>
                             </div>
-                            <div className="relative h-[600px] bg-black/10 rounded-b-md overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
+                            <div className="relative min-h-[600px] bg-black/10 rounded-b-md overflow-y-auto pt-2" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
                                 {timelineHours.map(hour => (
-                                    <div key={hour} className="absolute w-full border-b border-white/5" style={{ top: `${(hour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute}px` }}>
+                                    <div key={hour} className="absolute w-full border-b border-white/5" style={{ top: `${(hour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute + 8}px` }}>
                                         <span className="absolute -top-2 left-1 text-gray-500 text-[10px]">{`${hour.toString().padStart(2, '0')}:00`}</span>
                                     </div>
                                 ))}
-                                <div className="absolute top-0 left-0 w-full h-full">
-                                    {timedEvents.map((event, index) => {
-                                        const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
-                                        const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
-                                        const isEvent = event.type === 'event';
-                                        
-                                        return (
-                                            <div
-                                                key={event.id}
-                                                onClick={() => isEvent ? onSelectSpecialEvent(specialEvents[event.id] as SpecialEvent) : onSelectBooking(event.consolidatedBooking!)}
-                                                className={`absolute left-8 right-1 p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${
-                                                    isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
-                                                } ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
-                                                style={{ top: `${top}px`, height: `${Math.max(height - 2, 10)}px` }}
-                                                title={event.name}
-                                                draggable={!isReadOnly && !isEvent}
-                                                onDragStart={(e) => !isReadOnly && !isEvent && handleDragStart(e, event.consolidatedBooking!)}
-                                                onDragEnd={!isReadOnly && !isEvent ? handleDragEnd : undefined}
-                                            >
-                                                <p className="font-bold pointer-events-none">{event.name}</p>
-                                                <p className="text-gray-300 pointer-events-none">{`${event.startTime} - ${event.endTime}`}</p>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                
+                                {timedEvents.map((event) => {
+                                    const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
+                                    const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
+                                    const isEvent = event.type === 'event';
+                                    
+                                    return (
+                                        <div
+                                            key={event.id}
+                                            onClick={() => isEvent ? onSelectSpecialEvent(specialEvents[event.id] as SpecialEvent) : onSelectBooking(event.consolidatedBooking!)}
+                                            className={`absolute left-8 right-1 p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${
+                                                isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
+                                            } ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                                            style={{ top: `${top + 8}px`, height: `${Math.max(height - 2, 10)}px` }}
+                                            title={event.name}
+                                            draggable={!isReadOnly && !isEvent}
+                                            onDragStart={(e) => !isReadOnly && !isEvent && handleDragStart(e, event.consolidatedBooking!)}
+                                            onDragEnd={!isReadOnly && !isEvent ? handleDragEnd : undefined}
+                                        >
+                                            <p className="font-bold pointer-events-none">{event.name}</p>
+                                            <p className="text-gray-300 pointer-events-none">{`${event.startTime} - ${event.endTime}`}</p>
+                                        </div>
+                                    );
+                                })}
+                                
                             </div>
                         </div>
                     );
