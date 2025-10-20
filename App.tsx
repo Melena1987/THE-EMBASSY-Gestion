@@ -22,6 +22,7 @@ import WifiModal from './components/WifiModal';
 import WifiIcon from './components/icons/WifiIcon';
 import { findRelatedBookings } from './utils/bookingUtils';
 import { formatDateForBookingKey } from './utils/dateUtils';
+import { getDefaultDailyShift } from './utils/shiftUtils';
 
 const App: React.FC = () => {
     const [bookings, setBookings] = useState<Bookings>({});
@@ -177,11 +178,44 @@ const App: React.FC = () => {
         const allTasks: AggregatedTask[] = [];
 
         // Shift Tasks
-        // FIX: Explicitly cast the result of Object.entries to resolve type inference issues where `assignment` was being inferred as `unknown`.
         for (const [weekId, assignment] of Object.entries(shiftAssignments) as [string, ShiftAssignment][]) {
             if (assignment.tasks) {
                 assignment.tasks.forEach(task => {
-                    if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    if (task.completed) return;
+
+                    const isAssignedToMe = task.assignedTo.some(assignee => {
+                        if (assignee === currentUserName) {
+                            return true;
+                        }
+
+                        if (assignee === 'Mañana' || assignee === 'Tarde') {
+                            if (!task.date) return false;
+
+                            const taskDate = new Date(task.date + 'T00:00:00');
+                            const dayIndex = taskDate.getDay() === 0 ? 6 : taskDate.getDay() - 1;
+                            
+                            const dailyOverride = assignment.dailyOverrides?.[dayIndex];
+                            const isMorningTask = assignee === 'Mañana';
+
+                            let workerForShift: string;
+                            let isShiftActive: boolean;
+
+                            if (dailyOverride) {
+                                workerForShift = isMorningTask ? dailyOverride.morning.worker : dailyOverride.evening.worker;
+                                isShiftActive = isMorningTask ? dailyOverride.morning.active : dailyOverride.evening.active;
+                            } else {
+                                const defaultShiftForDay = getDefaultDailyShift(dayIndex, assignment.morning, assignment.evening);
+                                workerForShift = isMorningTask ? defaultShiftForDay.morning.worker : defaultShiftForDay.evening.worker;
+                                isShiftActive = isMorningTask ? defaultShiftForDay.morning.active : defaultShiftForDay.evening.active;
+                            }
+
+                            return isShiftActive && workerForShift === currentUserName;
+                        }
+                        
+                        return false;
+                    });
+
+                    if (isAssignedToMe) {
                         allTasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: weekId, sourceName: `Turnos (Semana ${weekId.split('-')[1]})` });
                     }
                 });
@@ -189,7 +223,6 @@ const App: React.FC = () => {
         }
 
         // Special Event Tasks
-        // FIX: Explicitly cast the result of Object.values to resolve type inference issues where `event` was being inferred as `unknown`.
         for (const event of Object.values(specialEvents) as SpecialEvent[]) {
             if (event.tasks) {
                 event.tasks.forEach(task => {
@@ -201,7 +234,6 @@ const App: React.FC = () => {
         }
 
         // Sponsor Tasks
-        // FIX: Explicitly cast the result of Object.values to resolve type inference issues where `sponsor` was being inferred as `unknown`.
         for (const sponsor of Object.values(sponsors) as Sponsor[]) {
             if (sponsor.tasks) {
                 sponsor.tasks.forEach(task => {

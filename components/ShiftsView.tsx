@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection } from '../types';
-import { WORKERS } from '../constants';
+import { WORKERS, SHIFT_ASSIGNEES } from '../constants';
 import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../utils/shiftUtils';
 import SunIcon from './icons/SunIcon';
@@ -421,15 +421,15 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                         />
                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <span className="text-sm font-medium text-gray-300">Asignar a:</span>
-                            {WORKERS.map(w => (
-                                <label key={w} className="flex items-center gap-2 cursor-pointer">
+                            {SHIFT_ASSIGNEES.map(assignee => (
+                                <label key={assignee} className="flex items-center gap-2 cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        checked={newTaskAssignees.includes(w)}
-                                        onChange={() => handleAssigneeChange(w)}
+                                        checked={newTaskAssignees.includes(assignee)}
+                                        onChange={() => handleAssigneeChange(assignee)}
                                         className="h-4 w-4 rounded bg-black/40 border-white/30 text-orange-500 focus:ring-orange-500"
                                     />
-                                    <span className="text-white">{w}</span>
+                                    <span className={`text-white ${!WORKERS.includes(assignee) ? 'font-bold text-orange-300' : ''}`}>{assignee}</span>
                                 </label>
                             ))}
                         </div>
