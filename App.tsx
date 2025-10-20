@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
+// FIX: Added QuerySnapshot to imports to explicitly type snapshot objects from Firestore.
+import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference, QuerySnapshot } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
@@ -57,7 +58,8 @@ const App: React.FC = () => {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    const role = userDocSnap.data().role as UserRole;
+                    // FIX: Explicitly cast the returned user data to a typed object to safely access the 'role' property.
+                    const role = (userDocSnap.data() as { role: UserRole }).role;
                     setUserRole(role);
                     setCurrentUserName(USER_EMAIL_MAP[currentUser.email.toLowerCase()] || null);
                     setUser(currentUser);
@@ -100,7 +102,8 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!user) return;
         const bookingsCol = collection(db, 'bookings');
-        const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeBookings = onSnapshot(bookingsCol, (snapshot: QuerySnapshot) => {
             const newBookings: Bookings = {};
             snapshot.forEach((doc) => {
                 newBookings[doc.id] = doc.data() as BookingDetails;
@@ -109,7 +112,8 @@ const App: React.FC = () => {
         });
 
         const shiftsCol = collection(db, 'shiftAssignments');
-        const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeShifts = onSnapshot(shiftsCol, (snapshot: QuerySnapshot) => {
             const newShiftAssignments: ShiftAssignments = {};
             snapshot.forEach((doc) => {
                 newShiftAssignments[doc.id] = doc.data() as ShiftAssignment;
@@ -118,7 +122,8 @@ const App: React.FC = () => {
         });
         
         const cleaningCol = collection(db, 'cleaningAssignments');
-        const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeCleaning = onSnapshot(cleaningCol, (snapshot: QuerySnapshot) => {
             const newAssignments: CleaningAssignments = {};
             snapshot.forEach((doc) => {
                 newAssignments[doc.id] = doc.data() as { startTime: string };
@@ -127,7 +132,8 @@ const App: React.FC = () => {
         });
 
         const cleaningObsCol = collection(db, 'cleaningObservations');
-        const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeCleaningObs = onSnapshot(cleaningObsCol, (snapshot: QuerySnapshot) => {
             const newObservations: CleaningObservations = {};
             snapshot.forEach((doc) => {
                 newObservations[doc.id] = doc.data() as { observations: string };
@@ -136,7 +142,8 @@ const App: React.FC = () => {
         });
 
         const specialEventsCol = collection(db, 'specialEvents');
-        const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeSpecialEvents = onSnapshot(specialEventsCol, (snapshot: QuerySnapshot) => {
             const newEvents: SpecialEvents = {};
             snapshot.forEach((doc) => {
                 newEvents[doc.id] = { ...doc.data(), id: doc.id } as SpecialEvent;
@@ -145,7 +152,8 @@ const App: React.FC = () => {
         });
 
         const sponsorsCol = collection(db, 'sponsors');
-        const unsubscribeSponsors = onSnapshot(sponsorsCol, (snapshot) => {
+        // FIX: Explicitly type 'snapshot' as QuerySnapshot to resolve incorrect type inference and allow use of the 'forEach' method.
+        const unsubscribeSponsors = onSnapshot(sponsorsCol, (snapshot: QuerySnapshot) => {
             const newSponsors: Sponsors = {};
             snapshot.forEach((doc) => {
                 newSponsors[doc.id] = { ...doc.data(), id: doc.id } as Sponsor;
@@ -225,19 +233,24 @@ const App: React.FC = () => {
             alert("El nombre de la reserva no puede estar vacío.");
             return false;
         }
-
+    
+        const CHUNK_SIZE = 100; // Process 100 booking keys at a time
+    
         try {
-            await runTransaction(db, async (transaction) => {
-                const bookingDocsRefs = bookingKeys.map(key => doc(db, 'bookings', key));
-                const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
-
-                for (const docSnapshot of bookingDocsSnapshots) {
-                    if (docSnapshot.exists()) {
-                         throw new Error("Conflicto de reserva: Uno o más de los horarios seleccionados ya están ocupados en las fechas indicadas.");
+            for (let i = 0; i < bookingKeys.length; i += CHUNK_SIZE) {
+                const chunk = bookingKeys.slice(i, i + CHUNK_SIZE);
+                await runTransaction(db, async (transaction) => {
+                    const bookingDocsRefs = chunk.map(key => doc(db, 'bookings', key));
+                    const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
+    
+                    for (const docSnapshot of bookingDocsSnapshots) {
+                        if (docSnapshot.exists()) {
+                            throw new Error(`Conflicto de reserva: El horario en ${docSnapshot.id.split('-').slice(0, -4).join('-')} para el ${docSnapshot.id.split('-').slice(-4, -1).join('-')} ya está ocupado.`);
+                        }
                     }
-                }
-                bookingKeys.forEach(key => transaction.set(doc(db, 'bookings', key), bookingDetails));
-            });
+                    chunk.forEach(key => transaction.set(doc(db, 'bookings', key), bookingDetails));
+                });
+            }
             return true;
         } catch (e: any) {
             console.error("Error en la transacción de reserva:", e);
