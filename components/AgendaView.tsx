@@ -41,6 +41,7 @@ const timeToMinutes = (time: string): number => {
 const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
+    const [showCompletedTasks, setShowCompletedTasks] = useState(false);
 
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
@@ -106,12 +107,9 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         const weekDateStrings = new Set(weekDays.map(d => formatDateForBookingKey(d)));
 
         for (const event of Object.values(specialEvents)) {
-            // FIX: Cast event to SpecialEvent to access its properties.
             const typedEvent = event as SpecialEvent;
-            // FIX: Cast event to SpecialEvent to access its properties.
             if (typedEvent.tasks && typedEvent.tasks.length > 0) {
                 let overlaps = false;
-                // FIX: Cast event to SpecialEvent to access its properties.
                 for (let d = new Date(`${typedEvent.startDate}T00:00:00`); d <= new Date(`${typedEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                     if (weekDateStrings.has(formatDateForBookingKey(d))) {
                         overlaps = true;
@@ -120,14 +118,11 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                 }
 
                 if (overlaps) {
-                    // FIX: Cast event to SpecialEvent to access its properties.
                     typedEvent.tasks.forEach(task => {
                         eventTasks.push({
                             ...task,
                             type: 'event',
-                            // FIX: Cast event to SpecialEvent to access its properties.
                             sourceId: typedEvent.id,
-                            // FIX: Cast event to SpecialEvent to access its properties.
                             eventName: typedEvent.name,
                         });
                     });
@@ -137,6 +132,13 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         return [...weeklyTasks, ...eventTasks];
     }, [currentWeekShifts?.tasks, specialEvents, weekDays, weekId]);
 
+    const completedTasks = useMemo(() => allTasks.filter(task => task.completed), [allTasks]);
+    const tasksToDisplay = useMemo(() => {
+        if (showCompletedTasks) {
+            return [...allTasks.filter(t => !t.completed), ...completedTasks];
+        }
+        return allTasks.filter(task => !task.completed);
+    }, [allTasks, showCompletedTasks, completedTasks]);
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -223,12 +225,10 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                 <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-4 gap-4 sm:gap-2">
                     
-                    {/* Prev button (for sm and up) */}
                     <div className="hidden sm:flex sm:flex-1 sm:justify-start">
                         <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Semana Anterior</button>
                     </div>
 
-                    {/* Title */}
                     <div className="flex-shrink-0 order-first sm:order-none w-full sm:w-auto text-center">
                         <h2 className="text-xl font-bold text-white">
                             Semana {weekNumber}
@@ -238,13 +238,11 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         </p>
                     </div>
                     
-                    {/* Mobile-only full-width nav */}
                     <div className="w-full flex justify-between items-center sm:hidden order-1">
                         <button onClick={() => changeWeek(-1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">&lt; Ant</button>
                         <button onClick={() => changeWeek(1)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md">Sig &gt;</button>
                     </div>
 
-                    {/* Next button and PDF downloads (for sm and up) */}
                     <div className="hidden sm:flex sm:flex-1 sm:justify-end items-center gap-2">
                          <button
                             onClick={handleDownloadAgendaPDF}
@@ -271,49 +269,63 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                    <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold text-orange-400">Tareas de la Semana</h3>
+                        {completedTasks.length > 0 && (
+                            <button
+                                onClick={() => setShowCompletedTasks(prev => !prev)}
+                                className="text-sm text-gray-400 hover:text-white underline focus:outline-none"
+                            >
+                                {showCompletedTasks ? 'Ocultar completadas' : `Mostrar ${completedTasks.length} completada${completedTasks.length > 1 ? 's' : ''}`}
+                            </button>
+                        )}
+                    </div>
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {allTasks.length > 0 ? (
-                            allTasks.map(task => {
-                                const isEventTask = task.type === 'event';
-                                const assignees = task.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]) : [];
-                                return (
-                                    <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
-                                        <button
-                                            onClick={() => onToggleTask(
-                                                task.sourceId,
-                                                task.id,
-                                                isEventTask ? 'specialEvents' : 'shiftAssignments'
-                                            )}
-                                            className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
-                                                task.completed
-                                                    ? 'bg-green-500 hover:bg-green-600'
-                                                    : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
-                                            }`}
-                                            aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
-                                        >
-                                            {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
-                                        </button>
-                                        <div className="flex-grow text-sm">
-                                            {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
-                                            <span className={`${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
-                                                {task.text}
-                                            </span>
-                                        </div>
-                                        {assignees.length > 0 && (
-                                            <div className="flex-shrink-0 flex items-center flex-wrap gap-1 justify-end">
-                                                {assignees.map(assignee => (
-                                                    assignee && (
-                                                        <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                                            {assignee}
-                                                        </span>
-                                                    )
-                                                ))}
+                            tasksToDisplay.length > 0 ? (
+                                tasksToDisplay.map(task => {
+                                    const isEventTask = task.type === 'event';
+                                    const assignees = task.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]) : [];
+                                    return (
+                                        <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
+                                            <button
+                                                onClick={() => onToggleTask(
+                                                    task.sourceId,
+                                                    task.id,
+                                                    isEventTask ? 'specialEvents' : 'shiftAssignments'
+                                                )}
+                                                className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${
+                                                    task.completed
+                                                        ? 'bg-green-500 hover:bg-green-600'
+                                                        : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
+                                                }`}
+                                                aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                            >
+                                                {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
+                                            </button>
+                                            <div className="flex-grow text-sm">
+                                                {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                                <span className={`${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                                    {task.text}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })
+                                            {assignees.length > 0 && (
+                                                <div className="flex-shrink-0 flex items-center flex-wrap gap-1 justify-end">
+                                                    {assignees.map(assignee => (
+                                                        assignee && (
+                                                            <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                                                {assignee}
+                                                            </span>
+                                                        )
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-sm text-gray-500 text-center py-2">Todas las tareas están completadas. ¡Bien hecho!</p>
+                            )
                         ) : (
                             <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
                         )}
@@ -366,7 +378,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
                                 </div>
                             </div>
-                            <div className="relative min-h-[600px] bg-black/10 rounded-b-md overflow-y-auto pt-2" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
+                            <div className="relative bg-black/10 rounded-b-md overflow-y-auto pt-2" style={{ minHeight: `${(timelineConfig.endHour - timelineConfig.startHour + 1) * 60 * timelineConfig.pixelsPerMinute + 16}px` }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
                                 {timelineHours.map(hour => (
                                     <div key={hour} className="absolute w-full border-b border-white/5" style={{ top: `${(hour - timelineConfig.startHour) * 60 * timelineConfig.pixelsPerMinute + 8}px` }}>
                                         <span className="absolute -top-2 left-1 text-gray-500 text-[10px]">{`${hour.toString().padStart(2, '0')}:00`}</span>
