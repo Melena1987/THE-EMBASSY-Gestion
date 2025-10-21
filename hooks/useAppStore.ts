@@ -27,8 +27,8 @@ import type {
     AggregatedTask,
     TaskSourceCollection,
 } from '../types';
-import { formatDateForBookingKey } from '../utils/dateUtils';
-import { TIME_SLOTS } from '../constants';
+import { formatDateForBookingKey, getWeekData } from '../utils/dateUtils';
+import { TIME_SLOTS, WORKERS } from '../constants';
 
 // This hook centralizes all Firestore data subscriptions and write operations for the app.
 export const useAppStore = (user: User | null, userRole: UserRole, currentUserName: string | null) => {
@@ -188,6 +188,58 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         } catch (error) {
             console.error("Error updating shifts:", error);
             alert("No se pudo actualizar el turno.");
+        }
+    }, []);
+
+     const handleAddRecurringTask = useCallback(async (
+        taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>,
+        weekIds: string[]
+    ): Promise<boolean> => {
+        try {
+            const batch = writeBatch(db);
+            const recurrenceId = doc(collection(db, 'shiftAssignments')).id; // Just for a unique ID
+
+            const docRefs = weekIds.map(id => doc(db, 'shiftAssignments', id));
+            const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
+
+            for (let i = 0; i < weekIds.length; i++) {
+                const weekId = weekIds[i];
+                const docRef = docRefs[i];
+                const docSnap = docSnaps[i];
+
+                const newTask: Task = {
+                    ...taskDetails,
+                    id: doc(collection(db, 'shiftAssignments')).id, // Unique ID for each instance
+                    completed: false,
+                    recurrenceId: recurrenceId,
+                };
+
+                if (docSnap.exists()) {
+                    const existingData = docSnap.data() as ShiftAssignment;
+                    const updatedTasks = [...(existingData.tasks || []), newTask];
+                    batch.update(docRef, { tasks: updatedTasks });
+                } else {
+                    const [, weekStr] = weekId.split('-');
+                    const week = parseInt(weekStr, 10);
+                    const isEvenWeek = week % 2 === 0;
+                    const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
+                    const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+                    
+                    const newAssignment: ShiftAssignment = {
+                        morning,
+                        evening,
+                        tasks: [newTask]
+                    };
+                    batch.set(docRef, newAssignment);
+                }
+            }
+
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error("Error adding recurring task:", error);
+            alert("No se pudo añadir la tarea recurrente.");
+            return false;
         }
     }, []);
 
@@ -365,6 +417,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         handleAddBooking,
         handleDeleteBookingKeys,
         handleUpdateShifts,
+        handleAddRecurringTask,
         handleResetWeekShifts,
         handleToggleTask,
         handleUpdateCleaningTime,

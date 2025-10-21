@@ -32,7 +32,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         specialEvents, sponsors, myPendingTasks, handleAddBooking,
         handleDeleteBookingKeys, handleUpdateShifts, handleToggleTask,
         handleResetWeekShifts, handleUpdateCleaningTime, handleUpdateCleaningObservations,
-        handleSaveSpecialEvent, handleDeleteSpecialEvent, handleUpdateSponsor, handleAddSponsor
+        handleSaveSpecialEvent, handleDeleteSpecialEvent, handleUpdateSponsor, handleAddSponsor,
+        handleAddRecurringTask
     } = store;
 
     const { user, userRole, currentUserName, handleLogout } = auth;
@@ -161,7 +162,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 }
                 return null;
             case 'turnos':
-                return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} />;
+                return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} />;
             case 'servicios':
                 return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
             case 'eventos':

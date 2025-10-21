@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection } from '../../types';
 import { WORKERS } from '../../constants';
-import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
+import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../../utils/shiftUtils';
 import SunIcon from '../icons/SunIcon';
 import MoonIcon from '../icons/MoonIcon';
@@ -19,6 +19,7 @@ interface ShiftsViewProps {
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    onAddRecurringTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>, weekIds: string[]) => Promise<boolean>;
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
@@ -34,12 +35,32 @@ type CombinedTask = (Task & {
 });
 
 const SHIFT_ASSIGNEES = ['MAÑANA', 'TARDE'];
+const WEEKDAYS = [
+    { label: 'L', value: 1 }, { label: 'M', value: 2 }, { label: 'X', value: 3 },
+    { label: 'J', value: 4 }, { label: 'V', value: 5 }, { label: 'S', value: 6 },
+    { label: 'D', value: 0 }
+];
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onAddRecurringTask, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+    
+    // State for repetition logic
+    const [repeatOption, setRepeatOption] = useState('none');
+    const [repeatEndDate, setRepeatEndDate] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 1);
+        return d;
+    });
+    const [selectedWeekdays, setSelectedWeekdays] = useState(new Set([1, 2, 3, 4, 5]));
+
+    useEffect(() => {
+        const newEndDate = new Date(selectedDate);
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
+        setRepeatEndDate(newEndDate);
+    }, [selectedDate]);
     
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
@@ -196,25 +217,51 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         );
     };
 
-    const handleAddTask = () => {
+    const handleWeekdaySelect = (dayValue: number) => {
+        setSelectedWeekdays(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(dayValue)) {
+                if (newSet.size > 1) { 
+                    newSet.delete(dayValue);
+                }
+            } else {
+                newSet.add(dayValue);
+            }
+            return newSet;
+        });
+    };
+
+    const handleAddTask = async () => {
         if (!newTaskText.trim() || newTaskAssignees.length === 0) {
             alert("La tarea debe tener una descripción y al menos un asignado.");
             return;
         }
-
-        const newTask: Task = {
-            id: Date.now().toString(),
+    
+        const taskDetails = {
             text: newTaskText.trim(),
             assignedTo: newTaskAssignees,
-            completed: false,
         };
-        
-        const newTasks = [...(currentShifts.tasks || []), newTask];
-        const newShifts: ShiftAssignment = { ...currentShifts, tasks: newTasks };
-        onUpdateShifts(weekId, newShifts);
-        
-        setNewTaskText('');
-        setNewTaskAssignees([]);
+    
+        const mondayOfWeek = weekDays[0];
+        const datesForTask = Array.from(generateRepeatingDates(mondayOfWeek, repeatOption, repeatEndDate, selectedWeekdays));
+    
+        if (datesForTask.length === 0) {
+            alert("La regla de repetición no generó ninguna fecha válida.");
+            return;
+        }
+    
+        const weekIds = Array.from(new Set(datesForTask.map(date => {
+            const { year, week } = getWeekData(date);
+            return `${year}-${week.toString().padStart(2, '0')}`;
+        })));
+    
+        const success = await onAddRecurringTask(taskDetails, weekIds);
+    
+        if (success) {
+            setNewTaskText('');
+            setNewTaskAssignees([]);
+            setRepeatOption('none');
+        }
     };
 
     const handleDeleteTask = (taskId: string) => {
@@ -240,16 +287,16 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
 
     const getResolvedAssignees = (task: CombinedTask): string[] => {
         if (task.type !== 'shift') {
-            return Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+            return Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         }
         const assignees = new Set<string>();
-        const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+        const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         taskAssignees.forEach(a => {
             if (a === 'MAÑANA') {
                 assignees.add(currentShifts.morning);
             } else if (a === 'TARDE') {
                 assignees.add(currentShifts.evening);
-            } else {
+            } else if(a) {
                 assignees.add(a);
             }
         });
@@ -412,6 +459,36 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                 </label>
                             ))}
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/10 pt-3">
+                            <div>
+                                <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetición</label>
+                                <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500">
+                                    <option value="none">No se repite</option>
+                                    <option value="daily">Diariamente</option>
+                                    <option value="weekdays">Días laborables (L-V)</option>
+                                    <option value="weekly">Semanalmente</option>
+                                    <option value="monthly">Mensualmente</option>
+                                </select>
+                            </div>
+                            {repeatOption !== 'none' && (
+                                <div>
+                                    <label htmlFor="repeatEndDate" className="text-xs text-gray-400 block mb-1">Finaliza el</label>
+                                    <input id="repeatEndDate" type="date" value={formatDateForBookingKey(repeatEndDate)} onChange={(e) => e.target.value && setRepeatEndDate(new Date(`${e.target.value}T00:00:00`))} min={formatDateForBookingKey(weekDays[0])} className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500"/>
+                                </div>
+                            )}
+                        </div>
+                        {repeatOption === 'weekly' && (
+                             <div>
+                                <label className="text-xs text-gray-400 block mb-2">Repetir los días</label>
+                                <div className="flex items-center justify-around bg-black/30 p-2 rounded-md">
+                                    {WEEKDAYS.map(({label, value}) => (
+                                        <button key={value} type="button" onClick={() => handleWeekdaySelect(value)} className={`w-8 h-8 rounded-full font-bold text-sm transition-colors duration-200 flex items-center justify-center ${ selectedWeekdays.has(value) ? 'bg-orange-600 text-white' : 'bg-black/30 hover:bg-white/10 text-gray-300' }`}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         
                         <button
                             onClick={handleAddTask}

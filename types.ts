@@ -45,6 +45,7 @@ export interface Task {
   text: string;
   assignedTo: string[];
   completed: boolean;
+  recurrenceId?: string;
 }
 
 // Key format: "YYYY-WW" e.g., "2024-32"
