@@ -240,6 +240,10 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     delete (eventToSave as Partial<SpecialEvent>).tasks;
                 }
                 
+                if (eventToSave.posterUrl === undefined) {
+                    delete (eventToSave as Partial<SpecialEvent>).posterUrl;
+                }
+                
                 transaction.set(eventDocRef, eventToSave);
             });
             return true;
