@@ -33,6 +33,8 @@ type CombinedTask = (Task & {
     eventName: string;
 });
 
+const SHIFT_ASSIGNEES = ['MAÑANA', 'TARDE'];
+
 const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onToggleTask, onResetWeekShifts, isReadOnly }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
@@ -236,6 +238,24 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         setIsDownloading(false);
     };
 
+    const getResolvedAssignees = (task: CombinedTask): string[] => {
+        if (task.type !== 'shift') {
+            return Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+        }
+        const assignees = new Set<string>();
+        task.assignedTo.forEach(a => {
+            if (a === 'MAÑANA') {
+                assignees.add(currentShifts.morning);
+            } else if (a === 'TARDE') {
+                assignees.add(currentShifts.evening);
+            } else {
+                assignees.add(a);
+            }
+        });
+        return Array.from(assignees);
+    };
+
+
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
@@ -377,7 +397,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                         />
                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <span className="text-sm font-medium text-gray-300">Asignar a:</span>
-                            {WORKERS.map(assignee => (
+                            {[...SHIFT_ASSIGNEES, ...WORKERS].map(assignee => (
                                 <label key={assignee} className="flex items-center gap-2 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -385,7 +405,9 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                         onChange={() => handleAssigneeChange(assignee)}
                                         className="h-4 w-4 rounded bg-black/40 border-white/30 text-orange-500 focus:ring-orange-500"
                                     />
-                                    <span className="text-white">{assignee}</span>
+                                    <span className={SHIFT_ASSIGNEES.includes(assignee) ? 'text-yellow-400 font-semibold' : 'text-white'}>
+                                        {assignee}
+                                    </span>
                                 </label>
                             ))}
                         </div>
@@ -403,6 +425,8 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                         tasksToDisplay.length > 0 ? (
                             tasksToDisplay.map(task => {
                                 const isEventTask = task.type === 'event';
+                                const resolvedAssignees = getResolvedAssignees(task);
+
                                 return (
                                     <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                         {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
@@ -422,14 +446,23 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                         >
                                             {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                         </button>
-                                        <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
-                                            <span className="font-semibold text-gray-400 mr-2">[Semanal]</span>
-                                            {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
-                                            {task.text}
-                                        </span>
-                                        <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                            {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
-                                        </span>
+                                        <div className="flex-grow">
+                                            <span className={`${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                                {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                                {task.text}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex-shrink-0 flex items-center flex-wrap gap-1 justify-end">
+                                            {resolvedAssignees.map(assignee => (
+                                                assignee && (
+                                                    <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                                        {assignee}
+                                                    </span>
+                                                )
+                                            ))}
+                                        </div>
+                                       
                                         {!isReadOnly && task.type === 'shift' && (
                                             <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
                                                 <TrashIcon className="w-4 h-4" />
