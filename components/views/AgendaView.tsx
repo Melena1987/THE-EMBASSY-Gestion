@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole } from '../../types';
 import { WORKERS, TIME_SLOTS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
@@ -123,6 +123,33 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     }, [weekNumber]);
 
     const currentWeekShifts = shiftAssignments[weekId];
+    
+    const resolvedShifts = useMemo(() => ({
+        ...defaultAssignments,
+        ...(currentWeekShifts || {}),
+    }), [defaultAssignments, currentWeekShifts]);
+    
+    const getResolvedAssignees = useCallback((task: CombinedTask): string[] => {
+        if (task.type !== 'shift') {
+            const assignees = task.assignedTo;
+            return Array.isArray(assignees) ? assignees : (assignees ? [assignees] : []);
+        }
+        const finalAssignees = new Set<string>();
+        const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        
+        taskAssignees.forEach(a => {
+            if (a === 'MAÑANA') {
+                finalAssignees.add(resolvedShifts.morning);
+            } else if (a === 'TARDE') {
+                finalAssignees.add(resolvedShifts.evening);
+            } else if (a) { // Ensure assignee is not an empty string or null
+                finalAssignees.add(a);
+            }
+        });
+        return Array.from(finalAssignees);
+    }, [resolvedShifts]);
+
+
     const canAddObservations = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';
 
     const handleAddObservation = () => {
@@ -338,7 +365,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                             tasksToDisplay.length > 0 ? (
                                 tasksToDisplay.map(task => {
                                     const isEventTask = task.type === 'event';
-                                    const assignees = task.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]) : [];
+                                    const resolvedAssignees = getResolvedAssignees(task);
                                     return (
                                         <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                             <button
@@ -362,9 +389,9 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                                     {task.text}
                                                 </span>
                                             </div>
-                                            {assignees.length > 0 && (
+                                            {resolvedAssignees.length > 0 && (
                                                 <div className="flex-shrink-0 flex items-center flex-wrap gap-1 justify-end">
-                                                    {assignees.map(assignee => (
+                                                    {resolvedAssignees.map(assignee => (
                                                         assignee && (
                                                             <span key={assignee} className="bg-blue-900/70 text-blue-300 text-xs font-semibold px-2 py-1 rounded-full">
                                                                 {assignee}
