@@ -1,4 +1,3 @@
-
 import type { Bookings, ConsolidatedBooking, BookingDetails } from '../types';
 import { SPACES } from '../constants';
 import { formatDateForBookingKey } from './dateUtils';
@@ -45,6 +44,9 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
     for (const key in bookings) {
         if (Object.prototype.hasOwnProperty.call(bookings, key) && key.includes(dateString)) {
             const details = bookings[key];
+            if (details.name.startsWith('EVENTO:')) {
+                continue; // Ignore bookings created by special events
+            }
             const parts = key.split('-');
             const time = parts.slice(-1)[0];
             const spaceId = parts.slice(0, -4).join('-');
