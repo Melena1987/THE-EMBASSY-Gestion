@@ -1,12 +1,38 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { collection, onSnapshot, doc, runTransaction, writeBatch, deleteDoc, setDoc, getDoc, DocumentReference } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import type { User, UserRole, Bookings, BookingDetails, ShiftAssignments, ShiftAssignment, CleaningAssignments, CleaningObservations, SpecialEvents, SpecialEvent, Sponsors, Sponsor, Task, AggregatedTask, TaskSourceCollection } from '../types';
-import { TIME_SLOTS, SPACES } from '../constants';
+import {
+    collection,
+    onSnapshot,
+    doc,
+    writeBatch,
+    getDoc,
+    deleteDoc,
+    setDoc,
+    updateDoc,
+} from 'firebase/firestore';
+import { db } from '../firebase';
+import type {
+    User,
+    UserRole,
+    Bookings,
+    BookingDetails,
+    ShiftAssignments,
+    ShiftAssignment,
+    CleaningAssignments,
+    CleaningObservations,
+    SpecialEvents,
+    SpecialEvent,
+    Sponsors,
+    Sponsor,
+    Task,
+    AggregatedTask,
+    TaskSourceCollection,
+} from '../types';
 import { formatDateForBookingKey } from '../utils/dateUtils';
+import { TIME_SLOTS } from '../constants';
 
+// This hook centralizes all Firestore data subscriptions and write operations for the app.
 export const useAppStore = (user: User | null, userRole: UserRole, currentUserName: string | null) => {
+    // State for each Firestore collection
     const [bookings, setBookings] = useState<Bookings>({});
     const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignments>({});
     const [cleaningAssignments, setCleaningAssignments] = useState<CleaningAssignments>({});
@@ -14,292 +40,314 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const [specialEvents, setSpecialEvents] = useState<SpecialEvents>({});
     const [sponsors, setSponsors] = useState<Sponsors>({});
 
+    // Effect to subscribe to data collections when a user is logged in
     useEffect(() => {
-        if (!user) return;
-        const subscriptions = [
-            onSnapshot(collection(db, 'bookings'), snapshot => {
-                const newBookings: Bookings = {};
-                snapshot.forEach(doc => newBookings[doc.id] = doc.data() as BookingDetails);
-                setBookings(newBookings);
-            }),
-            onSnapshot(collection(db, 'shiftAssignments'), snapshot => {
-                const newShifts: ShiftAssignments = {};
-                snapshot.forEach(doc => newShifts[doc.id] = doc.data() as ShiftAssignment);
-                setShiftAssignments(newShifts);
-            }),
-            onSnapshot(collection(db, 'cleaningAssignments'), snapshot => {
-                const newAssignments: CleaningAssignments = {};
-                snapshot.forEach(doc => newAssignments[doc.id] = doc.data() as { startTime: string });
-                setCleaningAssignments(newAssignments);
-            }),
-            onSnapshot(collection(db, 'cleaningObservations'), snapshot => {
-                const newObservations: CleaningObservations = {};
-                snapshot.forEach(doc => newObservations[doc.id] = doc.data() as { observations: string });
-                setCleaningObservations(newObservations);
-            }),
-            onSnapshot(collection(db, 'specialEvents'), snapshot => {
-                const newEvents: SpecialEvents = {};
-                snapshot.forEach(doc => newEvents[doc.id] = { ...doc.data(), id: doc.id } as SpecialEvent);
-                setSpecialEvents(newEvents);
-            }),
-            onSnapshot(collection(db, 'sponsors'), snapshot => {
-                const newSponsors: Sponsors = {};
-                snapshot.forEach(doc => newSponsors[doc.id] = { ...doc.data(), id: doc.id } as Sponsor);
-                setSponsors(newSponsors);
-            }),
+        if (!user) {
+            // Clear data on logout
+            setBookings({});
+            setShiftAssignments({});
+            setCleaningAssignments({});
+            setCleaningObservations({});
+            setSpecialEvents({});
+            setSponsors({});
+            return;
+        }
+
+        const collections: { name: string, setter: React.Dispatch<React.SetStateAction<any>> }[] = [
+            { name: 'bookings', setter: setBookings },
+            { name: 'shiftAssignments', setter: setShiftAssignments },
+            { name: 'cleaningAssignments', setter: setCleaningAssignments },
+            { name: 'cleaningObservations', setter: setCleaningObservations },
+            { name: 'specialEvents', setter: setSpecialEvents },
+            { name: 'sponsors', setter: setSponsors },
         ];
-        return () => subscriptions.forEach(unsub => unsub());
+
+        const unsubscribes = collections.map(({ name, setter }) => {
+            return onSnapshot(collection(db, name), (snapshot) => {
+                const data: Record<string, any> = {};
+                snapshot.forEach(doc => {
+                    data[doc.id] = doc.data();
+                });
+                setter(data);
+            });
+        });
+
+        // Cleanup function to unsubscribe from listeners on component unmount or user change
+        return () => {
+            unsubscribes.forEach(unsub => unsub());
+        };
     }, [user]);
 
-    const myPendingTasks = useMemo((): AggregatedTask[] => {
+    // Derived state: memoized calculation of pending tasks for the current user
+    const myPendingTasks = useMemo<AggregatedTask[]>(() => {
         if (!currentUserName) return [];
-        const allTasks: AggregatedTask[] = [];
-        for (const [weekId, assignment] of Object.entries(shiftAssignments)) {
-            (assignment as ShiftAssignment).tasks?.forEach(task => {
-                if (!task.completed && (Array.isArray(task.assignedTo) ? task.assignedTo.includes(currentUserName) : task.assignedTo === currentUserName)) {
-                    allTasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: weekId, sourceName: `Turnos (Semana ${weekId.split('-')[1]})` });
+
+        const tasks: AggregatedTask[] = [];
+
+        // Tasks from shift assignments
+        Object.entries(shiftAssignments).forEach(([id, assignment]) => {
+            (assignment.tasks || []).forEach(task => {
+                if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${id.split('-')[1]})` });
                 }
             });
-        }
-        for (const event of Object.values(specialEvents)) {
-            (event as SpecialEvent).tasks?.forEach(task => {
-                if (!task.completed && (Array.isArray(task.assignedTo) ? task.assignedTo.includes(currentUserName) : task.assignedTo === currentUserName)) {
-                    allTasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: (event as SpecialEvent).id, sourceName: `Evento: ${(event as SpecialEvent).name}` });
+        });
+
+        // Tasks from special events
+        Object.entries(specialEvents).forEach(([id, event]) => {
+            (event.tasks || []).forEach(task => {
+                if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: event.name });
                 }
             });
-        }
-        for (const sponsor of Object.values(sponsors)) {
-            (sponsor as Sponsor).tasks?.forEach(task => {
-                if (!task.completed && (Array.isArray(task.assignedTo) ? task.assignedTo.includes(currentUserName) : task.assignedTo === currentUserName)) {
-                    allTasks.push({ ...task, sourceCollection: 'sponsors', sourceId: (sponsor as Sponsor).id, sourceName: `Patrocinador: ${(sponsor as Sponsor).name}` });
+        });
+
+        // Tasks from sponsors
+        Object.entries(sponsors).forEach(([id, sponsor]) => {
+            (sponsor.tasks || []).forEach(task => {
+                if (!task.completed && task.assignedTo.includes(currentUserName)) {
+                    tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: sponsor.name });
                 }
             });
-        }
-        return allTasks;
-    }, [currentUserName, shiftAssignments, specialEvents, sponsors]);
+        });
+        
+        return tasks;
+    }, [shiftAssignments, specialEvents, sponsors, currentUserName]);
+
+
+    // --- Data Mutation Handlers ---
 
     const handleAddBooking = useCallback(async (bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') { alert("Acción no permitida."); return false; }
-        if (bookingKeys.length === 0 || !bookingDetails.name.trim()) { alert("Datos de reserva inválidos."); return false; }
         try {
-            for (let i = 0; i < bookingKeys.length; i += 100) {
-                const chunk = bookingKeys.slice(i, i + 100);
-                await runTransaction(db, async (transaction) => {
-                    const bookingDocsRefs = chunk.map(key => doc(db, 'bookings', key));
-                    const bookingDocsSnapshots = await Promise.all(bookingDocsRefs.map(ref => transaction.get(ref)));
-                    for (const docSnapshot of bookingDocsSnapshots) {
-                        if (docSnapshot.exists()) throw new Error(`Conflicto de reserva en ${docSnapshot.id}.`);
-                    }
-                    chunk.forEach(key => transaction.set(doc(db, 'bookings', key), bookingDetails));
-                });
+            const batch = writeBatch(db);
+            const conflictChecks = bookingKeys.map(key => getDoc(doc(db, 'bookings', key)));
+            const results = await Promise.all(conflictChecks);
+            
+            if (results.some(docSnap => docSnap.exists())) {
+                alert('Conflicto de reserva detectado. Alguien ha reservado uno de los huecos seleccionados mientras usted elegía. Por favor, revise el plano y vuelva a intentarlo.');
+                return false;
             }
+
+            bookingKeys.forEach(key => {
+                const docRef = doc(db, 'bookings', key);
+                batch.set(docRef, bookingDetails);
+            });
+            await batch.commit();
             return true;
-        } catch (e: any) {
-            console.error("Error en la transacción de reserva:", e);
-            alert(e.message || "No se pudo crear la reserva.");
+        } catch (error) {
+            console.error("Error adding booking:", error);
+            alert("No se pudo añadir la reserva. Por favor, inténtelo de nuevo.");
             return false;
         }
-    }, [userRole]);
+    }, []);
 
     const handleDeleteBookingKeys = useCallback(async (keys: string[]): Promise<boolean> => {
         try {
             const batch = writeBatch(db);
-            keys.forEach(key => batch.delete(doc(db, 'bookings', key)));
+            keys.forEach(key => {
+                const docRef = doc(db, 'bookings', key);
+                batch.delete(docRef);
+            });
             await batch.commit();
             return true;
         } catch (error) {
-            console.error("Error al eliminar reservas:", error);
-            alert("Ocurrió un error al eliminar las reservas.");
+            console.error("Error deleting booking:", error);
+            alert("No se pudo eliminar la reserva. Por favor, inténtelo de nuevo.");
             return false;
         }
     }, []);
     
     const handleUpdateShifts = useCallback(async (weekId: string, newShifts: ShiftAssignment) => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') { alert("Acción no permitida."); return; }
-        if (userRole === 'TRABAJADOR') {
-            const currentDoc = await getDoc(doc(db, 'shiftAssignments', weekId));
-            if (currentDoc.exists()) {
-                const currentData = currentDoc.data() as ShiftAssignment;
-                if (JSON.stringify({ ...currentData, observations: '' }) !== JSON.stringify({ ...newShifts, observations: '' })) {
-                    alert("No tiene permisos para modificar la configuración de turnos."); return;
-                }
-            }
-        }
-        try { await setDoc(doc(db, 'shiftAssignments', weekId), newShifts, { merge: true }); } catch (error) { console.error("Error al actualizar los turnos:", error); alert("No se pudieron guardar los cambios en los turnos."); }
-    }, [userRole]);
-
-    const handleToggleTask = useCallback(async (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => {
-        if (!user) return;
-        const docRef = doc(db, collectionName, sourceId);
         try {
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) throw new Error("Documento no encontrado.");
-                const currentData = docSnap.data() as (ShiftAssignment | SpecialEvent | Sponsor);
-                const updatedTasks = currentData.tasks?.map(task => task.id === taskId ? { ...task, completed: !task.completed } : task);
-                if (updatedTasks) transaction.update(docRef, { tasks: updatedTasks });
-            });
-        } catch (error) { console.error("Error al actualizar la tarea:", error); alert(`No se pudo actualizar el estado de la tarea.`); }
-    }, [user]);
+            const docRef = doc(db, 'shiftAssignments', weekId);
+            await setDoc(docRef, newShifts);
+        } catch (error) {
+            console.error("Error updating shifts:", error);
+            alert("No se pudo actualizar el turno.");
+        }
+    }, []);
 
     const handleResetWeekShifts = useCallback(async (weekId: string) => {
-        if (userRole !== 'ADMIN') { alert("Acción no permitida."); return; }
-        try { await deleteDoc(doc(db, 'shiftAssignments', weekId)); } catch (error) { console.error("Error al resetear los turnos:", error); alert("No se pudo resetear la semana."); }
-    }, [userRole]);
+        try {
+            const docRef = doc(db, 'shiftAssignments', weekId);
+            await deleteDoc(docRef);
+        } catch (error) {
+            console.error("Error resetting week shifts:", error);
+             alert("No se pudo resetear el turno de la semana.");
+        }
+    }, []);
+
+    const handleToggleTask = useCallback(async (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => {
+        try {
+            const docRef = doc(db, collectionName, sourceId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const tasks = (data.tasks as Task[] || []).map(task => 
+                    task.id === taskId ? { ...task, completed: !task.completed } : task
+                );
+                await updateDoc(docRef, { tasks });
+            }
+        } catch (error) {
+            console.error("Error toggling task:", error);
+            alert("No se pudo actualizar el estado de la tarea.");
+        }
+    }, []);
 
     const handleUpdateCleaningTime = useCallback(async (date: Date, startTime: string) => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') { alert("Acción no permitida."); return; }
         const docId = formatDateForBookingKey(date);
         try {
-            if (startTime) await setDoc(doc(db, 'cleaningAssignments', docId), { startTime });
-            else await deleteDoc(doc(db, 'cleaningAssignments', docId));
-        } catch (error) { console.error("Error al actualizar la hora de limpieza:", error); alert("No se pudo guardar la hora de limpieza."); }
-    }, [userRole]);
+            const docRef = doc(db, 'cleaningAssignments', docId);
+            if (startTime) {
+                await setDoc(docRef, { startTime });
+            } else {
+                await deleteDoc(docRef);
+            }
+        } catch (error) {
+            console.error("Error updating cleaning time:", error);
+            alert("No se pudo actualizar la hora de limpieza.");
+        }
+    }, []);
 
     const handleUpdateCleaningObservations = useCallback(async (weekId: string, observations: string) => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS' && userRole !== 'TRABAJADOR') { alert("Acción no permitida."); return; }
-        try {
-            if (observations.trim()) await setDoc(doc(db, 'cleaningObservations', weekId), { observations });
-            else await deleteDoc(doc(db, 'cleaningObservations', weekId));
-        } catch (error) { console.error("Error al actualizar las observaciones de limpieza:", error); alert("No se pudo guardar las observaciones."); }
-    }, [userRole]);
-
+         try {
+            const docRef = doc(db, 'cleaningObservations', weekId);
+            if (observations) {
+                await setDoc(docRef, { observations });
+            } else {
+                await deleteDoc(docRef);
+            }
+        } catch (error) {
+            console.error("Error updating cleaning observations:", error);
+            alert("No se pudieron actualizar las observaciones de limpieza.");
+        }
+    }, []);
+    
     const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEvent: SpecialEvent | null): Promise<boolean> => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
-            alert("Acción no permitida.");
-            return false;
-        }
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                const eventDocRef = doc(db, 'specialEvents', eventData.id);
-
-                // --- Phase 0: Prepare key arrays (no DB interaction) ---
-                const oldKeysToDelete: string[] = [];
-                if (originalEvent?.startTime && originalEvent.endTime && originalEvent.spaceIds) {
-                    const oldSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
-                    for (let d = new Date(`${originalEvent.startDate}T00:00:00`); d <= new Date(`${originalEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
-                        const dateStr = formatDateForBookingKey(d);
-                        originalEvent.spaceIds!.forEach(spaceId => oldSlots.forEach(time => oldKeysToDelete.push(`${spaceId}-${dateStr}-${time}`)));
-                    }
-                }
-
-                const newKeysToCreate: string[] = [];
-                if (eventData.startTime && eventData.endTime && eventData.spaceIds) {
-                    const newSlots = TIME_SLOTS.filter(t => t >= eventData.startTime! && t < eventData.endTime!);
-                    for (let d = new Date(`${eventData.startDate}T00:00:00`); d <= new Date(`${eventData.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
-                        const dateStr = formatDateForBookingKey(d);
-                        eventData.spaceIds!.forEach(spaceId => newSlots.forEach(time => newKeysToCreate.push(`${spaceId}-${dateStr}-${time}`)));
-                    }
-                }
-
-                // --- Phase 1: READ from database ---
-                const cancellationTasks: Task[] = [];
-                const conflictingRefs: DocumentReference[] = [];
-
-                if (newKeysToCreate.length > 0) {
-                    const refsToRead = newKeysToCreate.map(key => doc(db, 'bookings', key));
-                    const snapshots = await Promise.all(refsToRead.map(ref => transaction.get(ref)));
-                    
-                    const processedForCancellation = new Set<string>();
-
-                    for (const snap of snapshots) {
-                        if (snap.exists() && !oldKeysToDelete.includes(snap.id)) {
-                            conflictingRefs.push(snap.ref);
-                            const details = snap.data() as BookingDetails;
-                            const keyParts = snap.id.split('-');
-                            const compositeKey = `${details.name}-${keyParts.slice(-4, -1).join('-')}`;
-                            
-                            if (!processedForCancellation.has(compositeKey)) {
-                                processedForCancellation.add(compositeKey);
-                                const spaceName = SPACES.find(s => s.id === keyParts.slice(0, -4).join('-'))?.name || 'Espacio';
-                                cancellationTasks.push({
-                                    id: `cancel-${Date.now()}-${cancellationTasks.length}`,
-                                    text: `URGENTE: Cancelar y notificar reserva "${details.name}" en ${spaceName} el ${keyParts.slice(-4, -1).join('-')} por evento.`,
-                                    assignedTo: ['Manu'],
-                                    completed: false
-                                });
-                            }
-                        }
-                    }
-                }
-
-                // --- Phase 2: WRITE to database ---
-                oldKeysToDelete.forEach(key => transaction.delete(doc(db, 'bookings', key)));
-                conflictingRefs.forEach(ref => transaction.delete(ref));
-
-                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
-                newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
-
-                const finalTasks = [...(eventData.tasks || []), ...cancellationTasks];
-                const { id, ...eventToSave } = eventData;
-                
-                if (finalTasks.length > 0) {
-                    (eventToSave as SpecialEvent).tasks = finalTasks;
-                } else {
-                    delete (eventToSave as Partial<SpecialEvent>).tasks;
-                }
-                
-                if (eventToSave.posterUrl === undefined) {
-                    delete (eventToSave as Partial<SpecialEvent>).posterUrl;
-                }
-                
-                transaction.set(eventDocRef, eventToSave);
-            });
-            return true;
-        } catch (e: any) {
-            console.error("Error al guardar evento:", e);
-            alert(e.message || "No se pudo guardar el evento.");
-            return false;
-        }
-    }, [userRole]);
-
-    const handleDeleteSpecialEvent = useCallback(async (eventToDelete: SpecialEvent) => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') { alert("Acción no permitida."); return; }
-        if (!window.confirm(`¿Seguro que desea eliminar el evento "${eventToDelete.name}"?`)) return;
         try {
             const batch = writeBatch(db);
-            if (eventToDelete.startTime && eventToDelete.endTime && eventToDelete.spaceIds) {
-                const slots = TIME_SLOTS.filter(t => t >= eventToDelete.startTime! && t < eventToDelete.endTime!);
-                for (let d = new Date(`${eventToDelete.startDate}T00:00:00`); d <= new Date(`${eventToDelete.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+            const eventRef = doc(db, 'specialEvents', eventData.id);
+
+            // 1. Delete old bookings from original event if spaces/times have changed
+            if (originalEvent?.spaceIds && originalEvent.spaceIds.length > 0 && originalEvent.startTime && originalEvent.endTime) {
+                const oldKeysToDelete: string[] = [];
+                const oldTimeSlots = TIME_SLOTS.filter(time => time >= originalEvent.startTime! && time < originalEvent.endTime!);
+                for (let d = new Date(`${originalEvent.startDate}T00:00:00`); d <= new Date(`${originalEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                     const dateStr = formatDateForBookingKey(d);
-                    eventToDelete.spaceIds.forEach(spaceId => slots.forEach(time => batch.delete(doc(db, 'bookings', `${spaceId}-${dateStr}-${time}`))));
+                    originalEvent.spaceIds.forEach(spaceId => {
+                        oldTimeSlots.forEach(time => {
+                            oldKeysToDelete.push(`${spaceId}-${dateStr}-${time}`);
+                        });
+                    });
+                }
+                oldKeysToDelete.forEach(key => batch.delete(doc(db, 'bookings', key)));
+            }
+            
+            // 2. Add new bookings for the current event
+            if (eventData.spaceIds && eventData.spaceIds.length > 0 && eventData.startTime && eventData.endTime) {
+                const newTimeSlots = TIME_SLOTS.filter(time => time >= eventData.startTime! && time < eventData.endTime!);
+                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
+                
+                 for (let d = new Date(`${eventData.startDate}T00:00:00`); d <= new Date(`${eventData.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+                    const dateStr = formatDateForBookingKey(d);
+                    eventData.spaceIds.forEach(spaceId => {
+                        newTimeSlots.forEach(time => {
+                            const key = `${spaceId}-${dateStr}-${time}`;
+                            batch.set(doc(db, 'bookings', key), eventBookingDetails);
+                        });
+                    });
                 }
             }
-            if (eventToDelete.posterUrl) {
-                try { await deleteObject(ref(storage, eventToDelete.posterUrl)); } catch (e) { console.warn(`Failed to delete poster for event ${eventToDelete.id}.`); }
-            }
-            batch.delete(doc(db, 'specialEvents', eventToDelete.id));
+            
+            // 3. Save the event document itself
+            batch.set(eventRef, eventData);
+
             await batch.commit();
-        } catch (e) { console.error("Error eliminando evento:", e); alert("No se pudo eliminar el evento."); }
-    }, [userRole]);
+            return true;
+        } catch (error) {
+            console.error("Error saving special event:", error);
+            alert("No se pudo guardar el evento especial.");
+            return false;
+        }
+    }, []);
+    
+    const handleDeleteSpecialEvent = useCallback(async (event: SpecialEvent) => {
+        if (!window.confirm(`¿Está seguro de que desea eliminar el evento "${event.name}"? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+        try {
+            const batch = writeBatch(db);
+            const eventRef = doc(db, 'specialEvents', event.id);
+
+            // Delete associated bookings
+            if (event.spaceIds && event.spaceIds.length > 0 && event.startTime && event.endTime) {
+                const timeSlots = TIME_SLOTS.filter(time => time >= event.startTime! && time < event.endTime!);
+                 for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+                    const dateStr = formatDateForBookingKey(d);
+                    event.spaceIds.forEach(spaceId => {
+                        timeSlots.forEach(time => {
+                            const key = `${spaceId}-${dateStr}-${time}`;
+                            batch.delete(doc(db, 'bookings', key));
+                        });
+                    });
+                }
+            }
+            
+            // Delete the event document
+            batch.delete(eventRef);
+
+            await batch.commit();
+        } catch (error) {
+            console.error("Error deleting special event:", error);
+            alert("No se pudo eliminar el evento especial.");
+        }
+    }, []);
 
     const handleUpdateSponsor = useCallback(async (sponsorId: string, newSponsorData: Sponsor) => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') { alert("Acción no permitida."); return; }
         try {
-            const { id, ...dataToSave } = newSponsorData;
-            await setDoc(doc(db, 'sponsors', sponsorId), dataToSave, { merge: true });
-        } catch (error) { console.error("Error al actualizar patrocinador:", error); alert("No se pudieron guardar los cambios."); }
-    }, [userRole]);
+            const docRef = doc(db, 'sponsors', sponsorId);
+            await setDoc(docRef, newSponsorData);
+        } catch (error) {
+            console.error("Error updating sponsor:", error);
+            alert("No se pudo actualizar el patrocinador.");
+        }
+    }, []);
 
     const handleAddSponsor = useCallback(async (sponsorName: string): Promise<string | null> => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') { alert("Acción no permitida."); return null; }
-        if (!sponsorName.trim()) { alert("El nombre no puede estar vacío."); return null; }
         try {
-            const sponsorId = sponsorName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            const sponsorRef = doc(db, 'sponsors', sponsorId);
-            const docSnap = await getDoc(sponsorRef);
-            if (docSnap.exists()) { alert("Ya existe un patrocinador con un nombre similar."); return null; }
-            await setDoc(sponsorRef, { name: sponsorName.trim(), tasks: [], allianceDate: formatDateForBookingKey(new Date()) });
-            return sponsorId;
-        } catch (error) { console.error("Error al añadir patrocinador:", error); alert("No se pudo añadir el patrocinador."); return null; }
-    }, [userRole]);
+            const newSponsorRef = doc(collection(db, 'sponsors'));
+            const newSponsor: Sponsor = {
+                id: newSponsorRef.id,
+                name: sponsorName.trim(),
+            };
+            await setDoc(newSponsorRef, newSponsor);
+            return newSponsorRef.id;
+        } catch (error) {
+            console.error("Error adding sponsor:", error);
+            alert("No se pudo añadir el patrocinador.");
+            return null;
+        }
+    }, []);
 
+    // Return all state and handlers
     return {
-        bookings, shiftAssignments, cleaningAssignments, cleaningObservations,
-        specialEvents, sponsors, myPendingTasks, handleAddBooking,
-        handleDeleteBookingKeys, handleUpdateShifts, handleToggleTask,
-        handleResetWeekShifts, handleUpdateCleaningTime, handleUpdateCleaningObservations,
-        handleSaveSpecialEvent, handleDeleteSpecialEvent, handleUpdateSponsor, handleAddSponsor
+        bookings,
+        shiftAssignments,
+        cleaningAssignments,
+        cleaningObservations,
+        specialEvents,
+        sponsors,
+        myPendingTasks,
+        handleAddBooking,
+        handleDeleteBookingKeys,
+        handleUpdateShifts,
+        handleResetWeekShifts,
+        handleToggleTask,
+        handleUpdateCleaningTime,
+        handleUpdateCleaningObservations,
+        handleSaveSpecialEvent,
+        handleDeleteSpecialEvent,
+        handleUpdateSponsor,
+        handleAddSponsor,
     };
 };
