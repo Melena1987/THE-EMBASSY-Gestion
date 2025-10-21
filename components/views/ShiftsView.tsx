@@ -37,6 +37,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
+    const [showCompletedTasks, setShowCompletedTasks] = useState(false);
     
     const { week: weekNumber, year } = getWeekData(selectedDate);
     const weekId = `${year}-${weekNumber.toString().padStart(2, '0')}`;
@@ -99,6 +100,14 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         }
         return [...weeklyTasks, ...eventTasks];
     }, [currentShifts.tasks, specialEvents, weekDays, weekId]);
+
+    const completedTasks = useMemo(() => allTasks.filter(task => task.completed), [allTasks]);
+    const tasksToDisplay = useMemo(() => {
+        if (showCompletedTasks) {
+            return [...allTasks.filter(t => !t.completed), ...completedTasks];
+        }
+        return allTasks.filter(task => !task.completed);
+    }, [allTasks, showCompletedTasks, completedTasks]);
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -346,7 +355,17 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
             </div>
 
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
-                <h3 className="text-lg font-semibold text-orange-400 mb-3">Tareas de la Semana</h3>
+                <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold text-orange-400">Tareas de la Semana</h3>
+                    {completedTasks.length > 0 && (
+                        <button
+                            onClick={() => setShowCompletedTasks(prev => !prev)}
+                            className="text-sm text-gray-400 hover:text-white underline focus:outline-none"
+                        >
+                            {showCompletedTasks ? 'Ocultar completadas' : `Mostrar ${completedTasks.length} completada${completedTasks.length > 1 ? 's' : ''}`}
+                        </button>
+                    )}
+                </div>
                 {!isReadOnly && (
                     <fieldset disabled={isReadOnly} className={`space-y-3 mb-4 p-3 bg-black/20 rounded-md ${isReadOnly ? 'opacity-70' : ''}`}>
                         <input 
@@ -381,43 +400,47 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                 )}
                 <div className="space-y-2">
                     {allTasks.length > 0 ? (
-                        allTasks.map(task => {
-                            const isEventTask = task.type === 'event';
-                            return (
-                                <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
-                                    {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
-                                    <button
-                                        onClick={() => onToggleTask(
-                                            task.sourceId,
-                                            task.id,
-                                            isEventTask ? 'specialEvents' : 'shiftAssignments'
-                                        )}
-                                        disabled={isReadOnly}
-                                        className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 disabled:cursor-not-allowed ${
-                                            task.completed
-                                                ? 'bg-green-500 hover:bg-green-600'
-                                                : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
-                                        }`}
-                                        aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
-                                    >
-                                        {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
-                                    </button>
-                                    <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
-                                        <span className="font-semibold text-gray-400 mr-2">[Semanal]</span>
-                                        {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
-                                        {task.text}
-                                    </span>
-                                    <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
-                                        {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
-                                    </span>
-                                    {!isReadOnly && task.type === 'shift' && (
-                                        <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
-                                            <TrashIcon className="w-4 h-4" />
+                        tasksToDisplay.length > 0 ? (
+                            tasksToDisplay.map(task => {
+                                const isEventTask = task.type === 'event';
+                                return (
+                                    <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
+                                        {isEventTask && <StarIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />}
+                                        <button
+                                            onClick={() => onToggleTask(
+                                                task.sourceId,
+                                                task.id,
+                                                isEventTask ? 'specialEvents' : 'shiftAssignments'
+                                            )}
+                                            disabled={isReadOnly}
+                                            className={`w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors duration-200 disabled:cursor-not-allowed ${
+                                                task.completed
+                                                    ? 'bg-green-500 hover:bg-green-600'
+                                                    : `border-2 ${isEventTask ? 'border-purple-400' : 'border-gray-500'} hover:bg-white/10`
+                                            }`}
+                                            aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                                        >
+                                            {task.completed && <CheckIcon className="w-3 h-3 text-white" />}
                                         </button>
-                                    )}
-                                </div>
-                            );
-                        })
+                                        <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : (isEventTask ? 'text-purple-200' : 'text-gray-200')}`}>
+                                            <span className="font-semibold text-gray-400 mr-2">[Semanal]</span>
+                                            {isEventTask && <span className="font-semibold text-purple-400 mr-1">[{task.eventName}]</span>}
+                                            {task.text}
+                                        </span>
+                                        <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full flex-shrink-0">
+                                            {Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}
+                                        </span>
+                                        {!isReadOnly && task.type === 'shift' && (
+                                            <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors flex-shrink-0" title="Eliminar tarea">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                             <p className="text-sm text-gray-500 text-center py-2">Todas las tareas están completadas. ¡Bien hecho!</p>
+                        )
                     ) : (
                         <p className="text-sm text-gray-500 text-center py-2">No hay tareas para esta semana.</p>
                     )}

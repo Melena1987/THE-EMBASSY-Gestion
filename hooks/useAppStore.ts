@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction } from 'react';
 import {
     collection,
     onSnapshot,
@@ -53,7 +53,8 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             return;
         }
 
-        const collections: { name: string, setter: React.Dispatch<React.SetStateAction<any>> }[] = [
+        // FIX: Import Dispatch and SetStateAction from react and use them to fix 'React' namespace not found error.
+        const collections: { name: string, setter: Dispatch<SetStateAction<any>> }[] = [
             { name: 'bookings', setter: setBookings },
             { name: 'shiftAssignments', setter: setShiftAssignments },
             { name: 'cleaningAssignments', setter: setCleaningAssignments },
@@ -85,8 +86,10 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         const tasks: AggregatedTask[] = [];
 
         // Tasks from shift assignments
+        // FIX: Cast assignment to ShiftAssignment to resolve 'unknown' type error from Object.entries.
         Object.entries(shiftAssignments).forEach(([id, assignment]) => {
-            (assignment.tasks || []).forEach(task => {
+            const typedAssignment = assignment as ShiftAssignment;
+            (typedAssignment.tasks || []).forEach(task => {
                 if (!task.completed && task.assignedTo.includes(currentUserName)) {
                     tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${id.split('-')[1]})` });
                 }
@@ -94,19 +97,23 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         });
 
         // Tasks from special events
+        // FIX: Cast event to SpecialEvent to resolve 'unknown' type error from Object.entries.
         Object.entries(specialEvents).forEach(([id, event]) => {
-            (event.tasks || []).forEach(task => {
+            const typedEvent = event as SpecialEvent;
+            (typedEvent.tasks || []).forEach(task => {
                 if (!task.completed && task.assignedTo.includes(currentUserName)) {
-                    tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: event.name });
+                    tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: typedEvent.name });
                 }
             });
         });
 
         // Tasks from sponsors
+        // FIX: Cast sponsor to Sponsor to resolve 'unknown' type error from Object.entries.
         Object.entries(sponsors).forEach(([id, sponsor]) => {
-            (sponsor.tasks || []).forEach(task => {
+            const typedSponsor = sponsor as Sponsor;
+            (typedSponsor.tasks || []).forEach(task => {
                 if (!task.completed && task.assignedTo.includes(currentUserName)) {
-                    tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: sponsor.name });
+                    tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: typedSponsor.name });
                 }
             });
         });
