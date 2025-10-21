@@ -232,7 +232,14 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
 
                 const finalTasks = [...(eventData.tasks || []), ...cancellationTasks];
-                const { id, ...eventToSave } = { ...eventData, tasks: finalTasks.length > 0 ? finalTasks : undefined };
+                const { id, ...eventToSave } = eventData;
+                
+                if (finalTasks.length > 0) {
+                    (eventToSave as SpecialEvent).tasks = finalTasks;
+                } else {
+                    delete (eventToSave as Partial<SpecialEvent>).tasks;
+                }
+                
                 transaction.set(eventDocRef, eventToSave);
             });
             return true;
@@ -250,7 +257,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             const batch = writeBatch(db);
             if (eventToDelete.startTime && eventToDelete.endTime && eventToDelete.spaceIds) {
                 const slots = TIME_SLOTS.filter(t => t >= eventToDelete.startTime! && t < eventToDelete.endTime!);
-                for (let d = new Date(eventToDelete.startDate); d <= new Date(eventToDelete.endDate); d.setDate(d.getDate() + 1)) {
+                for (let d = new Date(`${eventToDelete.startDate}T00:00:00`); d <= new Date(`${eventToDelete.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                     const dateStr = formatDateForBookingKey(d);
                     eventToDelete.spaceIds.forEach(spaceId => slots.forEach(time => batch.delete(doc(db, 'bookings', `${spaceId}-${dateStr}-${time}`))));
                 }
