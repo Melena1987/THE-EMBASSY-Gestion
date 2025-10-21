@@ -26,6 +26,7 @@ import type {
     Task,
     AggregatedTask,
     TaskSourceCollection,
+    Vacations,
 } from '../types';
 import { formatDateForBookingKey, getWeekData } from '../utils/dateUtils';
 import { TIME_SLOTS, WORKERS } from '../constants';
@@ -39,6 +40,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const [cleaningObservations, setCleaningObservations] = useState<CleaningObservations>({});
     const [specialEvents, setSpecialEvents] = useState<SpecialEvents>({});
     const [sponsors, setSponsors] = useState<Sponsors>({});
+    const [vacations, setVacations] = useState<Vacations>({});
 
     // Effect to subscribe to data collections when a user is logged in
     useEffect(() => {
@@ -50,6 +52,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             setCleaningObservations({});
             setSpecialEvents({});
             setSponsors({});
+            setVacations({});
             return;
         }
 
@@ -60,6 +63,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             { name: 'cleaningObservations', setter: setCleaningObservations },
             { name: 'specialEvents', setter: setSpecialEvents },
             { name: 'sponsors', setter: setSponsors },
+            { name: 'vacations', setter: setVacations },
         ];
 
         const unsubscribes = collections.map(({ name, setter }) => {
@@ -405,6 +409,16 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         }
     }, []);
 
+    const handleUpdateVacations = useCallback(async (year: string, dates: Record<string, string>) => {
+        try {
+            const docRef = doc(db, 'vacations', year);
+            await setDoc(docRef, { dates });
+        } catch (error) {
+            console.error("Error updating vacations:", error);
+            alert("No se pudieron actualizar las vacaciones.");
+        }
+    }, []);
+
     // Return all state and handlers
     return {
         bookings,
@@ -413,6 +427,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         cleaningObservations,
         specialEvents,
         sponsors,
+        vacations,
         myPendingTasks,
         handleAddBooking,
         handleDeleteBookingKeys,
@@ -426,5 +441,6 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         handleDeleteSpecialEvent,
         handleUpdateSponsor,
         handleAddSponsor,
+        handleUpdateVacations,
     };
 };

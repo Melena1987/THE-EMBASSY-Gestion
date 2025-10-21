@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole, AggregatedTask, TaskSourceCollection } from '../types';
+import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole, AggregatedTask, TaskSourceCollection, Vacations } from '../types';
 import Header from './layout/Header';
 import Footer from './layout/Footer';
 import FloorPlanView from './views/FloorPlanView';
@@ -33,7 +33,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         handleDeleteBookingKeys, handleUpdateShifts, handleToggleTask,
         handleResetWeekShifts, handleUpdateCleaningTime, handleUpdateCleaningObservations,
         handleSaveSpecialEvent, handleDeleteSpecialEvent, handleUpdateSponsor, handleAddSponsor,
-        handleAddRecurringTask
+        handleAddRecurringTask, vacations, handleUpdateVacations,
     } = store;
 
     const { user, userRole, currentUserName, handleLogout } = auth;
@@ -155,14 +155,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
             case 'calendario':
                 return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
             case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} />;
+                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} vacations={vacations} />;
             case 'detalles':
                 if (selectedBooking) {
                     return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={!canEditBookings} />;
                 }
                 return null;
             case 'turnos':
-                return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} />;
+                return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} vacations={vacations} handleUpdateVacations={handleUpdateVacations} currentUserName={currentUserName} userRole={userRole} />;
             case 'servicios':
                 return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
             case 'eventos':

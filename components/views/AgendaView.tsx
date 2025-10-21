@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole } from '../../types';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
 import { WORKERS, TIME_SLOTS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import PlusIcon from '../icons/PlusIcon';
@@ -25,6 +25,7 @@ interface AgendaViewProps {
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
     currentUserName: string | null;
     userRole: UserRole;
+    vacations: Vacations;
 }
 
 type CombinedTask = (Task & {
@@ -41,7 +42,7 @@ const timeToMinutes = (time: string): number => {
     return hours * 60 + minutes;
 };
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly, onUpdateShifts, currentUserName, userRole }) => {
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly, onUpdateShifts, currentUserName, userRole, vacations }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
@@ -442,10 +443,15 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
                 {weekDays.map((day, dayIndex) => {
                     const dayKey = formatDateForBookingKey(day);
+                    const dayYear = day.getFullYear().toString();
                     const dayBookings = consolidateBookingsForDay(bookings, day);
                     const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
                     const dailyShift = currentWeekShifts?.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts?.morning || defaultAssignments.morning, currentWeekShifts?.evening || defaultAssignments.evening);
                     const isSpecialShift = !!currentWeekShifts?.dailyOverrides?.[dayIndex];
+
+                    const vacationWorkerForDay = vacations[dayYear]?.dates[dayKey];
+                    const isMorningVacation = dailyShift.morning.active && dailyShift.morning.worker === vacationWorkerForDay;
+                    const isEveningVacation = dailyShift.evening.active && dailyShift.evening.worker === vacationWorkerForDay;
 
                     const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour + 1 }, (_, i) => timelineConfig.startHour + i);
                     
@@ -477,19 +483,33 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                     <div className="text-xs text-blue-300 font-semibold" title="Horario especial para este día">
                                         <div>
                                             M: {dailyShift.morning.active 
-                                                ? `${dailyShift.morning.worker} (${dailyShift.morning.start}-${dailyShift.morning.end})` 
+                                                ? (isMorningVacation 
+                                                    ? <span className="text-purple-400">{dailyShift.morning.worker} (VAC)</span>
+                                                    : `${dailyShift.morning.worker} (${dailyShift.morning.start}-${dailyShift.morning.end})`
+                                                  )
                                                 : 'Cerrado'}
                                         </div>
                                         <div>
                                             T: {dailyShift.evening.active 
-                                                ? `${dailyShift.evening.worker} (${dailyShift.evening.start}-${dailyShift.evening.end})`
+                                                ? (isEveningVacation 
+                                                    ? <span className="text-purple-400">{dailyShift.evening.worker} (VAC)</span>
+                                                    : `${dailyShift.evening.worker} (${dailyShift.evening.start}-${dailyShift.evening.end})`
+                                                  )
                                                 : 'Cerrado'}
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="text-xs text-gray-400">
-                                        <div>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</div>
-                                        <div>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</div>
+                                        <div>M: {dailyShift.morning.active 
+                                            ? (isMorningVacation 
+                                                ? <span className="text-purple-400 font-bold">{dailyShift.morning.worker} (VAC)</span> 
+                                                : dailyShift.morning.worker) 
+                                            : 'Cerrado'}</div>
+                                        <div>T: {dailyShift.evening.active 
+                                            ? (isEveningVacation 
+                                                ? <span className="text-purple-400 font-bold">{dailyShift.evening.worker} (VAC)</span> 
+                                                : dailyShift.evening.worker) 
+                                            : 'Cerrado'}</div>
                                     </div>
                                 )}
                             </div>

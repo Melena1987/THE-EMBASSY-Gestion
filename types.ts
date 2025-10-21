@@ -90,6 +90,12 @@ export interface Sponsor {
 }
 export type Sponsors = Record<string, Sponsor>; // Key is the sponsor ID
 
+// Key format: "YYYY"
+export interface VacationYear {
+    dates: Record<string, string>; // "YYYY-MM-DD": "WorkerName"
+}
+export type Vacations = Record<string, VacationYear>;
+
 export type TaskSourceCollection = 'shiftAssignments' | 'specialEvents' | 'sponsors';
 
 export interface AggregatedTask extends Task {

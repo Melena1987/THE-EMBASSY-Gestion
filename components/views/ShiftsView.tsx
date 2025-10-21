@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection } from '../../types';
+import type { ShiftAssignments, ShiftAssignment, DailyShift, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection, Vacations, UserRole } from '../../types';
 import { WORKERS } from '../../constants';
 import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../../utils/dateUtils';
 import { getDefaultDailyShift, calculateUpdatedShifts } from '../../utils/shiftUtils';
@@ -23,6 +23,10 @@ interface ShiftsViewProps {
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
     isReadOnly: boolean;
+    vacations: Vacations;
+    handleUpdateVacations: (year: string, dates: Record<string, string>) => Promise<void>;
+    currentUserName: string | null;
+    userRole: UserRole;
 }
 
 type CombinedTask = (Task & {
@@ -41,7 +45,7 @@ const WEEKDAYS = [
     { label: 'D', value: 0 }
 ];
 
-const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onAddRecurringTask, onToggleTask, onResetWeekShifts, isReadOnly }) => {
+const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts, onAddRecurringTask, onToggleTask, onResetWeekShifts, isReadOnly, vacations, handleUpdateVacations, currentUserName, userRole }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
@@ -303,6 +307,32 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
         return Array.from(assignees);
     };
 
+    const currentYear = selectedDate.getFullYear().toString();
+    const currentYearVacations = vacations[currentYear]?.dates || {};
+
+    const handleAddVacation = (worker: string, dateStr: string) => {
+        if (!dateStr) return;
+        const date = new Date(`${dateStr}T00:00:00`);
+        const formattedDate = formatDateForBookingKey(date);
+    
+        if (Object.keys(currentYearVacations).filter(d => currentYearVacations[d] === worker).length >= 30) {
+            alert(`${worker} ya ha alcanzado el límite de 30 días de vacaciones.`);
+            return;
+        }
+        if (currentYearVacations[formattedDate] && currentYearVacations[formattedDate] !== worker) {
+            alert(`El día ${formattedDate} ya está cogido por ${currentYearVacations[formattedDate]}.`);
+            return;
+        }
+    
+        const newDates = { ...currentYearVacations, [formattedDate]: worker };
+        handleUpdateVacations(currentYear, newDates);
+    };
+    
+    const handleRemoveVacation = (date: string) => {
+        const newDates = { ...currentYearVacations };
+        delete newDates[date];
+        handleUpdateVacations(currentYear, newDates);
+    };
 
     return (
         <div className="space-y-6" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -375,8 +405,22 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                     const dailyOverride = currentShifts.dailyOverrides?.[dayIndex];
                     const effectiveShifts = dailyOverride || getDefaultDailyShift(dayIndex, currentShifts.morning, currentShifts.evening);
                     const isDayCustomized = !!dailyOverride;
+                    const dayKey = formatDateForBookingKey(day);
+                    const vacationWorkerForDay = vacations[year]?.dates[dayKey];
                     
-                    const ShiftEditor = ({ period, details }: { period: 'morning' | 'evening', details: ShiftPeriodDetail }) => (
+                    const ShiftEditor = ({ period, details }: { period: 'morning' | 'evening', details: ShiftPeriodDetail }) => {
+                        const isVacation = details.worker === vacationWorkerForDay;
+
+                        if (isVacation) {
+                            return (
+                                <div className="p-2 bg-purple-900/50 rounded-md text-center h-[116px] flex flex-col justify-center">
+                                    <p className="font-bold text-purple-300">VACACIONES</p>
+                                    <p className="text-sm text-purple-400">{details.worker}</p>
+                                </div>
+                            );
+                        }
+                        
+                        return (
                          <fieldset disabled={isReadOnly} className={`p-2 bg-black/20 rounded-md space-y-2 ${isReadOnly ? 'opacity-70' : ''}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -399,7 +443,8 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                                 </div>
                             </div>
                         </fieldset>
-                    );
+                        );
+                    };
 
                     return (
                         <div key={day.toISOString()} className={`bg-white/5 backdrop-blur-lg p-3 rounded-lg shadow-inner transition-all border border-white/10 ${isDayCustomized && !isReadOnly ? 'ring-2 ring-blue-500' : ''}`}>
@@ -463,7 +508,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                             <div>
                                 <label htmlFor="repeatOption" className="text-xs text-gray-400 block mb-1">Repetición</label>
                                 <select id="repeatOption" value={repeatOption} onChange={(e) => setRepeatOption(e.target.value)} className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500">
-                                    <option value="none">No se repite</option>
+                                    <option value="none">Esta semana solo</option>
                                     <option value="daily">Diariamente</option>
                                     <option value="weekdays">Días laborables (L-V)</option>
                                     <option value="weekly">Semanalmente</option>
@@ -571,6 +616,63 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
                     className="w-full bg-black/20 text-white border-white/20 rounded-md p-3 focus:ring-orange-500 focus:border-orange-500 resize-y disabled:cursor-not-allowed"
                     disabled={isReadOnly}
                 />
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
+                <h3 className="text-lg font-semibold text-orange-400 mb-3">Gestión de Vacaciones ({currentYear})</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {['Olga', 'Dani'].map(worker => {
+                        const canManage = userRole === 'ADMIN' || currentUserName === worker;
+                        const workerVacations = Object.entries(currentYearVacations)
+                            .filter(([, name]) => name === worker)
+                            .map(([date]) => date)
+                            .sort();
+
+                        const VacationManager = () => {
+                            const [newVacationDate, setNewVacationDate] = useState('');
+                            return (
+                                <div>
+                                    <h4 className="font-bold text-white">{worker}</h4>
+                                    <p className="text-sm text-gray-400 mb-2">{workerVacations.length} / 30 días</p>
+                                    
+                                    {canManage && !isReadOnly && (
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <input 
+                                                type="date" 
+                                                value={newVacationDate}
+                                                onChange={(e) => setNewVacationDate(e.target.value)}
+                                                className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    handleAddVacation(worker, newVacationDate);
+                                                    setNewVacationDate('');
+                                                }}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-md text-sm"
+                                            >
+                                                Añadir
+                                            </button>
+                                        </div>
+                                    )}
+                                
+                                    <div className="space-y-1 max-h-40 overflow-y-auto bg-black/20 p-2 rounded-md">
+                                        {workerVacations.length > 0 ? workerVacations.map(date => (
+                                            <div key={date} className="flex items-center justify-between text-sm p-1">
+                                                <span className="text-gray-300">{new Date(`${date}T00:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                                                {canManage && !isReadOnly && (
+                                                    <button onClick={() => handleRemoveVacation(date)} className="text-red-500 hover:text-red-400">
+                                                        <TrashIcon className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )) : <p className="text-xs text-gray-500 text-center">No hay vacaciones asignadas.</p>}
+                                    </div>
+                                </div>
+                            );
+                        };
+                        return <VacationManager key={worker} />;
+                    })}
+                </div>
             </div>
         </div>
     );
