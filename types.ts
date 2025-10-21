@@ -1,3 +1,6 @@
+// FIX: The User type was missing from this file. It is re-exported from firebase/auth to be available across the app.
+export type { User } from 'firebase/auth';
+
 export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento' | 'sponsors';
 
 export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | null;
