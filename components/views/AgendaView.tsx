@@ -418,7 +418,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                     const dayBookings = consolidateBookingsForDay(bookings, day);
                     const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
                     const dailyShift = currentWeekShifts?.dailyOverrides?.[dayIndex] || getDefaultDailyShift(dayIndex, currentWeekShifts?.morning || defaultAssignments.morning, currentWeekShifts?.evening || defaultAssignments.evening);
-                    
+                    const isSpecialShift = !!currentWeekShifts?.dailyOverrides?.[dayIndex];
+
                     const timelineHours = Array.from({ length: timelineConfig.endHour - timelineConfig.startHour + 1 }, (_, i) => timelineConfig.startHour + i);
                     
                     const timedEvents = [
@@ -445,9 +446,23 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                         <div key={day.toISOString()} className="bg-white/5 backdrop-blur-lg rounded-lg shadow-inner border border-white/10">
                             <div className="p-3 border-b border-white/20 text-center">
                                 <h3 className="font-bold capitalize text-white">{day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}</h3>
-                                <div className="text-xs text-gray-400">
-                                    <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
-                                </div>
+                                {isSpecialShift ? (
+                                    <div className="text-xs text-blue-300 font-semibold" title="Horario especial para este día">
+                                        <span>
+                                            M: {dailyShift.morning.active 
+                                                ? `${dailyShift.morning.worker} (${dailyShift.morning.start}-${dailyShift.morning.end})` 
+                                                : 'Cerrado'}
+                                        </span> | <span>
+                                            T: {dailyShift.evening.active 
+                                                ? `${dailyShift.evening.worker} (${dailyShift.evening.start}-${dailyShift.evening.end})`
+                                                : 'Cerrado'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-gray-400">
+                                        <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="relative bg-black/10 rounded-b-md overflow-y-auto pt-2" style={{ minHeight: `${(timelineConfig.endHour - timelineConfig.startHour + 1) * 60 * timelineConfig.pixelsPerMinute + 16}px` }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, day)}>
                                 {timelineHours.map(hour => (
