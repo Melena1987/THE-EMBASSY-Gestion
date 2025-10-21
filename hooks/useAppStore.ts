@@ -165,53 +165,82 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     }, [userRole]);
 
     const handleSaveSpecialEvent = useCallback(async (eventData: SpecialEvent, originalEvent: SpecialEvent | null): Promise<boolean> => {
-        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') { alert("Acción no permitida."); return false; }
+        if (userRole !== 'ADMIN' && userRole !== 'EVENTOS') {
+            alert("Acción no permitida.");
+            return false;
+        }
+
         try {
             await runTransaction(db, async (transaction) => {
                 const eventDocRef = doc(db, 'specialEvents', eventData.id);
+
+                // --- Phase 0: Prepare key arrays (no DB interaction) ---
+                const oldKeysToDelete: string[] = [];
                 if (originalEvent?.startTime && originalEvent.endTime && originalEvent.spaceIds) {
                     const oldSlots = TIME_SLOTS.filter(t => t >= originalEvent.startTime! && t < originalEvent.endTime!);
-                    for (let d = new Date(originalEvent.startDate); d <= new Date(originalEvent.endDate); d.setDate(d.getDate() + 1)) {
+                    for (let d = new Date(`${originalEvent.startDate}T00:00:00`); d <= new Date(`${originalEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                         const dateStr = formatDateForBookingKey(d);
-                        originalEvent.spaceIds!.forEach(spaceId => oldSlots.forEach(time => transaction.delete(doc(db, 'bookings', `${spaceId}-${dateStr}-${time}`))));
+                        originalEvent.spaceIds!.forEach(spaceId => oldSlots.forEach(time => oldKeysToDelete.push(`${spaceId}-${dateStr}-${time}`)));
                     }
                 }
-                const newKeys: string[] = [];
+
+                const newKeysToCreate: string[] = [];
                 if (eventData.startTime && eventData.endTime && eventData.spaceIds) {
                     const newSlots = TIME_SLOTS.filter(t => t >= eventData.startTime! && t < eventData.endTime!);
-                    for (let d = new Date(eventData.startDate); d <= new Date(eventData.endDate); d.setDate(d.getDate() + 1)) {
+                    for (let d = new Date(`${eventData.startDate}T00:00:00`); d <= new Date(`${eventData.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                         const dateStr = formatDateForBookingKey(d);
-                        eventData.spaceIds!.forEach(spaceId => newSlots.forEach(time => newKeys.push(`${spaceId}-${dateStr}-${time}`)));
+                        eventData.spaceIds!.forEach(spaceId => newSlots.forEach(time => newKeysToCreate.push(`${spaceId}-${dateStr}-${time}`)));
                     }
                 }
+
+                // --- Phase 1: READ from database ---
                 const cancellationTasks: Task[] = [];
                 const conflictingRefs: DocumentReference[] = [];
-                if (newKeys.length > 0) {
-                    const snapshots = await Promise.all(newKeys.map(key => transaction.get(doc(db, 'bookings', key))));
-                    const processed = new Set<string>();
+
+                if (newKeysToCreate.length > 0) {
+                    const refsToRead = newKeysToCreate.map(key => doc(db, 'bookings', key));
+                    const snapshots = await Promise.all(refsToRead.map(ref => transaction.get(ref)));
+                    
+                    const processedForCancellation = new Set<string>();
+
                     for (const snap of snapshots) {
-                        if (snap.exists()) {
+                        if (snap.exists() && !oldKeysToDelete.includes(snap.id)) {
                             conflictingRefs.push(snap.ref);
                             const details = snap.data() as BookingDetails;
                             const keyParts = snap.id.split('-');
                             const compositeKey = `${details.name}-${keyParts.slice(-4, -1).join('-')}`;
-                            if (!processed.has(compositeKey)) {
-                                processed.add(compositeKey);
+                            
+                            if (!processedForCancellation.has(compositeKey)) {
+                                processedForCancellation.add(compositeKey);
                                 const spaceName = SPACES.find(s => s.id === keyParts.slice(0, -4).join('-'))?.name || 'Espacio';
-                                cancellationTasks.push({ id: `cancel-${Date.now()}-${cancellationTasks.length}`, text: `URGENTE: Cancelar y notificar reserva "${details.name}" en ${spaceName} el ${keyParts.slice(-4, -1).join('-')} por evento.`, assignedTo: ['Manu'], completed: false });
+                                cancellationTasks.push({
+                                    id: `cancel-${Date.now()}-${cancellationTasks.length}`,
+                                    text: `URGENTE: Cancelar y notificar reserva "${details.name}" en ${spaceName} el ${keyParts.slice(-4, -1).join('-')} por evento.`,
+                                    assignedTo: ['Manu'],
+                                    completed: false
+                                });
                             }
                         }
                     }
                 }
+
+                // --- Phase 2: WRITE to database ---
+                oldKeysToDelete.forEach(key => transaction.delete(doc(db, 'bookings', key)));
                 conflictingRefs.forEach(ref => transaction.delete(ref));
+
                 const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
-                newKeys.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
+                newKeysToCreate.forEach(key => transaction.set(doc(db, 'bookings', key), eventBookingDetails));
+
                 const finalTasks = [...(eventData.tasks || []), ...cancellationTasks];
                 const { id, ...eventToSave } = { ...eventData, tasks: finalTasks.length > 0 ? finalTasks : undefined };
                 transaction.set(eventDocRef, eventToSave);
             });
             return true;
-        } catch (e: any) { console.error("Error al guardar evento:", e); alert(e.message || "No se pudo guardar el evento."); return false; }
+        } catch (e: any) {
+            console.error("Error al guardar evento:", e);
+            alert(e.message || "No se pudo guardar el evento.");
+            return false;
+        }
     }, [userRole]);
 
     const handleDeleteSpecialEvent = useCallback(async (eventToDelete: SpecialEvent) => {
