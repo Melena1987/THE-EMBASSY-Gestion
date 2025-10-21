@@ -448,19 +448,21 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
                                 <h3 className="font-bold capitalize text-white">{day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}</h3>
                                 {isSpecialShift ? (
                                     <div className="text-xs text-blue-300 font-semibold" title="Horario especial para este día">
-                                        <span>
+                                        <div>
                                             M: {dailyShift.morning.active 
                                                 ? `${dailyShift.morning.worker} (${dailyShift.morning.start}-${dailyShift.morning.end})` 
                                                 : 'Cerrado'}
-                                        </span> | <span>
+                                        </div>
+                                        <div>
                                             T: {dailyShift.evening.active 
                                                 ? `${dailyShift.evening.worker} (${dailyShift.evening.start}-${dailyShift.evening.end})`
                                                 : 'Cerrado'}
-                                        </span>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="text-xs text-gray-400">
-                                        <span>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</span> | <span>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</span>
+                                        <div>M: {dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'}</div>
+                                        <div>T: {dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}</div>
                                     </div>
                                 )}
                             </div>
