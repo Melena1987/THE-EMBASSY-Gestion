@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole } from '../../types';
 import { WORKERS, TIME_SLOTS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
@@ -46,6 +46,30 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
     const [newObservationText, setNewObservationText] = useState('');
+    const [areFabsVisible, setAreFabsVisible] = useState(true);
+    const lastScrollY = useRef(0);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            const scrollThreshold = 100; // Only start hiding after scrolling 100px down
+
+            if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+                // Scrolling down
+                setAreFabsVisible(false);
+            } else {
+                // Scrolling up or at the top
+                setAreFabsVisible(true);
+            }
+            lastScrollY.current = currentScrollY;
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
 
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
@@ -463,7 +487,7 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
             </div>
 
             {!isReadOnly && (
-                 <div className="fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3">
+                 <div className={`fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3 transition-transform duration-300 ease-in-out ${areFabsVisible ? 'translate-y-0' : 'translate-y-40'}`}>
                      <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
                         <StarIcon className="w-6 h-6"/>
                     </button>
