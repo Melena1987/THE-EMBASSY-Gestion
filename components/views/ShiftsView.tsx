@@ -243,7 +243,8 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({ shiftAssignments, specialEvents
             return Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
         }
         const assignees = new Set<string>();
-        task.assignedTo.forEach(a => {
+        const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+        taskAssignees.forEach(a => {
             if (a === 'MAÑANA') {
                 assignees.add(currentShifts.morning);
             } else if (a === 'TARDE') {

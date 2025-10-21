@@ -301,6 +301,7 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                             <input id="endTime" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-black/20 text-white border-white/20 rounded-md p-2 focus:ring-orange-500 focus:border-orange-500" step="1800" />
                         </div>
                     </div>
+                    {/* FIX: The error indicates a type inference issue with `Object.entries`. Rewriting the loop using `Object.keys` is a safer way to iterate and ensure correct types. */}
                     {Object.keys(groupedSpaces).map((group) => {
                         const spaces = groupedSpaces[group];
                         return (
@@ -351,7 +352,7 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                         {tasks.map(task => (
                             <div key={task.id} className="flex items-center gap-3 p-2 bg-black/20 rounded-md">
                                 <span className="flex-grow text-gray-200">{task.text}</span>
-                                <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">{task.assignedTo.join(', ')}</span>
+                                <span className="text-xs font-semibold bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">{Array.isArray(task.assignedTo) ? task.assignedTo.join(', ') : task.assignedTo}</span>
                                 <button onClick={() => handleDeleteTask(task.id)} className="p-1 text-gray-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
                             </div>
                         ))}
