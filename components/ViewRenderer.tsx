@@ -93,7 +93,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         case 'plano':
             return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} onSelectBooking={handleSelectBooking} />;
         case 'calendario':
-            return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
+            return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} vacations={vacations} />;
         case 'agenda':
             return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} vacations={vacations} />;
         case 'detalles':

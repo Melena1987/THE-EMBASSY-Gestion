@@ -6,6 +6,7 @@ import type {
     CleaningAssignments,
     CleaningObservations,
     Task,
+    Vacations,
 } from '../types';
 import { consolidateBookingsForDay } from './bookingUtils';
 import { formatDateForBookingKey } from './dateUtils';
@@ -61,12 +62,14 @@ export const ensurePdfLibsLoaded = loadLibraries;
  * @param currentMonth The month being displayed.
  * @param bookings The bookings data.
  * @param specialEvents The special events data.
+ * @param vacations The vacations data.
  */
 export const generateCalendarPDF = async (
     days: Date[],
     currentMonth: Date,
     bookings: Bookings,
-    specialEvents: SpecialEvents
+    specialEvents: SpecialEvents,
+    vacations: Vacations
 ): Promise<void> => {
     const doc = new jsPDF({ orientation: 'landscape' });
     const monthName = currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
@@ -83,10 +86,19 @@ export const generateCalendarPDF = async (
     weeks.forEach(week => {
         const weekRow = week.map(day => {
             const dayKey = formatDateForBookingKey(day);
+            const dayYear = day.getFullYear().toString();
             const dayBookings = consolidateBookingsForDay(bookings, day);
             const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
+            // Obtenemos el trabajador de vacaciones para el día.
+            const vacationWorker = vacations[dayYear]?.dates[dayKey];
 
             let content = `${day.getDate()}\n`;
+
+            // Añadimos la información de vacaciones al contenido de la celda.
+            if (vacationWorker) {
+                content += `🌴 ${vacationWorker} (VAC)\n`;
+            }
+
             eventsForDay.forEach(event => {
                 content += `⭐ ${(event as SpecialEvent).name}\n`;
             });
@@ -94,15 +106,22 @@ export const generateCalendarPDF = async (
                 content += `• ${booking.startTime} ${booking.details.name}\n`;
             });
 
+            const styles: any = {
+                valign: 'top',
+                fillColor: day.getMonth() === currentMonth.getMonth() ? [255, 255, 255] : [230, 230, 230],
+                textColor: day.getMonth() === currentMonth.getMonth() ? [0, 0, 0] : [150, 150, 150],
+                minCellHeight: 28,
+                fontSize: 6,
+            };
+
+            // Aplicamos un color de fondo especial para los días de vacaciones.
+            if (vacationWorker && day.getMonth() === currentMonth.getMonth()) {
+                styles.fillColor = [224, 204, 255]; // Light purple
+            }
+
             return {
                 content,
-                styles: {
-                    valign: 'top',
-                    fillColor: day.getMonth() === currentMonth.getMonth() ? [255, 255, 255] : [230, 230, 230],
-                    textColor: day.getMonth() === currentMonth.getMonth() ? [0, 0, 0] : [150, 150, 150],
-                    minCellHeight: 28,
-                    fontSize: 6,
-                }
+                styles
             };
         });
         body.push(weekRow);

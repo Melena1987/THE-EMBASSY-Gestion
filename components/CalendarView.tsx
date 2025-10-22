@@ -1,5 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
-import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent } from '../types';
+// FIX: Import Vacations type
+import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Vacations } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import SunIcon from './icons/SunIcon';
@@ -17,12 +19,15 @@ interface CalendarViewProps {
     setView: (view: View) => void;
     shiftAssignments: ShiftAssignments;
     specialEvents: SpecialEvents;
+    // FIX: Add vacations prop
+    vacations: Vacations;
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onSelectSpecialEvent, isReadOnly }) => {
+// FIX: Add vacations to props destructuring
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, vacations, onAddBooking, onSelectSpecialEvent, isReadOnly }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -70,7 +75,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         setIsDownloading(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateCalendarPDF(days, currentMonth, bookings, specialEvents);
+            // FIX: Pass vacations data to PDF generation function
+            await generateCalendarPDF(days, currentMonth, bookings, specialEvents, vacations);
         }
         setIsDownloading(false);
     };
@@ -188,6 +194,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
 
                             {weekDays.map((d, j) => {
                                 const dayKey = formatDateForBookingKey(d);
+                                const dayYear = d.getFullYear().toString();
                                 const dayBookings = consolidateBookingsForDay(bookings, d);
                                 // FIX: Cast event to SpecialEvent to access its properties.
                                 const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
@@ -199,6 +206,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                 const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
                                 const hasOverride = !!shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
 
+                                // FIX: Check for vacations
+                                const vacationWorker = vacations[dayYear]?.dates[dayKey];
+
                                 return (
                                     <button
                                         key={j}
@@ -206,8 +216,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         onDragOver={handleDragOver}
                                         onDragLeave={handleDragLeave}
                                         onDrop={(e) => handleDrop(e, d)}
+                                        // FIX: Add vacation styling
                                         className={`relative p-1 sm:p-2 h-28 sm:h-32 md:h-36 rounded-md transition-colors duration-200 flex flex-col items-start text-left overflow-hidden ${
-                                            isSelected ? 'bg-orange-600 ring-2 ring-orange-300' : 'bg-black/20'
+                                            isSelected ? 'bg-orange-600 ring-2 ring-orange-300' 
+                                            : (vacationWorker ? 'bg-purple-900/70 border border-purple-600' : 'bg-black/20')
                                         } ${isCurrentMonth ? 'text-white hover:bg-black/40' : 'text-gray-500 hover:bg-black/40'}`}
                                     >
                                         <div className="flex justify-between w-full items-center mb-1">
@@ -216,6 +228,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         </div>
 
                                         <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
+                                            {/* FIX: Display vacation indicator */}
+                                            {vacationWorker && (
+                                                <div className="text-purple-300 font-bold truncate" title={`${vacationWorker} de vacaciones`}>
+                                                    🌴 {vacationWorker}
+                                                </div>
+                                            )}
                                             {eventsForDay.map(event => (
                                                 <div 
                                                     // FIX: Cast event to SpecialEvent to access its properties.
