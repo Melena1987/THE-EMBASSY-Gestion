@@ -104,7 +104,7 @@ export interface AggregatedTask extends Task {
   sourceName: string;
 }
 
-export interface AppNotification {
+export interface SpecialEventNotification {
   id: string; // Same as the eventId
   type: 'special_event';
   title: string;
@@ -115,3 +115,18 @@ export interface AppNotification {
       entityId: string; // The special event ID
   };
 }
+
+export interface ShiftUpdateNotification {
+  id: string; // e.g., `shift-update-${weekId}`
+  type: 'shift_update';
+  title: string; // e.g., "Cambios en turnos - Semana 43"
+  createdAt: any; // Firestore Timestamp
+  readBy: string[]; // UIDs of users who've read it
+  link: {
+    view: 'agenda';
+    weekId: string; // ID of the week affected (YYYY-WW)
+  };
+  affectedWorkers: string[]; // Nombres ['Olga', 'Dani']
+}
+
+export type AppNotification = SpecialEventNotification | ShiftUpdateNotification;

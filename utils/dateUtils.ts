@@ -128,3 +128,27 @@ export const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
 };
+
+
+/**
+ * Calculates the Date object for the Monday of a given week number and year.
+ * @param year The year.
+ * @param week The week number (ISO 8601).
+ * @returns A Date object for the Monday of that week.
+ */
+export const getMondayOfWeek = (year: number, week: number): Date => {
+    // The calculation for the first day of an ISO week is a bit tricky.
+    // Start with Jan 4th of the year, as it's always in week 1.
+    const jan4 = new Date(year, 0, 4);
+    const jan4Day = jan4.getDay() || 7; // Sunday is 0, make it 7.
+    
+    // Calculate the date of the Monday of week 1.
+    const week1Monday = new Date(jan4);
+    week1Monday.setDate(jan4.getDate() - (jan4Day - 1));
+
+    // Add the required number of weeks (minus 1, as we're already on week 1's Monday).
+    const targetMonday = new Date(week1Monday);
+    targetMonday.setDate(week1Monday.getDate() + (week - 1) * 7);
+
+    return targetMonday;
+};

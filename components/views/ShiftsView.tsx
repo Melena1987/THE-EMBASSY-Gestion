@@ -14,7 +14,7 @@ interface ShiftsViewProps {
     specialEvents: SpecialEvents;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
-    onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    onUpdateShifts: (weekId: string, newShifts: ShiftAssignment, oldShifts: ShiftAssignment | undefined) => void;
     onAddRecurringTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>, weekIds: string[]) => Promise<boolean>;
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
@@ -108,7 +108,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
             morning: currentShifts.evening,
             evening: currentShifts.morning,
         };
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
 
     const handleReset = () => {
@@ -128,24 +128,19 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
                 newShifts.morning = WORKERS.find(w => w !== worker) || '';
             }
         }
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
     
     const handleDailyShiftChange = (dayIndex: number, period: 'morning' | 'evening', field: keyof ShiftPeriodDetail, value: string | boolean) => {
-        const baseShifts: ShiftAssignment = shiftAssignments[weekId] || { 
-            morning: defaultAssignments.morning, 
-            evening: defaultAssignments.evening 
-        };
-        
         const newShifts = calculateUpdatedShifts(
-            baseShifts,
+            currentShifts,
             dayIndex,
             period,
             field,
             value
         );
 
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
 
     const handleResetDay = (dayIndex: number) => {
@@ -157,7 +152,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
         if (Object.keys(newShifts.dailyOverrides).length === 0) {
             delete newShifts.dailyOverrides;
         }
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
 
     const handleObservationsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -170,7 +165,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
             delete newShifts.observations;
         }
 
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
 
     const handleDeleteTask = (taskId: string) => {
@@ -182,7 +177,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
         } else {
             delete newShifts.tasks;
         }
-        onUpdateShifts(weekId, newShifts);
+        onUpdateShifts(weekId, newShifts, currentShifts);
     };
     
     const getResolvedAssignees = useCallback((task: CombinedTask): string[] => {

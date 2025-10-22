@@ -4,9 +4,11 @@ import Header from './layout/Header';
 import Footer from './layout/Footer';
 import ConfirmationModal from './ui/ConfirmationModal';
 import WifiModal from './ui/WifiModal';
+import ShiftConfirmationModal from './ShiftConfirmationModal';
 import ViewRenderer from './ViewRenderer';
 import { findRelatedBookings } from '../utils/bookingUtils';
 import { useAppStore } from '../hooks/useAppStore';
+import { getMondayOfWeek } from '../utils/dateUtils';
 
 interface AppLayoutProps {
     store: ReturnType<typeof useAppStore>;
@@ -22,6 +24,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const {
         bookings, myPendingTasks, handleDeleteBookingKeys, handleToggleTask,
         myUnreadNotifications, handleMarkNotificationAsRead, specialEvents,
+        shiftConfirmationState, confirmShiftUpdate, setShiftConfirmationState,
     } = store;
 
     const { user, userRole, handleLogout } = auth;
@@ -54,12 +57,24 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
 
     const handleNotificationClick = useCallback((notification: AppNotification) => {
         handleMarkNotificationAsRead(notification.id);
-        const event = specialEvents[notification.link.entityId];
-        if (event) {
-            setSelectedSpecialEvent(event as SpecialEvent);
-            setView(notification.link.view);
+        if (notification.type === 'special_event') {
+            const event = specialEvents[notification.link.entityId];
+            if (event) {
+                setSelectedSpecialEvent(event as SpecialEvent);
+                setView(notification.link.view);
+            }
+        } else if (notification.type === 'shift_update') {
+            const { weekId } = notification.link;
+            const [yearStr, weekStr] = weekId.split('-');
+            const year = parseInt(yearStr, 10);
+            const week = parseInt(weekStr, 10);
+            if (!isNaN(year) && !isNaN(week)) {
+                const monday = getMondayOfWeek(year, week);
+                setSelectedDate(monday);
+                setView('agenda');
+            }
         }
-    }, [handleMarkNotificationAsRead, specialEvents, setSelectedSpecialEvent, setView]);
+    }, [handleMarkNotificationAsRead, specialEvents, setSelectedSpecialEvent, setView, setSelectedDate]);
 
     const triggerDeleteProcess = useCallback(async (booking: ConsolidatedBooking) => {
         const related = findRelatedBookings(booking, bookings);
@@ -190,6 +205,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onConfirmSingle={() => handleModalConfirmation('single')}
                 onConfirmFuture={() => handleModalConfirmation('future')}
                 onClose={handleModalClose}
+            />
+             <ShiftConfirmationModal
+                isOpen={shiftConfirmationState.isOpen}
+                onConfirm={confirmShiftUpdate}
+                onCancel={() => setShiftConfirmationState({ isOpen: false, weekId: null, newShifts: null, oldShifts: undefined })}
             />
             <WifiModal isOpen={isWifiModalOpen} onClose={() => setIsWifiModalOpen(false)} />
         </div>

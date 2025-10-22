@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import type { AggregatedTask, TaskSourceCollection, AppNotification } from '../types';
+import type { AppNotification, TaskSourceCollection, AggregatedTask, SpecialEventNotification, ShiftUpdateNotification } from '../types';
 import CheckIcon from './icons/CheckIcon';
 import BellIcon from './icons/BellIcon';
 import StarIcon from './icons/StarIcon';
+import UsersIcon from './icons/UsersIcon';
 
 interface TasksDropdownProps {
     tasks: AggregatedTask[];
@@ -23,6 +24,19 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
             return acc;
         }, {} as Record<string, AggregatedTask[]>);
     }, [tasks]);
+
+    const { eventNotifications, shiftNotifications } = useMemo(() => {
+        const eventNots: SpecialEventNotification[] = [];
+        const shiftNots: ShiftUpdateNotification[] = [];
+        notifications.forEach(n => {
+            if (n.type === 'special_event') {
+                eventNots.push(n);
+            } else if (n.type === 'shift_update') {
+                shiftNots.push(n);
+            }
+        });
+        return { eventNotifications: eventNots, shiftNotifications: shiftNots };
+    }, [notifications]);
 
     const handleNotificationItemClick = (notification: AppNotification) => {
         onNotificationClick(notification);
@@ -45,17 +59,34 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
             <div className="py-2 px-1 max-h-96 overflow-y-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
                 {hasContent ? (
                     <>
-                        {notifications.length > 0 && (
+                        {eventNotifications.length > 0 && (
                             <div className="mb-3">
                                 <h4 className="px-3 py-1 text-xs font-bold text-purple-400 uppercase">Eventos</h4>
                                 <div className="space-y-1 mt-1">
-                                    {notifications.map(notification => (
+                                    {eventNotifications.map(notification => (
                                         <button
                                             key={notification.id}
                                             onClick={() => handleNotificationItemClick(notification)}
                                             className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors"
                                         >
                                             <StarIcon className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                                            <span className="flex-grow text-gray-200">{notification.title}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {shiftNotifications.length > 0 && (
+                             <div className="mb-3">
+                                <h4 className="px-3 py-1 text-xs font-bold text-blue-400 uppercase">Turnos</h4>
+                                <div className="space-y-1 mt-1">
+                                    {shiftNotifications.map(notification => (
+                                        <button
+                                            key={notification.id}
+                                            onClick={() => handleNotificationItemClick(notification)}
+                                            className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors"
+                                        >
+                                            <UsersIcon className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                             <span className="flex-grow text-gray-200">{notification.title}</span>
                                         </button>
                                     ))}

@@ -29,9 +29,65 @@ import type {
     TaskSourceCollection,
     Vacations,
     AppNotification,
+    ShiftUpdateNotification,
 } from '../types';
-import { formatDateForBookingKey, getWeekData } from '../utils/dateUtils';
+import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
 import { TIME_SLOTS, WORKERS } from '../constants';
+
+/**
+ * Compares old and new shift assignments to find workers whose shifts have changed.
+ * @param oldShifts The state of shifts before the change.
+ * @param newShifts The state of shifts after the change.
+ * @param defaultAssignments The default weekly shift assignments (for comparison if oldShifts is undefined).
+ * @returns An array of names of affected workers (from ['Olga', 'Dani']).
+ */
+const getAffectedWorkers = (
+    oldShifts: ShiftAssignment | undefined,
+    newShifts: ShiftAssignment,
+    defaultAssignments: { morning: string; evening: string }
+): string[] => {
+    const affected = new Set<string>();
+    const workersToTrack = ['Olga', 'Dani'];
+
+    const oldM = oldShifts?.morning || defaultAssignments.morning;
+    const oldE = oldShifts?.evening || defaultAssignments.evening;
+    const newM = newShifts.morning;
+    const newE = newShifts.evening;
+
+    if (oldM !== newM) {
+        if (workersToTrack.includes(oldM)) affected.add(oldM);
+        if (workersToTrack.includes(newM)) affected.add(newM);
+    }
+    if (oldE !== newE) {
+        if (workersToTrack.includes(oldE)) affected.add(oldE);
+        if (workersToTrack.includes(newE)) affected.add(newE);
+    }
+
+    for (let i = 0; i < 7; i++) {
+        const dayIndexStr = i.toString();
+        const oldOverride = oldShifts?.dailyOverrides?.[dayIndexStr];
+        const newOverride = newShifts.dailyOverrides?.[dayIndexStr];
+
+        if (JSON.stringify(oldOverride) === JSON.stringify(newOverride)) continue;
+
+        const oldDayMorningWorker = oldOverride?.morning.worker || oldM;
+        const newDayMorningWorker = newOverride?.morning.worker || newM;
+        if (oldDayMorningWorker !== newDayMorningWorker) {
+            if (workersToTrack.includes(oldDayMorningWorker)) affected.add(oldDayMorningWorker);
+            if (workersToTrack.includes(newDayMorningWorker)) affected.add(newDayMorningWorker);
+        }
+
+        const oldDayEveningWorker = oldOverride?.evening.worker || oldE;
+        const newDayEveningWorker = newOverride?.evening.worker || newE;
+        if (oldDayEveningWorker !== newDayEveningWorker) {
+            if (workersToTrack.includes(oldDayEveningWorker)) affected.add(oldDayEveningWorker);
+            if (workersToTrack.includes(newDayEveningWorker)) affected.add(newDayEveningWorker);
+        }
+    }
+
+    return Array.from(affected);
+};
+
 
 // This hook centralizes all Firestore data subscriptions and write operations for the app.
 export const useAppStore = (user: User | null, userRole: UserRole, currentUserName: string | null) => {
@@ -44,6 +100,15 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const [sponsors, setSponsors] = useState<Sponsors>({});
     const [vacations, setVacations] = useState<Vacations>({});
     const [notifications, setNotifications] = useState<Record<string, AppNotification>>({});
+    
+    // State for shift update confirmation flow
+    const [shiftConfirmationState, setShiftConfirmationState] = useState<{
+        isOpen: boolean;
+        weekId: string | null;
+        newShifts: ShiftAssignment | null;
+        oldShifts: ShiftAssignment | undefined;
+    }>({ isOpen: false, weekId: null, newShifts: null, oldShifts: undefined });
+
 
     // Effect to subscribe to data collections when a user is logged in
     useEffect(() => {
@@ -156,12 +221,22 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     }, [shiftAssignments, specialEvents, sponsors, currentUserName]);
 
     const myUnreadNotifications = useMemo<AppNotification[]>(() => {
-        if (!user) return [];
+        if (!user || !currentUserName) return [];
         return Object.values(notifications)
-            // FIX: The type of `n` is inferred as `unknown`, so we cast it to `any` and add checks to safely access its properties.
-            .filter((n: any): n is AppNotification => n && !!n.createdAt && Array.isArray(n.readBy) && !n.readBy.includes(user.uid))
+            .filter((n: any): n is AppNotification => {
+                // Basic validation and check if user has already read it
+                if (!n || !n.type || !n.createdAt || !Array.isArray(n.readBy) || n.readBy.includes(user.uid)) {
+                    return false;
+                }
+                // For shift updates, only show it to the affected workers ('Olga', 'Dani')
+                if (n.type === 'shift_update' && Array.isArray(n.affectedWorkers)) {
+                    return n.affectedWorkers.includes(currentUserName);
+                }
+                // For other types (e.g., special_event), show to everyone
+                return n.type === 'special_event';
+            })
             .sort((a, b) => b.createdAt - a.createdAt);
-    }, [notifications, user]);
+    }, [notifications, user, currentUserName]);
 
 
     // --- Data Mutation Handlers ---
@@ -224,15 +299,78 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         }
     }, []);
     
-    const handleUpdateShifts = useCallback(async (weekId: string, newShifts: ShiftAssignment) => {
+    const handleUpdateShifts = useCallback((weekId: string, newShifts: ShiftAssignment, oldShifts: ShiftAssignment | undefined) => {
+        // Compare new and old shifts. Using JSON.stringify for simplicity.
+        if (JSON.stringify(newShifts) !== JSON.stringify(oldShifts)) {
+            // If there are changes, open the confirmation modal instead of saving directly.
+            setShiftConfirmationState({
+                isOpen: true,
+                weekId,
+                newShifts,
+                oldShifts,
+            });
+        }
+    }, []);
+    
+    const confirmShiftUpdate = useCallback(async () => {
+        const { weekId, newShifts, oldShifts } = shiftConfirmationState;
+        if (!weekId || !newShifts) return false;
+
         try {
             const docRef = doc(db, 'shiftAssignments', weekId);
             await setDoc(docRef, newShifts);
+
+            // --- Notification Logic ---
+            const today = new Date();
+            const { year: currentYear, week: currentWeek } = getWeekData(today);
+            const currentWeekId = `${currentYear}-${currentWeek.toString().padStart(2, '0')}`;
+            
+            const nextWeekDate = new Date();
+            nextWeekDate.setDate(today.getDate() + 7);
+            const { year: nextYear, week: nextWeek } = getWeekData(nextWeekDate);
+            const nextWeekId = `${nextYear}-${nextWeek.toString().padStart(2, '0')}`;
+            
+            // Only send notifications for current or next week's changes
+            if (weekId === currentWeekId || weekId === nextWeekId) {
+                 const [yearStr, weekStr] = weekId.split('-');
+                 const year = parseInt(yearStr, 10);
+                 const weekNum = parseInt(weekStr, 10);
+                const isEvenWeek = weekNum % 2 === 0;
+                const defaultAssignments = {
+                    morning: isEvenWeek ? WORKERS[1] : WORKERS[0],
+                    evening: isEvenWeek ? WORKERS[0] : WORKERS[1],
+                };
+
+                const affectedWorkers = getAffectedWorkers(oldShifts, newShifts, defaultAssignments);
+
+                if (affectedWorkers.length > 0) {
+                    const notificationId = `shift-update-${weekId}`;
+                    const notificationPayload: ShiftUpdateNotification = {
+                        id: notificationId,
+                        type: 'shift_update',
+                        title: `Cambios en turnos - Semana ${weekNum}`,
+                        createdAt: serverTimestamp(),
+                        readBy: [], // This will be populated by users as they read it.
+                        link: {
+                            view: 'agenda',
+                            weekId: weekId,
+                        },
+                        affectedWorkers: affectedWorkers,
+                    };
+                    // Create or overwrite the notification for this week
+                    await setDoc(doc(db, 'notifications', notificationId), notificationPayload);
+                }
+            }
+
+            setShiftConfirmationState({ isOpen: false, weekId: null, newShifts: null, oldShifts: undefined });
+            return true;
         } catch (error) {
-            console.error("Error updating shifts:", error);
+            console.error("Error confirming shift update:", error);
             alert("No se pudo actualizar el turno.");
+            setShiftConfirmationState({ isOpen: false, weekId: null, newShifts: null, oldShifts: undefined });
+            return false;
         }
-    }, []);
+    }, [shiftConfirmationState]);
 
      const handleAddRecurringTask = useCallback(async (
         taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>,
@@ -502,5 +640,8 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         handleUpdateSponsor,
         handleAddSponsor,
         handleUpdateVacations,
+        shiftConfirmationState,
+        confirmShiftUpdate,
+        setShiftConfirmationState,
     };
 };
