@@ -90,7 +90,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
         // Tasks from shift assignments
         Object.entries(shiftAssignments).forEach(([id, assignment]) => {
-            const typedAssignment = assignment as unknown as ShiftAssignment;
+            const typedAssignment = assignment as ShiftAssignment;
             (typedAssignment.tasks || []).forEach(task => {
                 if (task.completed) return;
 
@@ -119,7 +119,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
         // Tasks from special events
         Object.entries(specialEvents).forEach(([id, event]) => {
-            const typedEvent = event as unknown as SpecialEvent;
+            const typedEvent = event as SpecialEvent;
             (typedEvent.tasks || []).forEach(task => {
                 const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
                 if (!task.completed && assignees.includes(currentUserName)) {
@@ -130,7 +130,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
         // Tasks from sponsors
         Object.entries(sponsors).forEach(([id, sponsor]) => {
-            const typedSponsor = sponsor as unknown as Sponsor;
+            const typedSponsor = sponsor as Sponsor;
             (typedSponsor.tasks || []).forEach(task => {
                 const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
                 if (!task.completed && assignees.includes(currentUserName)) {
