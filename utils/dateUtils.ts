@@ -114,3 +114,14 @@ export function* generateRepeatingDates(
             break;
     }
 }
+
+
+/**
+ * Converts a time string (HH:mm) to the total number of minutes from midnight.
+ * @param time The time string to convert.
+ * @returns The number of minutes.
+ */
+export const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+};
