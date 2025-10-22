@@ -6,50 +6,54 @@ import type {
     CleaningAssignments,
     CleaningObservations,
     Task,
-} from './types';
+} from '../types';
 import { consolidateBookingsForDay } from './bookingUtils';
 import { formatDateForBookingKey } from './dateUtils';
 
-// Type declarations for jsPDF and jsPDF-AutoTable, which are loaded from a CDN.
-// This prevents TypeScript errors when using the globally available libraries.
-declare const jspdf: any;
-declare const autoTable: any;
+// Module-scoped variables to hold the dynamically imported libraries.
+let jsPDF: any = null;
+let autoTable: any = null;
 
-let libsLoaded = false;
+// A promise to ensure libraries are loaded only once, handling concurrent requests.
+let libsPromise: Promise<boolean> | null = null;
 
-// Dynamically loads a script from a given source URL.
-const loadScript = (src: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Script load error for ${src}`));
-        document.body.appendChild(script);
-    });
+const loadLibraries = (): Promise<boolean> => {
+    // If the promise already exists, return it to avoid re-fetching.
+    if (libsPromise) {
+        return libsPromise;
+    }
+
+    // Create the promise to load libraries.
+    libsPromise = (async () => {
+        try {
+            // Using a CDN that serves ES Modules for modern dynamic imports.
+            const jspdfModule = await import('https://cdn.skypack.dev/jspdf@2.5.1');
+            jsPDF = jspdfModule.jsPDF; // The class is on the 'jsPDF' property
+
+            // jspdf-autotable's default export is the function we need.
+            const autoTableModule = await import('https://cdn.skypack.dev/jspdf-autotable@3.8.2');
+            autoTable = autoTableModule.default;
+            
+            return true;
+        } catch (error) {
+            console.error("Failed to load PDF generation libraries:", error);
+            alert("No se pudieron cargar las librerías para generar el PDF. Por favor, revise su conexión a internet e inténtelo de nuevo.");
+            
+            // Reset promise on failure to allow retrying.
+            libsPromise = null; 
+            return false;
+        }
+    })();
+
+    return libsPromise;
 };
 
 /**
  * Ensures that the jsPDF and jsPDF-AutoTable libraries are loaded.
- * It loads them from a CDN only once and then caches the result.
- * It loads jspdf first, then autotable, to prevent race conditions.
+ * This is the public-facing function that components will call.
  * @returns A promise that resolves to true if libraries are loaded, false otherwise.
  */
-export const ensurePdfLibsLoaded = async (): Promise<boolean> => {
-    if (libsLoaded) return true;
-    try {
-        // Load jsPDF first, as autotable depends on it.
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-        // Once jsPDF is loaded, load the autotable plugin.
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf-autotable.min.js');
-        
-        libsLoaded = true;
-        return true;
-    } catch (error) {
-        console.error("Failed to load PDF generation libraries:", error);
-        alert("No se pudieron cargar las librerías para generar el PDF. Por favor, revise su conexión a internet e inténtelo de nuevo.");
-        return false;
-    }
-};
+export const ensurePdfLibsLoaded = loadLibraries;
 
 /**
  * Generates a PDF of the monthly calendar view.
@@ -64,7 +68,6 @@ export const generateCalendarPDF = async (
     bookings: Bookings,
     specialEvents: SpecialEvents
 ): Promise<void> => {
-    const { jsPDF } = jspdf;
     const doc = new jsPDF({ orientation: 'landscape' });
     const monthName = currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
     doc.setFontSize(22);
@@ -131,7 +134,6 @@ export const generateShiftsPDF = async (
     shifts: ShiftAssignment,
     tasks: (Task & { type: string; sourceId: string; eventName?: string })[]
 ): Promise<void> => {
-    const { jsPDF } = jspdf;
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text(`Horario de Turnos - Semana ${weekNumber} (${year})`, 14, 20);
@@ -213,7 +215,6 @@ export const generateAgendaPDF = async (
     specialEvents: SpecialEvents,
     tasks: (Task & { type: string; sourceId: string; eventName?: string })[]
 ): Promise<void> => {
-    const { jsPDF } = jspdf;
     const doc = new jsPDF({ orientation: 'landscape' });
 
     doc.setFontSize(22);
@@ -289,7 +290,6 @@ export const generateCleaningPDF = async (
     cleaningAssignments: CleaningAssignments,
     observations: CleaningObservations[string] | undefined
 ): Promise<void> => {
-    const { jsPDF } = jspdf;
     const doc = new jsPDF();
     
     doc.setFontSize(18);
