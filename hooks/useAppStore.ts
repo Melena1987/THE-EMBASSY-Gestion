@@ -8,6 +8,7 @@ import {
     deleteDoc,
     setDoc,
     updateDoc,
+    serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
@@ -27,6 +28,7 @@ import type {
     AggregatedTask,
     TaskSourceCollection,
     Vacations,
+    AppNotification,
 } from '../types';
 import { formatDateForBookingKey, getWeekData } from '../utils/dateUtils';
 import { TIME_SLOTS, WORKERS } from '../constants';
@@ -41,6 +43,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const [specialEvents, setSpecialEvents] = useState<SpecialEvents>({});
     const [sponsors, setSponsors] = useState<Sponsors>({});
     const [vacations, setVacations] = useState<Vacations>({});
+    const [notifications, setNotifications] = useState<Record<string, AppNotification>>({});
 
     // Effect to subscribe to data collections when a user is logged in
     useEffect(() => {
@@ -53,6 +56,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             setSpecialEvents({});
             setSponsors({});
             setVacations({});
+            setNotifications({});
             return;
         }
 
@@ -64,13 +68,20 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             { name: 'specialEvents', setter: setSpecialEvents },
             { name: 'sponsors', setter: setSponsors },
             { name: 'vacations', setter: setVacations },
+            { name: 'notifications', setter: setNotifications },
         ];
 
         const unsubscribes = collections.map(({ name, setter }) => {
             return onSnapshot(collection(db, name), (snapshot) => {
                 const data: Record<string, any> = {};
                 snapshot.forEach(doc => {
-                    data[doc.id] = doc.data();
+                    const docData = doc.data();
+                    // Handle timestamp conversion for notifications
+                    if (name === 'notifications' && docData.createdAt && typeof docData.createdAt.toDate === 'function') {
+                        data[doc.id] = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
+                    } else {
+                        data[doc.id] = docData;
+                    }
                 });
                 setter(data);
             });
@@ -144,8 +155,33 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         ];
     }, [shiftAssignments, specialEvents, sponsors, currentUserName]);
 
+    const myUnreadNotifications = useMemo<AppNotification[]>(() => {
+        if (!user) return [];
+        return Object.values(notifications)
+            .filter((n): n is AppNotification => !!n.createdAt && !n.readBy.includes(user.uid))
+            .sort((a, b) => b.createdAt - a.createdAt);
+    }, [notifications, user]);
+
 
     // --- Data Mutation Handlers ---
+
+    const handleMarkNotificationAsRead = useCallback(async (notificationId: string) => {
+        if (!user) return;
+        try {
+            const docRef = doc(db, 'notifications', notificationId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const readBy = (data.readBy || []) as string[];
+                if (!readBy.includes(user.uid)) {
+                    const newReadBy = [...readBy, user.uid];
+                    await updateDoc(docRef, { readBy: newReadBy });
+                }
+            }
+        } catch (error) {
+            console.error("Error marking notification as read:", error);
+        }
+    }, [user]);
 
     const handleAddBooking = useCallback(async (bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
         try {
@@ -345,6 +381,22 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             batch.set(eventRef, eventData);
 
             await batch.commit();
+
+            // 4. Create/Update notification SEPARATELY to use serverTimestamp
+            const notificationRef = doc(db, 'notifications', eventData.id);
+            const notificationPayload = {
+                id: eventData.id,
+                type: 'special_event' as const,
+                title: originalEvent ? `Evento actualizado: ${eventData.name}` : `Nuevo evento: ${eventData.name}`,
+                createdAt: serverTimestamp(),
+                readBy: [], // Reset read status on every update to re-notify everyone
+                link: {
+                    view: 'detalles_evento' as const,
+                    entityId: eventData.id,
+                },
+            };
+            await setDoc(notificationRef, notificationPayload);
+
             return true;
         } catch (error) {
             console.error("Error saving special event:", error);
@@ -377,6 +429,9 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             
             // Delete the event document
             batch.delete(eventRef);
+
+            // Delete the associated notification
+            batch.delete(doc(db, 'notifications', event.id));
 
             await batch.commit();
         } catch (error) {
@@ -431,12 +486,14 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         sponsors,
         vacations,
         myPendingTasks,
+        myUnreadNotifications,
         handleAddBooking,
         handleDeleteBookingKeys,
         handleUpdateShifts,
         handleAddRecurringTask,
         handleResetWeekShifts,
         handleToggleTask,
+        handleMarkNotificationAsRead,
         handleUpdateCleaningTime,
         handleUpdateCleaningObservations,
         handleSaveSpecialEvent,

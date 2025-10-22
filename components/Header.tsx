@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { View, UserRole, AggregatedTask, TaskSourceCollection } from '../types';
+import type { View, UserRole, AggregatedTask, TaskSourceCollection, AppNotification } from '../types';
 import CalendarIcon from './icons/CalendarIcon';
 import LayoutIcon from './icons/LayoutIcon';
 import ListIcon from './icons/ListIcon';
@@ -22,7 +22,9 @@ interface HeaderProps {
     userRole: UserRole;
     onLogout: () => void;
     pendingTasks: AggregatedTask[];
+    unreadNotifications: AppNotification[];
     onToggleTask: (sourceId: string, taskId: string, collection: TaskSourceCollection) => void;
+    onNotificationClick: (notification: AppNotification) => void;
 }
 
 const DropdownItem: React.FC<{
@@ -60,7 +62,7 @@ const MobileNavItem: React.FC<{
 );
 
 
-const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, onToggleTask }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -103,6 +105,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isSponsorsActive = currentView === 'sponsors';
     
     const canCreate = userRole === 'ADMIN' || userRole === 'EVENTOS';
+    const notificationCount = pendingTasks.length + unreadNotifications.length;
 
     return (
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
@@ -220,19 +223,21 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 <button
                                     onClick={() => setIsTasksOpen(prev => !prev)}
                                     className="relative p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                    title="Mis Tareas Pendientes"
+                                    title="Notificaciones y Tareas"
                                 >
                                     <BellIcon className="h-5 w-5" />
-                                    {pendingTasks.length > 0 && (
+                                    {notificationCount > 0 && (
                                         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
-                                            {pendingTasks.length}
+                                            {notificationCount}
                                         </span>
                                     )}
                                 </button>
                                 {isTasksOpen && (
-                                    <TasksDropdown 
-                                        tasks={pendingTasks} 
-                                        onToggleTask={onToggleTask} 
+                                    <TasksDropdown
+                                        tasks={pendingTasks}
+                                        notifications={unreadNotifications}
+                                        onToggleTask={onToggleTask}
+                                        onNotificationClick={onNotificationClick}
                                         onClose={() => setIsTasksOpen(false)}
                                     />
                                 )}

@@ -103,3 +103,15 @@ export interface AggregatedTask extends Task {
   sourceId: string;
   sourceName: string;
 }
+
+export interface AppNotification {
+  id: string; // Same as the eventId
+  type: 'special_event';
+  title: string;
+  createdAt: any; // Firestore Timestamp
+  readBy: string[]; // array of user UIDs
+  link: {
+      view: 'detalles_evento';
+      entityId: string; // The special event ID
+  };
+}

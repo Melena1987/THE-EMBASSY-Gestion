@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole } from '../types';
+import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole, AppNotification } from '../types';
 import Header from './layout/Header';
 import Footer from './layout/Footer';
 import ConfirmationModal from './ui/ConfirmationModal';
@@ -20,7 +20,8 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const {
-        bookings, myPendingTasks, handleDeleteBookingKeys, handleToggleTask
+        bookings, myPendingTasks, handleDeleteBookingKeys, handleToggleTask,
+        myUnreadNotifications, handleMarkNotificationAsRead, specialEvents,
     } = store;
 
     const { user, userRole, handleLogout } = auth;
@@ -50,6 +51,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         setSelectedSpecialEvent(event);
         setView('detalles_evento');
     };
+
+    const handleNotificationClick = useCallback((notification: AppNotification) => {
+        handleMarkNotificationAsRead(notification.id);
+        const event = specialEvents[notification.link.entityId];
+        if (event) {
+            setSelectedSpecialEvent(event as SpecialEvent);
+            setView(notification.link.view);
+        }
+    }, [handleMarkNotificationAsRead, specialEvents, setSelectedSpecialEvent, setView]);
 
     const triggerDeleteProcess = useCallback(async (booking: ConsolidatedBooking) => {
         const related = findRelatedBookings(booking, bookings);
@@ -144,7 +154,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 userRole={userRole}
                 onLogout={handleLogout}
                 pendingTasks={myPendingTasks}
+                unreadNotifications={myUnreadNotifications}
                 onToggleTask={handleToggleTask}
+                onNotificationClick={handleNotificationClick}
             />
             <main className="flex-grow p-4 sm:p-6 md:p-8">
                 <ViewRenderer
