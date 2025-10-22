@@ -451,12 +451,12 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         }
     }, []);
 
-    const handleAddSponsor = useCallback(async (sponsorName: string): Promise<string | null> => {
+    const handleAddSponsor = useCallback(async (sponsorData: Omit<Sponsor, 'id'>): Promise<string | null> => {
         try {
             const newSponsorRef = doc(collection(db, 'sponsors'));
             const newSponsor: Sponsor = {
                 id: newSponsorRef.id,
-                name: sponsorName.trim(),
+                ...sponsorData,
             };
             await setDoc(newSponsorRef, newSponsor);
             return newSponsorRef.id;
