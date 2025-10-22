@@ -31,15 +31,17 @@ const loadScript = (src: string): Promise<void> => {
 /**
  * Ensures that the jsPDF and jsPDF-AutoTable libraries are loaded.
  * It loads them from a CDN only once and then caches the result.
+ * It loads jspdf first, then autotable, to prevent race conditions.
  * @returns A promise that resolves to true if libraries are loaded, false otherwise.
  */
 export const ensurePdfLibsLoaded = async (): Promise<boolean> => {
     if (libsLoaded) return true;
     try {
-        await Promise.all([
-            loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-            loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf-autotable.min.js')
-        ]);
+        // Load jsPDF first, as autotable depends on it.
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        // Once jsPDF is loaded, load the autotable plugin.
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf-autotable.min.js');
+        
         libsLoaded = true;
         return true;
     } catch (error) {
