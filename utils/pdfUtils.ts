@@ -89,18 +89,16 @@ export const generateCalendarPDF = async (
             const dayYear = day.getFullYear().toString();
             const dayBookings = consolidateBookingsForDay(bookings, day);
             const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
-            // Obtenemos el trabajador de vacaciones para el día.
             const vacationWorker = vacations[dayYear]?.dates[dayKey];
 
             let content = `${day.getDate()}\n`;
 
-            // Añadimos la información de vacaciones al contenido de la celda.
             if (vacationWorker) {
-                content += `🌴 ${vacationWorker} (VAC)\n`;
+                content += `(VAC) ${vacationWorker}\n`;
             }
 
             eventsForDay.forEach(event => {
-                content += `⭐ ${(event as SpecialEvent).name}\n`;
+                content += `(E) ${(event as SpecialEvent).name}\n`;
             });
             dayBookings.forEach(booking => {
                 content += `• ${booking.startTime} ${booking.details.name}\n`;
@@ -108,15 +106,22 @@ export const generateCalendarPDF = async (
 
             const styles: any = {
                 valign: 'top',
-                fillColor: day.getMonth() === currentMonth.getMonth() ? [255, 255, 255] : [230, 230, 230],
                 textColor: day.getMonth() === currentMonth.getMonth() ? [0, 0, 0] : [150, 150, 150],
                 minCellHeight: 28,
                 fontSize: 6,
             };
 
-            // Aplicamos un color de fondo especial para los días de vacaciones.
-            if (vacationWorker && day.getMonth() === currentMonth.getMonth()) {
-                styles.fillColor = [224, 204, 255]; // Light purple
+            // Define cell background color based on priority: vacation > event > default
+            if (day.getMonth() === currentMonth.getMonth()) {
+                if (vacationWorker) {
+                    styles.fillColor = [224, 204, 255]; // Light purple for vacations
+                } else if (eventsForDay.length > 0) {
+                    styles.fillColor = [255, 251, 204]; // Light yellow for special events
+                } else {
+                    styles.fillColor = [255, 255, 255]; // Default for current month
+                }
+            } else {
+                styles.fillColor = [230, 230, 230]; // Default for other months
             }
 
             return {
@@ -224,6 +229,7 @@ export const generateShiftsPDF = async (
  * @param shifts The shift assignment for the week.
  * @param specialEvents The special events data.
  * @param tasks An array of tasks for the week.
+ * @param vacations The vacations data.
  */
 export const generateAgendaPDF = async (
     weekNumber: number,
@@ -232,7 +238,8 @@ export const generateAgendaPDF = async (
     bookings: Bookings,
     shifts: ShiftAssignment,
     specialEvents: SpecialEvents,
-    tasks: (Task & { type: string; sourceId: string; eventName?: string })[]
+    tasks: (Task & { type: string; sourceId: string; eventName?: string })[],
+    vacations: Vacations
 ): Promise<void> => {
     const doc = new jsPDF({ orientation: 'landscape' });
 
@@ -242,6 +249,7 @@ export const generateAgendaPDF = async (
     const body: any[] = [];
     weekDays.forEach((day, i) => {
         const dayKey = formatDateForBookingKey(day);
+        const dayYear = day.getFullYear().toString();
         const dayBookings = consolidateBookingsForDay(bookings, day);
         const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
         
@@ -249,20 +257,33 @@ export const generateAgendaPDF = async (
             morning: { worker: shifts.morning, start: '09:00', end: '14:00', active: i !== 6 },
             evening: { worker: shifts.evening, start: '17:00', end: '23:00', active: i <= 4 }
         };
-        let shiftInfo = `M: ${dailyShift.morning.active ? dailyShift.morning.worker : 'Cerrado'} | T: ${dailyShift.evening.active ? dailyShift.evening.worker : 'Cerrado'}`;
+
+        const vacationWorker = vacations[dayYear]?.dates[dayKey];
+        const isMorningVacation = dailyShift.morning.active && dailyShift.morning.worker === vacationWorker;
+        const isEveningVacation = dailyShift.evening.active && dailyShift.evening.worker === vacationWorker;
+
+        let shiftInfo = `M: ${dailyShift.morning.active ? (isMorningVacation ? `${dailyShift.morning.worker} (VAC)` : dailyShift.morning.worker) : 'Cerrado'} | T: ${dailyShift.evening.active ? (isEveningVacation ? `${dailyShift.evening.worker} (VAC)` : dailyShift.evening.worker) : 'Cerrado'}`;
+
 
         let content = `${shiftInfo}\n\n`;
         eventsForDay.forEach(e => {
             const event = e as SpecialEvent;
-            content += `⭐ ${event.name} (${event.startTime || ''} - ${event.endTime || ''})\n`;
+            content += `(E) ${event.name} (${event.startTime || ''} - ${event.endTime || ''})\n`;
         });
         dayBookings.forEach(b => {
             content += `• ${b.startTime}-${b.endTime}: ${b.details.name} (${b.space})\n`;
         });
 
+        const styles: any = { valign: 'top', fontSize: 8, minCellHeight: 140 };
+        if (vacationWorker) {
+            styles.fillColor = [224, 204, 255]; // Light purple
+        } else if (eventsForDay.length > 0) {
+            styles.fillColor = [255, 251, 204]; // Light yellow
+        }
+
         body.push({
             content,
-            styles: { valign: 'top', fontSize: 8, minCellHeight: 140 }
+            styles
         });
     });
 

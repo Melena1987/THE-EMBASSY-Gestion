@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import type { Bookings, ShiftAssignment, SpecialEvents, Task } from '../../../types';
+import type { Bookings, ShiftAssignment, SpecialEvents, Task, Vacations } from '../../../types';
 import DownloadIcon from '../../icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF, generateAgendaPDF } from '../../../utils/pdfUtils';
 
+// Define the CombinedTask type locally as it's not exported from the parent
 type CombinedTask = (Task & {
     type: 'shift';
     sourceId: string;
@@ -23,10 +24,11 @@ interface AgendaHeaderProps {
     defaultAssignments: { morning: string; evening: string };
     specialEvents: SpecialEvents;
     allTasks: CombinedTask[];
+    vacations: Vacations;
 }
 
 const AgendaHeader: React.FC<AgendaHeaderProps> = ({
-    selectedDate, onDateChange, weekNumber, year, weekDays, bookings, currentWeekShifts, defaultAssignments, specialEvents, allTasks
+    selectedDate, onDateChange, weekNumber, year, weekDays, bookings, currentWeekShifts, defaultAssignments, specialEvents, allTasks, vacations
 }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
@@ -50,7 +52,7 @@ const AgendaHeader: React.FC<AgendaHeaderProps> = ({
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts || defaultAssignments, specialEvents, allTasks);
+            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts || defaultAssignments, specialEvents, allTasks, vacations);
         }
         setIsDownloadingAgenda(false);
     }

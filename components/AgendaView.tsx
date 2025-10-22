@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole } from '../types';
+// FIX: Add Vacations to the type import
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../types';
 import { WORKERS, TIME_SLOTS } from '../constants';
 import { getWeekData, formatDateForBookingKey } from '../utils/dateUtils';
 import PlusIcon from './icons/PlusIcon';
@@ -25,6 +26,8 @@ interface AgendaViewProps {
     onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
     currentUserName: string | null;
     userRole: UserRole;
+    // FIX: Add vacations prop
+    vacations: Vacations;
 }
 
 type CombinedTask = (Task & {
@@ -41,7 +44,8 @@ const timeToMinutes = (time: string): number => {
     return hours * 60 + minutes;
 };
 
-const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly, onUpdateShifts, currentUserName, userRole }) => {
+// FIX: Add vacations to props destructuring
+const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateChange, onSelectBooking, setView, shiftAssignments, specialEvents, onAddBooking, onToggleTask, onSelectSpecialEvent, isReadOnly, onUpdateShifts, currentUserName, userRole, vacations }) => {
     const [isDownloadingShifts, setIsDownloadingShifts] = useState(false);
     const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
@@ -188,7 +192,8 @@ const AgendaView: React.FC<AgendaViewProps> = ({ bookings, selectedDate, onDateC
         setIsDownloadingAgenda(true);
         const loaded = await ensurePdfLibsLoaded();
         if (loaded) {
-            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts || defaultAssignments, specialEvents, allTasks);
+            // FIX: Pass vacations to the PDF generation function
+            await generateAgendaPDF(weekNumber, year, weekDays, bookings, currentWeekShifts || defaultAssignments, specialEvents, allTasks, vacations);
         }
         setIsDownloadingAgenda(false);
     }
