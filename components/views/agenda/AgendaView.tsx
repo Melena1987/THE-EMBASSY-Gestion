@@ -37,7 +37,13 @@ type CombinedTask = (Task & {
 });
 
 const AgendaView: React.FC<AgendaViewProps> = (props) => {
-    const { bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onUpdateShifts, currentUserName, userRole, vacations } = props;
+    const { 
+        bookings, selectedDate, onDateChange, onSelectBooking, setView, 
+        shiftAssignments, specialEvents, onAddBooking, onToggleTask, 
+        onSelectSpecialEvent, isReadOnly, onUpdateShifts, 
+        currentUserName, userRole, vacations 
+    } = props;
+    
     const [areFabsVisible, setAreFabsVisible] = useState(true);
     const lastScrollY = useRef(0);
 
@@ -165,7 +171,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
 
             <AgendaTasksObservations 
                 allTasks={allTasks}
-                onToggleTask={props.onToggleTask}
+                onToggleTask={onToggleTask}
                 getResolvedAssignees={getResolvedAssignees}
                 currentWeekShifts={currentWeekShifts}
                 canAddObservations={canAddObservations}
@@ -185,17 +191,17 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
                         specialEvents={specialEvents}
                         currentWeekShifts={currentWeekShifts}
                         defaultAssignments={defaultAssignments}
-                        vacations={props.vacations}
+                        vacations={vacations}
                         timelineConfig={timelineConfig}
-                        onSelectSpecialEvent={props.onSelectSpecialEvent}
-                        onSelectBooking={props.onSelectBooking}
+                        onSelectSpecialEvent={onSelectSpecialEvent}
+                        onSelectBooking={onSelectBooking}
                         onAddBooking={onAddBooking}
-                        isReadOnly={props.isReadOnly}
+                        isReadOnly={isReadOnly}
                     />
                 ))}
             </div>
 
-            {!props.isReadOnly && (
+            {!isReadOnly && (
                  <div className={`fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3 transition-transform duration-300 ease-in-out ${areFabsVisible ? 'translate-y-0' : 'translate-y-40'}`}>
                      <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
                         <StarIcon className="w-6 h-6"/>
