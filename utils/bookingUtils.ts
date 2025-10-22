@@ -2,47 +2,53 @@ import type { Bookings, ConsolidatedBooking, BookingDetails } from '../types';
 import { SPACES } from '../constants';
 import { formatDateForBookingKey } from './dateUtils';
 
-export const consolidateBookingsForDay = (bookings: Bookings, date: Date): ConsolidatedBooking[] => {
-    // Generate maps and definitions internally
-    const spaceIdToNameMap = SPACES.reduce((acc, space) => {
-        acc[space.id] = space.name;
-        return acc;
-    }, {} as Record<string, string>);
+// --- Pre-calculated constants to avoid re-computation on every call ---
 
-    const spaceNameToIdMap = SPACES.reduce((acc, space) => {
-        acc[space.name] = space.id;
-        return acc;
-    }, {} as Record<string, string>);
-    
-    const groupDefinitions = (() => {
-        const allSpaceIds = SPACES.map(s => s.id);
-        const court1Ids = SPACES.filter(s => s.group === 'Pista 1').map(s => s.id);
-        const court2Ids = SPACES.filter(s => s.group === 'Pista 2').map(s => s.id);
-        const meetingRoomIds = SPACES.filter(s => s.group === 'Salas').map(s => s.id);
-        const lockerRoomIds = SPACES.filter(s => s.group === 'Vestuarios').map(s => s.id);
+const spaceIdToNameMap = SPACES.reduce((acc, space) => {
+    acc[space.id] = space.name;
+    return acc;
+}, {} as Record<string, string>);
 
-        return [
-            { name: 'TODA LA INSTALACIÓN', ids: new Set(allSpaceIds) },
-            { name: 'PISTA 1 Y 2', ids: new Set([...court1Ids, ...court2Ids]) },
-            { name: 'Pista 1', ids: new Set(court1Ids) },
-            { name: 'Pista 2', ids: new Set(court2Ids) },
-            { name: 'TODAS LAS SALAS', ids: new Set(meetingRoomIds) },
-            { name: 'TODOS LOS VESTUARIOS', ids: new Set(lockerRoomIds) },
-        ];
-    })();
+const spaceNameToIdMap = SPACES.reduce((acc, space) => {
+    acc[space.name] = space.id;
+    return acc;
+}, {} as Record<string, string>);
 
-    const dateString = formatDateForBookingKey(date);
-    
-    const add30Minutes = (time: string): string => {
-        const [h, m] = time.split(':').map(Number);
-        const newDate = new Date();
-        newDate.setHours(h, m + 30, 0, 0);
-        return `${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`;
-    };
+const groupDefinitions = (() => {
+    const allSpaceIds = SPACES.map(s => s.id);
+    const court1Ids = SPACES.filter(s => s.group === 'Pista 1').map(s => s.id);
+    const court2Ids = SPACES.filter(s => s.group === 'Pista 2').map(s => s.id);
+    const meetingRoomIds = SPACES.filter(s => s.group === 'Salas').map(s => s.id);
+    const lockerRoomIds = SPACES.filter(s => s.group === 'Vestuarios').map(s => s.id);
 
+    return [
+        { name: 'TODA LA INSTALACIÓN', ids: new Set(allSpaceIds) },
+        { name: 'PISTA 1 Y 2', ids: new Set([...court1Ids, ...court2Ids]) },
+        { name: 'Pista 1', ids: new Set(court1Ids) },
+        { name: 'Pista 2', ids: new Set(court2Ids) },
+        { name: 'TODAS LAS SALAS', ids: new Set(meetingRoomIds) },
+        { name: 'TODOS LOS VESTUARIOS', ids: new Set(lockerRoomIds) },
+    ];
+})();
+
+const add30Minutes = (time: string): string => {
+    const [h, m] = time.split(':').map(Number);
+    const newDate = new Date();
+    newDate.setHours(h, m + 30, 0, 0);
+    return `${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`;
+};
+
+
+/**
+ * Extracts all individual 30-minute booking slots for a specific day.
+ * @param bookings - The global bookings object.
+ * @param dateString - The date in 'YYYY-MM-DD' format.
+ * @returns An array of individual booking slots.
+ */
+const _getIndividualSlotsForDay = (bookings: Bookings, dateString: string) => {
     const individualSlots: { time: string; space: string; details: BookingDetails, key: string }[] = [];
     for (const key in bookings) {
-        if (Object.prototype.hasOwnProperty.call(bookings, key) && key.includes(dateString)) {
+        if (key.includes(dateString)) {
             const details = bookings[key];
             if (details.name.startsWith('EVENTO:')) {
                 continue; // Ignore bookings created by special events
@@ -58,12 +64,21 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
             });
         }
     }
-    
+    return individualSlots;
+};
+
+/**
+ * Consolidates consecutive 30-minute time slots into larger time blocks.
+ * @param individualSlots - An array of individual booking slots for a day.
+ * @param dateString - The date in 'YYYY-MM-DD' format.
+ * @returns An array of bookings with consolidated start and end times.
+ */
+const _consolidateTimeSlots = (individualSlots: ReturnType<typeof _getIndividualSlotsForDay>, dateString: string) => {
     if (individualSlots.length === 0) return [];
 
     const bookingsByCompositeKey: Record<string, { time: string, key: string }[]> = {};
     individualSlots.forEach(slot => {
-        const key = `${slot.space}#${slot.details.name}`;
+        const key = `${slot.space}#${slot.details.name}#${slot.details.observations || ''}`;
         if (!bookingsByCompositeKey[key]) {
             bookingsByCompositeKey[key] = [];
         }
@@ -71,17 +86,13 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
     });
 
     const timeConsolidatedBookings: ConsolidatedBooking[] = [];
-    
     for (const key in bookingsByCompositeKey) {
         const [space, name] = key.split('#');
         const sortedSlots = bookingsByCompositeKey[key].sort((a, b) => a.time.localeCompare(b.time));
-
         if (sortedSlots.length === 0) continue;
-        
+
         const originalSlot = individualSlots.find(s => s.key === sortedSlots[0].key);
         if (!originalSlot) continue;
-        const bookingDetails = originalSlot.details;
-
 
         let currentStartTime = sortedSlots[0].time;
         let lastTime = sortedSlots[0].time;
@@ -92,29 +103,25 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
                 lastTime = sortedSlots[i].time;
                 currentKeys.push(sortedSlots[i].key);
             } else {
-                timeConsolidatedBookings.push({
-                    date: dateString,
-                    startTime: currentStartTime,
-                    endTime: add30Minutes(lastTime),
-                    space,
-                    details: bookingDetails,
-                    keys: currentKeys
-                });
+                timeConsolidatedBookings.push({ date: dateString, startTime: currentStartTime, endTime: add30Minutes(lastTime), space, details: originalSlot.details, keys: currentKeys });
                 currentStartTime = sortedSlots[i].time;
                 lastTime = sortedSlots[i].time;
                 currentKeys = [sortedSlots[i].key];
             }
         }
-        timeConsolidatedBookings.push({
-            date: dateString,
-            startTime: currentStartTime,
-            endTime: add30Minutes(lastTime),
-            space,
-            details: bookingDetails,
-            keys: currentKeys
-        });
+        timeConsolidatedBookings.push({ date: dateString, startTime: currentStartTime, endTime: add30Minutes(lastTime), space, details: originalSlot.details, keys: currentKeys });
     }
-    
+    return timeConsolidatedBookings;
+};
+
+/**
+ * Consolidates individual space bookings into larger group names (e.g., "Pista 1, Pista 2" becomes "PISTA 1 Y 2").
+ * @param timeConsolidatedBookings - Bookings already consolidated by time.
+ * @returns The final array of consolidated bookings for the day.
+ */
+const _consolidateSpaceGroups = (timeConsolidatedBookings: ConsolidatedBooking[]) => {
+    if (timeConsolidatedBookings.length === 0) return [];
+
     const bookingsGroupedForSpaceConsolidation: Record<string, ConsolidatedBooking[]> = {};
     timeConsolidatedBookings.forEach(booking => {
         const key = `${booking.startTime}-${booking.endTime}-${booking.details.name}`;
@@ -125,65 +132,70 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
     });
 
     const finalBookings: ConsolidatedBooking[] = [];
-
     for (const key in bookingsGroupedForSpaceConsolidation) {
         const bookingsInGroup = bookingsGroupedForSpaceConsolidation[key];
         const { date, startTime, endTime, details } = bookingsInGroup[0];
 
-        const bookingsBySpaceId: Record<string, ConsolidatedBooking> = {};
-        bookingsInGroup.forEach(b => {
+        const bookingsBySpaceId = bookingsInGroup.reduce((acc, b) => {
             const spaceId = spaceNameToIdMap[b.space];
-            if (spaceId) {
-                bookingsBySpaceId[spaceId] = b;
-            }
-        });
+            if (spaceId) acc[spaceId] = b;
+            return acc;
+        }, {} as Record<string, ConsolidatedBooking>);
 
         const unhandledSpaceIds = new Set(Object.keys(bookingsBySpaceId));
-        const consolidatedSpaceNames: string[] = [];
         let allKeysForThisSlot: string[] = [];
+        const consolidatedSpaceNames: string[] = [];
 
         for (const groupDef of groupDefinitions) {
             const groupIds = [...groupDef.ids];
-            if (groupIds.every(id => unhandledSpaceIds.has(id))) {
-                
-                // Special case for full installation: if it matches perfectly, we are done with grouping.
+            if (groupIds.length > 0 && groupIds.every(id => unhandledSpaceIds.has(id))) {
                 if (groupDef.name === 'TODA LA INSTALACIÓN' && groupDef.ids.size === unhandledSpaceIds.size) {
                     consolidatedSpaceNames.push(groupDef.name);
                     allKeysForThisSlot.push(...[...unhandledSpaceIds].flatMap(id => bookingsBySpaceId[id].keys));
-                    unhandledSpaceIds.clear(); // Clear all as we have a full match
-                    break; // Exit the loop, no need to check for smaller groups
+                    unhandledSpaceIds.clear();
+                    break;
                 }
-
                 consolidatedSpaceNames.push(groupDef.name);
-                const groupKeys = groupIds.flatMap(id => bookingsBySpaceId[id].keys);
-                allKeysForThisSlot.push(...groupKeys);
-                
+                allKeysForThisSlot.push(...groupIds.flatMap(id => bookingsBySpaceId[id].keys));
                 groupIds.forEach(id => unhandledSpaceIds.delete(id));
             }
         }
 
-        const remainingIndividualSpaces: string[] = [];
-        unhandledSpaceIds.forEach(id => {
-            const individualBooking = bookingsBySpaceId[id];
-            remainingIndividualSpaces.push(individualBooking.space);
-            allKeysForThisSlot.push(...individualBooking.keys);
-        });
-        
-        remainingIndividualSpaces.sort();
+        const remainingIndividualSpaces = [...unhandledSpaceIds].map(id => bookingsBySpaceId[id].space).sort();
+        allKeysForThisSlot.push(...[...unhandledSpaceIds].flatMap(id => bookingsBySpaceId[id].keys));
         consolidatedSpaceNames.push(...remainingIndividualSpaces);
 
         if (consolidatedSpaceNames.length > 0) {
-             finalBookings.push({
-                date,
-                startTime,
-                endTime,
-                space: consolidatedSpaceNames.join(', '),
-                details,
-                keys: allKeysForThisSlot,
-            });
+            finalBookings.push({ date, startTime, endTime, space: consolidatedSpaceNames.join(', '), details, keys: allKeysForThisSlot });
         }
     }
+    return finalBookings;
+};
 
+/**
+ * Consolidates all bookings for a given day.
+ * It merges consecutive time slots and groups spaces under collective names.
+ * Example: A booking from 9:00-10:00 on Pista 1 & Pista 2 becomes one entry.
+ * @param bookings The complete bookings object.
+ * @param date The date for which to consolidate bookings.
+ * @returns An array of ConsolidatedBooking objects for the day, sorted by time and space.
+ */
+export const consolidateBookingsForDay = (bookings: Bookings, date: Date): ConsolidatedBooking[] => {
+    const dateString = formatDateForBookingKey(date);
+    
+    // Step 1: Get all raw 30-min slots for the day
+    const individualSlots = _getIndividualSlotsForDay(bookings, dateString);
+    if (!individualSlots.length) return [];
+
+    // Step 2: Merge consecutive time slots
+    const timeConsolidatedBookings = _consolidateTimeSlots(individualSlots, dateString);
+    if (!timeConsolidatedBookings || !timeConsolidatedBookings.length) return [];
+
+    // Step 3: Group spaces (e.g., Pista 1 + Pista 2 -> PISTA 1 Y 2)
+    const finalBookings = _consolidateSpaceGroups(timeConsolidatedBookings);
+    if (!finalBookings || !finalBookings.length) return [];
+
+    // Final sort
     return finalBookings.sort((a, b) => {
         if (a.startTime !== b.startTime) {
             return a.startTime.localeCompare(b.startTime);
@@ -192,10 +204,17 @@ export const consolidateBookingsForDay = (bookings: Bookings, date: Date): Conso
     });
 };
 
+
+/**
+ * Finds all recurring bookings related to a selected one.
+ * It matches bookings with the same name, observations, duration, and spaces across different dates.
+ * @param selectedBooking The booking to find relatives for.
+ * @param allBookings The entire bookings collection.
+ * @returns An array of objects, each containing the date and keys for a related occurrence.
+ */
 export const findRelatedBookings = (selectedBooking: ConsolidatedBooking, allBookings: Bookings): { date: string, keys: string[] }[] => {
     const { name, observations } = selectedBooking.details;
-    const startTime = selectedBooking.startTime;
-    const endTime = selectedBooking.endTime;
+    const { startTime, endTime } = selectedBooking;
     
     const selectedSpaceIds = new Set(selectedBooking.keys.map(key => key.split('-').slice(0, -4).join('-')));
 
@@ -205,23 +224,12 @@ export const findRelatedBookings = (selectedBooking: ConsolidatedBooking, allBoo
     let currentTime = startTime;
     while (currentTime < endTime) {
         relevantTimeSlots.add(currentTime);
-        const [h, m] = currentTime.split(':').map(Number);
-        const d = new Date(2000, 0, 1, h, m + 30); // Use a fixed date to avoid DST issues
-        currentTime = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        currentTime = add30Minutes(currentTime);
     }
 
-    const potentialSlots = Object.entries(allBookings).filter(([key, details]) => {
-        const keyParts = key.split('-');
-        if (keyParts.length < 5) return false;
-
-        const keyTime = keyParts.slice(-1)[0];
-        const keySpaceId = keyParts.slice(0, -4).join('-');
-        
-        return details.name === name &&
-               details.observations === observations &&
-               selectedSpaceIds.has(keySpaceId) &&
-               relevantTimeSlots.has(keyTime);
-    });
+    const potentialSlots = Object.entries(allBookings).filter(([, details]) => 
+        details.name === name && details.observations === observations
+    );
 
     const bookingsByDate: Record<string, string[]> = {};
     potentialSlots.forEach(([key]) => {
@@ -234,20 +242,13 @@ export const findRelatedBookings = (selectedBooking: ConsolidatedBooking, allBoo
     
     const relatedOccurrences = Object.entries(bookingsByDate).filter(([, keys]) => {
         const groupSpaceIds = new Set(keys.map(key => key.split('-').slice(0, -4).join('-')));
-        
-        if (groupSpaceIds.size !== selectedSpaceIds.size) {
-            return false;
-        }
-        
-        const timeSlotsPerSpace = keys.length / groupSpaceIds.size;
-        if (timeSlotsPerSpace !== relevantTimeSlots.size) {
-            return false;
-        }
+        const timeSlotsInGroup = new Set(keys.map(key => key.split('-').slice(-1)[0]));
 
-        for (const id of selectedSpaceIds) {
-            if (!groupSpaceIds.has(id)) return false;
-        }
-        return true;
+        // Check if the set of spaces and times match the original booking
+        return groupSpaceIds.size === selectedSpaceIds.size &&
+               [...selectedSpaceIds].every(id => groupSpaceIds.has(id)) &&
+               timeSlotsInGroup.size === relevantTimeSlots.size &&
+               [...relevantTimeSlots].every(time => timeSlotsInGroup.has(time));
     }).map(([date, keys]) => ({ date, keys }));
     
     return relatedOccurrences.sort((a, b) => a.date.localeCompare(b.date));

@@ -101,7 +101,10 @@ export function* generateRepeatingDates(
                 
                 if (nextDate > limitDate) break;
 
-                // Only yield if the day of the month hasn't changed (avoids Jan 31 becoming Mar 3)
+                // This check is crucial to handle month-end transitions correctly.
+                // For example, if the start date is January 31, adding a month would result in
+                // March 3 (since February has 28/29 days). This check ensures we only yield
+                // dates that fall on the same day of the month as the original start date.
                 if (nextDate.getDate() === initialDate.getDate()) {
                     yield nextDate;
                 }
