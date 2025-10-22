@@ -171,18 +171,19 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
         }
 
         const processAndSaveEvent = async (posterUrl?: string) => {
-            const eventData: SpecialEvent = { 
-                id: eventId, 
-                name: eventName.trim(), 
+            const eventData: SpecialEvent = {
+                id: eventId,
+                name: eventName.trim(),
                 startDate: formatDateForBookingKey(eventStartDate),
                 endDate: formatDateForBookingKey(eventEndDate),
-                observations: observations.trim() || undefined, 
-                tasks: tasks.length > 0 ? tasks : undefined, 
-                startTime: startTime || undefined, 
-                endTime: endTime || undefined, 
-                spaceIds: selectedSpaces.length > 0 ? selectedSpaces : undefined, 
-                posterUrl: posterUrl 
+                ...(observations.trim() && { observations: observations.trim() }),
+                ...(tasks && tasks.length > 0 && { tasks: tasks }),
+                ...(startTime && { startTime: startTime }),
+                ...(endTime && { endTime: endTime }),
+                ...(selectedSpaces.length > 0 && { spaceIds: selectedSpaces }),
+                ...(posterUrl && { posterUrl: posterUrl }),
             };
+            
             await onSaveEvent(eventData, eventToEdit);
             setIsUploading(false);
         };
