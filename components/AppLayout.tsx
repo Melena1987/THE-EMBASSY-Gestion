@@ -1,18 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole, AggregatedTask, TaskSourceCollection, Vacations } from '../types';
+import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole } from '../types';
 import Header from './layout/Header';
 import Footer from './layout/Footer';
-import FloorPlanView from './views/FloorPlanView';
-import CalendarView from './views/CalendarView';
-import AgendaView from './views/AgendaView';
-import BookingDetailsView from './views/BookingDetailsView';
-import ShiftsView from './views/ShiftsView';
-import ExternalServicesView from './views/ExternalServicesView';
-import SpecialEventView from './views/SpecialEventView';
-import SpecialEventDetailsView from './views/SpecialEventDetailsView';
-import SponsorsView from './views/SponsorsView';
 import ConfirmationModal from './ui/ConfirmationModal';
 import WifiModal from './ui/WifiModal';
+import ViewRenderer from './ViewRenderer';
 import { findRelatedBookings } from '../utils/bookingUtils';
 import { useAppStore } from '../hooks/useAppStore';
 
@@ -28,15 +20,10 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const {
-        bookings, shiftAssignments, cleaningAssignments, cleaningObservations,
-        specialEvents, sponsors, myPendingTasks, handleAddBooking,
-        handleDeleteBookingKeys, handleUpdateShifts, handleToggleTask,
-        handleResetWeekShifts, handleUpdateCleaningTime, handleUpdateCleaningObservations,
-        handleSaveSpecialEvent, handleDeleteSpecialEvent, handleUpdateSponsor, handleAddSponsor,
-        handleAddRecurringTask, vacations, handleUpdateVacations,
+        bookings, myPendingTasks, handleDeleteBookingKeys, handleToggleTask
     } = store;
 
-    const { user, userRole, currentUserName, handleLogout } = auth;
+    const { user, userRole, handleLogout } = auth;
 
     // UI State
     const [view, setView] = useState<View>('agenda');
@@ -148,40 +135,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR';
     const canManageSponsors = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
-    const renderView = () => {
-        switch (view) {
-            case 'plano':
-                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
-            case 'calendario':
-                return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
-            case 'agenda':
-                return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} vacations={vacations} />;
-            case 'detalles':
-                if (selectedBooking) {
-                    return <BookingDetailsView booking={selectedBooking} onBack={() => setView('agenda')} onDelete={triggerDeleteProcess} onEdit={() => triggerEditProcess(selectedBooking)} isReadOnly={!canEditBookings} />;
-                }
-                return null;
-            case 'turnos':
-                return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} vacations={vacations} handleUpdateVacations={handleUpdateVacations} currentUserName={currentUserName} userRole={userRole} />;
-            case 'servicios':
-                return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
-            case 'eventos':
-                return <SpecialEventView bookings={bookings} onSaveEvent={handleSaveSpecialEvent} onBack={() => setView('agenda')} eventToEdit={selectedSpecialEvent} onEditDone={() => setSelectedSpecialEvent(null)} isReadOnly={!canEditSpecialEvents} />;
-            case 'detalles_evento':
-                if (selectedSpecialEvent) {
-                    const currentEventData = specialEvents[selectedSpecialEvent.id];
-                    if (currentEventData) {
-                        return <SpecialEventDetailsView event={currentEventData} onBack={() => { setView('agenda'); setSelectedSpecialEvent(null); }} onEdit={() => setView('eventos')} onDelete={handleDeleteSpecialEvent} onToggleTask={handleToggleTask} canEdit={canEditSpecialEvents} />;
-                    }
-                }
-                return null;
-            case 'sponsors':
-                 return <SponsorsView sponsors={sponsors} onUpdateSponsor={handleUpdateSponsor} onAddSponsor={handleAddSponsor} onToggleTask={handleToggleTask} isReadOnly={!canManageSponsors} />;
-            default:
-                return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
-        }
-    };
-
     return (
         <div className="min-h-screen text-gray-100 flex flex-col">
             <Header
@@ -194,7 +147,28 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onToggleTask={handleToggleTask}
             />
             <main className="flex-grow p-4 sm:p-6 md:p-8">
-                {renderView()}
+                <ViewRenderer
+                    view={view}
+                    setView={setView}
+                    store={store}
+                    auth={auth}
+                    selectedDate={selectedDate}
+                    setSelectedDate={setSelectedDate}
+                    selectedBooking={selectedBooking}
+                    selectedSpecialEvent={selectedSpecialEvent}
+                    setSelectedSpecialEvent={setSelectedSpecialEvent}
+                    bookingToPreFill={bookingToPreFill}
+                    onPreFillComplete={onPreFillComplete}
+                    triggerDeleteProcess={triggerDeleteProcess}
+                    triggerEditProcess={triggerEditProcess}
+                    handleSelectBooking={handleSelectBooking}
+                    handleSelectSpecialEvent={handleSelectSpecialEvent}
+                    canEditBookings={canEditBookings}
+                    canEditShifts={canEditShifts}
+                    canEditSpecialEvents={canEditSpecialEvents}
+                    canEditServices={canEditServices}
+                    canManageSponsors={canManageSponsors}
+                />
             </main>
             <Footer onWifiClick={() => setIsWifiModalOpen(true)} />
             <ConfirmationModal
