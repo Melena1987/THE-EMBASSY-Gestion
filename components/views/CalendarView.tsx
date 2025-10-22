@@ -189,7 +189,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                             {weekDays.map((d, j) => {
                                 const dayKey = formatDateForBookingKey(d);
                                 const dayBookings = consolidateBookingsForDay(bookings, d);
-                                // FIX: Cast event to SpecialEvent to access its properties.
                                 const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
                                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
                                 const isSelected = isSameDay(d, selectedDate);
@@ -218,14 +217,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                         <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
                                             {eventsForDay.map(event => (
                                                 <div 
-                                                    // FIX: Cast event to SpecialEvent to access its properties.
                                                     key={(event as SpecialEvent).id}
                                                     className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
-                                                    // FIX: Cast event to SpecialEvent before passing to the handler.
                                                     onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(event as SpecialEvent); }}
                                                 >
                                                    <StarIcon className="w-3 h-3 flex-shrink-0" />
-                                                   {/* FIX: Cast event to SpecialEvent to access its properties. */}
                                                    <span className="truncate">{(event as SpecialEvent).name}</span>
                                                 </div>
                                             ))}

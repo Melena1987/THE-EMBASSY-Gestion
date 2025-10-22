@@ -86,60 +86,62 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const myPendingTasks = useMemo<AggregatedTask[]>(() => {
         if (!currentUserName) return [];
 
-        const tasks: AggregatedTask[] = [];
+        const isUserAssignedToShiftTask = (task: Task, assignment: ShiftAssignment): boolean => {
+            const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+            for (const assignee of taskAssignees) {
+                if (assignee === currentUserName) return true;
+                if (assignee === 'MAÑANA' && assignment.morning === currentUserName) return true;
+                if (assignee === 'TARDE' && assignment.evening === currentUserName) return true;
+            }
+            return false;
+        };
 
-        // Tasks from shift assignments
-        Object.entries(shiftAssignments).forEach(([id, assignment]) => {
-            const typedAssignment = assignment as ShiftAssignment;
-            (typedAssignment.tasks || []).forEach(task => {
-                if (task.completed) return;
-
-                let isAssigned = false;
-                const taskAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-                for (const assignee of taskAssignees) {
-                    if (assignee === currentUserName) {
-                        isAssigned = true;
-                        break;
+        const getTasksFromShifts = (): AggregatedTask[] => {
+            const tasks: AggregatedTask[] = [];
+            Object.entries(shiftAssignments).forEach(([id, assignment]) => {
+                const typedAssignment = assignment as ShiftAssignment;
+                (typedAssignment.tasks || []).forEach(task => {
+                    if (!task.completed && isUserAssignedToShiftTask(task, typedAssignment)) {
+                        tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${id.split('-')[1]})` });
                     }
-                    if (assignee === 'MAÑANA' && typedAssignment.morning === currentUserName) {
-                        isAssigned = true;
-                        break;
-                    }
-                    if (assignee === 'TARDE' && typedAssignment.evening === currentUserName) {
-                        isAssigned = true;
-                        break;
-                    }
-                }
-
-                if (isAssigned) {
-                    tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${id.split('-')[1]})` });
-                }
+                });
             });
-        });
-
-        // Tasks from special events
-        Object.entries(specialEvents).forEach(([id, event]) => {
-            const typedEvent = event as SpecialEvent;
-            (typedEvent.tasks || []).forEach(task => {
-                const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-                if (!task.completed && assignees.includes(currentUserName)) {
-                    tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: typedEvent.name });
-                }
-            });
-        });
-
-        // Tasks from sponsors
-        Object.entries(sponsors).forEach(([id, sponsor]) => {
-            const typedSponsor = sponsor as Sponsor;
-            (typedSponsor.tasks || []).forEach(task => {
-                const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-                if (!task.completed && assignees.includes(currentUserName)) {
-                    tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: typedSponsor.name });
-                }
-            });
-        });
+            return tasks;
+        };
         
-        return tasks;
+        const getTasksFromEvents = (): AggregatedTask[] => {
+            const tasks: AggregatedTask[] = [];
+            Object.entries(specialEvents).forEach(([id, event]) => {
+                const typedEvent = event as SpecialEvent;
+                (typedEvent.tasks || []).forEach(task => {
+                    const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+                    if (!task.completed && assignees.includes(currentUserName)) {
+                        tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: typedEvent.name });
+                    }
+                });
+            });
+            return tasks;
+        };
+
+        const getTasksFromSponsors = (): AggregatedTask[] => {
+            const tasks: AggregatedTask[] = [];
+            Object.entries(sponsors).forEach(([id, sponsor]) => {
+                const typedSponsor = sponsor as Sponsor;
+                (typedSponsor.tasks || []).forEach(task => {
+                    const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+                    if (!task.completed && assignees.includes(currentUserName)) {
+                        tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: typedSponsor.name });
+                    }
+                });
+            });
+            return tasks;
+        };
+
+        return [
+            ...getTasksFromShifts(),
+            ...getTasksFromEvents(),
+            ...getTasksFromSponsors(),
+        ];
     }, [shiftAssignments, specialEvents, sponsors, currentUserName]);
 
 

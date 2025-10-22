@@ -7,7 +7,6 @@ import StarIcon from '../icons/StarIcon';
 import AgendaHeader from './agenda/AgendaHeader';
 import AgendaTasksObservations from './agenda/AgendaTasksObservations';
 import AgendaTimelineDay from './agenda/AgendaTimelineDay';
-// FIX: Import consolidateBookingsForDay utility to correctly process bookings for the timeline.
 import { consolidateBookingsForDay } from '../../utils/bookingUtils';
 
 interface AgendaViewProps {
@@ -79,8 +78,6 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
         weekDays.forEach(day => {
             const dayKey = formatDateForBookingKey(day);
             const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
-            // FIX: Use consolidateBookingsForDay to correctly get bookings for the day.
-            // The previous logic was iterating over all bookings and trying to access properties that don't exist on BookingDetails.
             const dayBookings = consolidateBookingsForDay(bookings, day);
 
             const timedItems = [

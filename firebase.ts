@@ -1,6 +1,10 @@
-// --- Solución Definitiva para errores de 'import.meta.env' en Vite ---
-// Envolvemos la aumentación en 'declare global' para asegurar que TypeScript
-// la aplique globalmente y no solo dentro de este módulo.
+
+// Importa las funciones necesarias de los SDKs que necesitas
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
+
 declare global {
   interface ImportMetaEnv {
     readonly VITE_FIREBASE_API_KEY: string;
@@ -15,14 +19,6 @@ declare global {
     readonly env: ImportMetaEnv;
   }
 }
-// --- Fin de la solución ---
-
-
-// Importa las funciones necesarias de los SDKs que necesitas
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage";
 
 // Lee las variables de entorno de Vite/Netlify de forma segura
 const firebaseConfig = {
