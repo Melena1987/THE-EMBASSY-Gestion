@@ -37,7 +37,7 @@ type CombinedTask = (Task & {
 });
 
 const AgendaView: React.FC<AgendaViewProps> = (props) => {
-    const { bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onUpdateShifts, currentUserName, userRole } = props;
+    const { bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onUpdateShifts, currentUserName, userRole, vacations } = props;
     const [areFabsVisible, setAreFabsVisible] = useState(true);
     const lastScrollY = useRef(0);
 
@@ -160,7 +160,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
                 defaultAssignments={defaultAssignments}
                 specialEvents={specialEvents}
                 allTasks={allTasks}
-                vacations={props.vacations}
+                vacations={vacations}
             />
 
             <AgendaTasksObservations 

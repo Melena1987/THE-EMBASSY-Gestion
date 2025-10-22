@@ -21,7 +21,7 @@ interface AgendaViewProps {
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
-    onUpdateShifts: (weekId: string, newShifts: ShiftAssignment) => void;
+    onUpdateShifts: (weekId: string, newShifts: ShiftAssignment, oldShifts: ShiftAssignment | undefined) => void;
     currentUserName: string | null;
     userRole: UserRole;
     vacations: Vacations;
@@ -37,7 +37,7 @@ type CombinedTask = (Task & {
 });
 
 const AgendaView: React.FC<AgendaViewProps> = (props) => {
-    const { bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onUpdateShifts, currentUserName, userRole } = props;
+    const { bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, onAddBooking, onUpdateShifts, currentUserName, userRole, vacations } = props;
     const [areFabsVisible, setAreFabsVisible] = useState(true);
     const lastScrollY = useRef(0);
 
@@ -160,6 +160,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
                 defaultAssignments={defaultAssignments}
                 specialEvents={specialEvents}
                 allTasks={allTasks}
+                vacations={vacations}
             />
 
             <AgendaTasksObservations 
@@ -168,7 +169,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
                 getResolvedAssignees={getResolvedAssignees}
                 currentWeekShifts={currentWeekShifts}
                 canAddObservations={canAddObservations}
-                onUpdateShifts={onUpdateShifts}
+                onUpdateShifts={(weekId, newShifts) => onUpdateShifts(weekId, newShifts, currentWeekShifts)}
                 weekId={weekId}
                 defaultAssignments={defaultAssignments}
                 currentUserName={currentUserName}
