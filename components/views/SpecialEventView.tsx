@@ -14,9 +14,10 @@ interface SpecialEventViewProps {
     eventToEdit: SpecialEvent | null;
     onEditDone: () => void;
     isReadOnly: boolean;
+    onSelectSpecialEvent: (event: SpecialEvent) => void;
 }
 
-const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEvent, onBack, eventToEdit, onEditDone, isReadOnly }) => {
+const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEvent, onBack, eventToEdit, onEditDone, isReadOnly, onSelectSpecialEvent }) => {
     const [eventName, setEventName] = useState('');
     const [eventStartDate, setEventStartDate] = useState(new Date());
     const [eventEndDate, setEventEndDate] = useState(new Date());
@@ -184,8 +185,11 @@ const SpecialEventView: React.FC<SpecialEventViewProps> = ({ bookings, onSaveEve
                 ...(posterUrl && { posterUrl: posterUrl }),
             };
             
-            await onSaveEvent(eventData, eventToEdit);
+            const success = await onSaveEvent(eventData, eventToEdit);
             setIsUploading(false);
+            if(success) {
+                onSelectSpecialEvent(eventData);
+            }
         };
         
         // Step 2: Handle new poster upload

@@ -12,6 +12,7 @@ interface FloorPlanViewProps {
     bookingToPreFill: ConsolidatedBooking | null;
     onPreFillComplete: () => void;
     isReadOnly: boolean;
+    onSelectBooking: (booking: ConsolidatedBooking) => void;
 }
 
 const WEEKDAYS = [
@@ -21,7 +22,7 @@ const WEEKDAYS = [
 ];
 
 
-const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete, isReadOnly }) => {
+const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, selectedDate, onDateChange, bookingToPreFill, onPreFillComplete, isReadOnly, onSelectBooking }) => {
     const [selectedStartTime, setSelectedStartTime] = useState('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState('10:00');
     const [reservationName, setReservationName] = useState('');
@@ -171,9 +172,37 @@ const FloorPlanView: React.FC<FloorPlanViewProps> = ({ bookings, onAddBooking, s
         const success = await onAddBooking(allKeysToToggle, bookingDetails);
         
         if (success) {
+            // Capture necessary state before resetting
+            const newBookingDetails = { ...bookingDetails };
+            const newBookingStartTime = selectedStartTime;
+            const newBookingEndTime = selectedEndTime;
+            const newBookingPendingSelections = [...pendingSelections];
+
+            // Reset form
             setReservationName('');
             setObservations('');
             setPendingSelections([]);
+            
+            // Construct a ConsolidatedBooking for the first new booking to navigate
+            const firstDate = datesToBook[0];
+            const firstDateStr = formatDateForBookingKey(firstDate);
+            
+            const firstBookingKeys = newBookingPendingSelections.flatMap(spaceId => 
+                relevantTimeSlots.map(time => `${spaceId}-${firstDateStr}-${time}`)
+            );
+            
+            const spaceNames = newBookingPendingSelections.map(id => SPACES.find(s => s.id === id)?.name || id);
+            
+            const newBooking: ConsolidatedBooking = {
+                date: firstDateStr,
+                startTime: newBookingStartTime,
+                endTime: newBookingEndTime,
+                space: spaceNames.join(', '), // Simplified space name
+                details: newBookingDetails,
+                keys: firstBookingKeys,
+            };
+
+            onSelectBooking(newBooking);
         }
     };
     

@@ -91,7 +91,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
 
     switch (view) {
         case 'plano':
-            return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} />;
+            return <FloorPlanView bookings={bookings} onAddBooking={handleAddBooking} selectedDate={selectedDate} onDateChange={setSelectedDate} bookingToPreFill={bookingToPreFill} onPreFillComplete={onPreFillComplete} isReadOnly={!canEditBookings} onSelectBooking={handleSelectBooking} />;
         case 'calendario':
             return <CalendarView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} />;
         case 'agenda':
@@ -106,7 +106,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         case 'servicios':
             return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
         case 'eventos':
-            return <SpecialEventView bookings={bookings} onSaveEvent={handleSaveSpecialEvent} onBack={() => setView('agenda')} eventToEdit={selectedSpecialEvent} onEditDone={() => setSelectedSpecialEvent(null)} isReadOnly={!canEditSpecialEvents} />;
+            return <SpecialEventView bookings={bookings} onSaveEvent={handleSaveSpecialEvent} onBack={() => setView('agenda')} eventToEdit={selectedSpecialEvent} onEditDone={() => setSelectedSpecialEvent(null)} isReadOnly={!canEditSpecialEvents} onSelectSpecialEvent={handleSelectSpecialEvent} />;
         case 'detalles_evento':
             if (selectedSpecialEvent) {
                 const currentEventData = specialEvents[selectedSpecialEvent.id];
