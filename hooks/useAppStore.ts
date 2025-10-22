@@ -158,7 +158,8 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const myUnreadNotifications = useMemo<AppNotification[]>(() => {
         if (!user) return [];
         return Object.values(notifications)
-            .filter((n): n is AppNotification => !!n.createdAt && !n.readBy.includes(user.uid))
+            // FIX: The type of `n` is inferred as `unknown`, so we cast it to `any` and add checks to safely access its properties.
+            .filter((n: any): n is AppNotification => n && !!n.createdAt && Array.isArray(n.readBy) && !n.readBy.includes(user.uid))
             .sort((a, b) => b.createdAt - a.createdAt);
     }, [notifications, user]);
 
