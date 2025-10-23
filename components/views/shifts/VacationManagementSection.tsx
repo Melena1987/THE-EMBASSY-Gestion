@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Vacations, UserRole } from '../../../types';
 import { formatDateForBookingKey } from '../../../utils/dateUtils';
-import TrashIcon from '../../icons/TrashIcon';
+import TrashIcon from '../../../icons/TrashIcon';
 
 interface VacationManagementSectionProps {
     selectedDate: Date;

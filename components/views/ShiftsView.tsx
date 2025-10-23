@@ -1,8 +1,8 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import type { ShiftAssignments, ShiftAssignment, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection, Vacations, UserRole } from '../../../types';
-import { WORKERS } from '../../../constants';
-import { getWeekData, formatDateForBookingKey } from '../../../utils/dateUtils';
-import { calculateUpdatedShifts } from '../../../utils/shiftUtils';
+import type { ShiftAssignments, ShiftAssignment, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection, Vacations, UserRole } from '../../types';
+import { WORKERS } from '../../constants';
+import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
+import { calculateUpdatedShifts } from '../../utils/shiftUtils';
 import ShiftHeader from './shifts/ShiftHeader';
 import DailyShiftCard from './shifts/DailyShiftCard';
 import WeeklyTasksSection from './shifts/WeeklyTasksSection';
@@ -226,7 +226,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
                 isReadOnly={isReadOnly}
                 onWeeklyWorkerChange={handleWeeklyWorkerChange}
                 onSwap={handleSwap}
-                onReset={onResetWeekShifts}
+                onReset={() => onResetWeekShifts(weekId)}
                 allTasks={allTasks}
             />
 
