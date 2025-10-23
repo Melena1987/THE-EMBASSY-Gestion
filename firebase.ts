@@ -1,9 +1,9 @@
 
 // Importa las funciones necesarias de los SDKs que necesitas
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage";
+import { initializeApp } from "https://aistudiocdn.com/firebase@12.4.0/app.js";
+import { getFirestore } from "https://aistudiocdn.com/firebase@12.4.0/firestore.js";
+import { getAuth } from "https://aistudiocdn.com/firebase@12.4.0/auth.js";
+import { getStorage } from "https://aistudiocdn.com/firebase@12.4.0/storage.js";
 
 declare global {
   interface ImportMetaEnv {

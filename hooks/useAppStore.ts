@@ -9,7 +9,7 @@ import {
     setDoc,
     updateDoc,
     serverTimestamp,
-} from 'firebase/firestore';
+} from 'https://aistudiocdn.com/firebase@12.4.0/firestore.js';
 import { db } from '../firebase';
 import type {
     User,
