@@ -3,9 +3,9 @@ import type { ShiftAssignment, ShiftPeriodDetail, Vacations } from '../../../typ
 import { WORKERS } from '../../../constants';
 import { getDefaultDailyShift } from '../../../utils/shiftUtils';
 import { formatDateForBookingKey } from '../../../utils/dateUtils';
-import SunIcon from '../../../icons/SunIcon';
-import MoonIcon from '../../../icons/MoonIcon';
-import RefreshCcwIcon from '../../../icons/RefreshCcwIcon';
+import SunIcon from '../../icons/SunIcon';
+import MoonIcon from '../../icons/MoonIcon';
+import RefreshCcwIcon from '../../icons/RefreshCcwIcon';
 
 interface DailyShiftCardProps {
     day: Date;
