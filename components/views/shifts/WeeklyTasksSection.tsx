@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Task, TaskSourceCollection, ShiftAssignment } from '../../../types';
-import { WORKERS } from '../../../constants';
-import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../../../utils/dateUtils';
-import TrashIcon from '../../../icons/TrashIcon';
-import CheckIcon from '../../../icons/CheckIcon';
-import StarIcon from '../../../icons/StarIcon';
+import type { Task, TaskSourceCollection, ShiftAssignment } from '../../types';
+import { WORKERS } from '../../constants';
+import { getWeekData, formatDateForBookingKey, generateRepeatingDates } from '../../utils/dateUtils';
+import TrashIcon from '../../icons/TrashIcon';
+import CheckIcon from '../../icons/CheckIcon';
+import StarIcon from '../../icons/StarIcon';
 
 type CombinedTask = (Task & {
     type: 'shift';
