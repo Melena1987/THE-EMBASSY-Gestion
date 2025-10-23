@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import type { ShiftAssignment, Task } from '../../../types';
 import { WORKERS } from '../../../constants';
-import SwitchIcon from '../../../icons/SwitchIcon';
-import RefreshCcwIcon from '../../../icons/RefreshCcwIcon';
-import DownloadIcon from '../../../icons/DownloadIcon';
+import SwitchIcon from '../../icons/SwitchIcon';
+import RefreshCcwIcon from '../../icons/RefreshCcwIcon';
+import DownloadIcon from '../../icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF } from '../../../utils/pdfUtils';
 
 // Define the CombinedTask type locally as it's not exported from the parent
