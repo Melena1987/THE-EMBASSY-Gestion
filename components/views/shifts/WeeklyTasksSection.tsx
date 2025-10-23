@@ -18,10 +18,10 @@ type CombinedTask = (Task & {
 interface WeeklyTasksSectionProps {
     allTasks: CombinedTask[];
     isReadOnly: boolean;
-    currentShifts: ShiftAssignment;
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onDeleteTask: (taskId: string) => void;
-    onAddTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>, weekIds: string[]) => Promise<boolean>;
+    onAddSingleTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>) => void;
+    onAddRecurringTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>, weekIds: string[]) => Promise<boolean>;
     selectedDate: Date;
     weekDays: Date[];
     getResolvedAssignees: (task: CombinedTask) => string[];
@@ -35,7 +35,7 @@ const WEEKDAYS = [
 ];
 
 const WeeklyTasksSection: React.FC<WeeklyTasksSectionProps> = ({
-    allTasks, isReadOnly, currentShifts, onToggleTask, onDeleteTask, onAddTask: onAddRecurringTask, selectedDate, weekDays, getResolvedAssignees
+    allTasks, isReadOnly, onToggleTask, onDeleteTask, onAddSingleTask, onAddRecurringTask, selectedDate, weekDays, getResolvedAssignees
 }) => {
     const [newTaskText, setNewTaskText] = useState('');
     const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
@@ -94,6 +94,18 @@ const WeeklyTasksSection: React.FC<WeeklyTasksSectionProps> = ({
             text: newTaskText.trim(),
             assignedTo: newTaskAssignees,
         };
+        
+        const resetForm = () => {
+            setNewTaskText('');
+            setNewTaskAssignees([]);
+            setRepeatOption('none');
+        };
+
+        if (repeatOption === 'none') {
+            onAddSingleTask(taskDetails);
+            resetForm();
+            return;
+        }
 
         const mondayOfWeek = weekDays[0];
         const datesForTask = Array.from(generateRepeatingDates(mondayOfWeek, repeatOption, repeatEndDate, selectedWeekdays));
@@ -111,9 +123,7 @@ const WeeklyTasksSection: React.FC<WeeklyTasksSectionProps> = ({
         const success = await onAddRecurringTask(taskDetails, weekIds);
 
         if (success) {
-            setNewTaskText('');
-            setNewTaskAssignees([]);
-            setRepeatOption('none');
+            resetForm();
         }
     };
 
