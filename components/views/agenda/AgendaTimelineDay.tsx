@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Bookings, SpecialEvents, SpecialEvent, ShiftAssignment, Vacations, ConsolidatedBooking, BookingDetails } from '../../../types';
 import { TIME_SLOTS } from '../../../constants';
 import { formatDateForBookingKey, timeToMinutes } from '../../../utils/dateUtils';
@@ -91,6 +91,40 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
         ...dayBookings.map(booking => ({ type: 'booking' as const, id: booking.keys.join('-'), name: booking.details.name, startTime: booking.startTime, endTime: booking.endTime, spaceIds: booking.keys.map(k => k.split('-').slice(0, -4).join('-')), consolidatedBooking: booking }))
     ].filter(e => e.startTime && e.endTime);
 
+    const processedEvents = useMemo(() => {
+        const events = [...timedEvents].map(e => ({
+            ...e,
+            layout: { left: 0, width: 1, col: 0, totalCols: 1, zIndex: 1 }
+        })).sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+        const overlaps = (a: {startTime: string, endTime: string}, b: {startTime: string, endTime: string}) => timeToMinutes(a.startTime) < timeToMinutes(b.endTime) && timeToMinutes(a.endTime) > timeToMinutes(b.startTime);
+
+        for (let i = 0; i < events.length; i++) {
+            const event = events[i];
+            const collidingEvents = events.slice(0, i).filter(priorEvent => overlaps(event, priorEvent));
+            
+            const occupiedCols = new Set(collidingEvents.map(e => e.layout.col));
+            
+            let currentCol = 0;
+            while (occupiedCols.has(currentCol)) {
+                currentCol++;
+            }
+            event.layout.col = currentCol;
+        }
+
+        for (const event of events) {
+            const concurrentEvents = events.filter(e => overlaps(event, e));
+            const maxCols = Math.max(...concurrentEvents.map(e => e.layout.col)) + 1;
+            
+            event.layout.totalCols = maxCols;
+            event.layout.width = 1 / maxCols;
+            event.layout.left = event.layout.col * event.layout.width;
+            event.layout.zIndex = event.layout.col + 1;
+        }
+        
+        return events;
+    }, [timedEvents]);
+
     return (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg shadow-inner border border-white/10">
             <div className="p-3 border-b border-white/20 text-center">
@@ -114,17 +148,25 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
                     </div>
                 ))}
                 
-                {timedEvents.map((event) => {
+                {processedEvents.map((event) => {
                     const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
                     const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
                     const isEvent = event.type === 'event';
                     
+                    const { left, width, zIndex } = event.layout;
+
                     return (
                         <div
                             key={event.id}
                             onClick={() => isEvent ? onSelectSpecialEvent(specialEvents[event.id] as SpecialEvent) : onSelectBooking(event.consolidatedBooking!)}
-                            className={`absolute left-8 right-1 p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${ isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`} ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
-                            style={{ top: `${top + 8}px`, height: `${Math.max(height - 2, 10)}px` }}
+                            className={`absolute p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${ isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`} ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                            style={{ 
+                                top: `${top + 8}px`, 
+                                height: `${Math.max(height - 2, 10)}px`,
+                                left: `calc(2rem + (100% - 2.25rem) * ${left})`,
+                                width: `calc((100% - 2.25rem) * ${width} - 2px)`,
+                                zIndex: zIndex,
+                             }}
                             title={event.name}
                             draggable={!isReadOnly && !isEvent}
                             onDragStart={(e) => !isReadOnly && !isEvent && handleDragStart(e, event.consolidatedBooking!)}
