@@ -12,7 +12,7 @@ export const SPACES: Space[] = [
   { id: 'locker_room2', name: 'Vestuario 2', group: 'Vestuarios' },
 ];
 
-export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso'];
+export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso', 'Yiyi'];
 
 export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
 
