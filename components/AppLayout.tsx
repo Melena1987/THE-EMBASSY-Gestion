@@ -43,54 +43,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         relatedBookings: { date: string, keys: string[] }[];
     }>({ isOpen: false, action: null, booking: null, relatedBookings: [] });
     
-    const prevUnreadCount = useRef(myUnreadNotifications.length);
+    // Use refs to store the previous set of IDs to accurately detect new items.
+    const prevNotificationIds = useRef(new Set(myUnreadNotifications.map(n => n.id)));
+    const prevTaskIds = useRef(new Set(myPendingTasks.map(t => t.id)));
 
-    // Effect for handling native browser notifications
-    useEffect(() => {
-        // 1. Request permission on component mount if not already granted/denied
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-
-        const currentCount = myUnreadNotifications.length;
-        const previousCount = prevUnreadCount.current;
-
-        // 2. Check if new notifications have arrived
-        if (currentCount > previousCount && Notification.permission === 'granted') {
-            const newNotifications = myUnreadNotifications.slice(0, currentCount - previousCount);
-            
-            newNotifications.forEach(notification => {
-                const browserNotification = new Notification('Gestión THE EMBASSY', {
-                    body: notification.title,
-                    icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
-                    tag: notification.id, // Use ID to prevent duplicate notifications
-                });
-
-                // 3. Handle click on the notification
-                browserNotification.onclick = () => {
-                    window.focus(); // Bring the app tab to the front
-                    handleNotificationClick(notification);
-                    browserNotification.close();
-                };
-            });
-        }
-        
-        // 4. Update the ref with the new count for the next render
-        prevUnreadCount.current = currentCount;
-
-    }, [myUnreadNotifications]);
-
-
-    // UI Logic and Handlers that combine store actions and UI state changes
-    const handleSelectBooking = (booking: ConsolidatedBooking) => {
-        setSelectedBooking(booking);
-        setView('detalles');
-    };
-
-    const handleSelectSpecialEvent = (event: SpecialEvent) => {
-        setSelectedSpecialEvent(event);
-        setView('detalles_evento');
-    };
 
     const handleNotificationClick = useCallback((notification: AppNotification) => {
         handleMarkNotificationAsRead(notification.id);
@@ -112,6 +68,70 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
             }
         }
     }, [handleMarkNotificationAsRead, specialEvents, setSelectedSpecialEvent, setView, setSelectedDate]);
+
+    // Effect for handling native browser notifications
+    useEffect(() => {
+        // 1. Request permission on component mount if not already granted/denied
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        if (Notification.permission !== 'granted') {
+            return; // Don't proceed if permission is not granted
+        }
+
+        // 2. Detect and show notifications for new "AppNotification" items
+        const currentNotificationIds = new Set(myUnreadNotifications.map(n => n.id));
+        const newNotifications = myUnreadNotifications.filter(n => !prevNotificationIds.current.has(n.id));
+
+        newNotifications.forEach(notification => {
+            const browserNotification = new Notification('Gestión THE EMBASSY', {
+                body: notification.title,
+                icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
+                tag: notification.id,
+            });
+
+            browserNotification.onclick = () => {
+                window.focus();
+                handleNotificationClick(notification);
+                browserNotification.close();
+            };
+        });
+
+        // 3. Detect and show notifications for new pending tasks
+        const currentTaskIds = new Set(myPendingTasks.map(t => t.id));
+        const newTasks = myPendingTasks.filter(t => !prevTaskIds.current.has(t.id));
+
+        newTasks.forEach(task => {
+            const browserNotification = new Notification('Nueva Tarea Asignada', {
+                body: `[${task.sourceName}] ${task.text}`,
+                icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
+                tag: `task-${task.id}`, // Unique tag for the task notification
+            });
+
+            browserNotification.onclick = () => {
+                window.focus(); // Just bring the app to the front
+                browserNotification.close();
+            };
+        });
+        
+        // 4. Update the refs with the new sets of IDs for the next render
+        prevNotificationIds.current = currentNotificationIds;
+        prevTaskIds.current = currentTaskIds;
+
+    }, [myUnreadNotifications, myPendingTasks, handleNotificationClick]);
+
+
+    // UI Logic and Handlers that combine store actions and UI state changes
+    const handleSelectBooking = (booking: ConsolidatedBooking) => {
+        setSelectedBooking(booking);
+        setView('detalles');
+    };
+
+    const handleSelectSpecialEvent = (event: SpecialEvent) => {
+        setSelectedSpecialEvent(event);
+        setView('detalles_evento');
+    };
 
     const triggerDeleteProcess = useCallback(async (booking: ConsolidatedBooking) => {
         const related = findRelatedBookings(booking, bookings);
