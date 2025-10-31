@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, User } from 'https://aistudiocdn.com/firebase@12.4.0/auth.js';
-import { doc, getDoc, setDoc } from 'https://aistudiocdn.com/firebase@12.4.0/firestore.js';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import type { User } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { USER_EMAIL_MAP } from '../constants';
 import type { UserRole, Task } from '../types';
