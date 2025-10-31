@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole, AppNotification } from '../types';
 import Header from './layout/Header';
 import Footer from './layout/Footer';
@@ -42,6 +42,43 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         booking: ConsolidatedBooking | null;
         relatedBookings: { date: string, keys: string[] }[];
     }>({ isOpen: false, action: null, booking: null, relatedBookings: [] });
+    
+    const prevUnreadCount = useRef(myUnreadNotifications.length);
+
+    // Effect for handling native browser notifications
+    useEffect(() => {
+        // 1. Request permission on component mount if not already granted/denied
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        const currentCount = myUnreadNotifications.length;
+        const previousCount = prevUnreadCount.current;
+
+        // 2. Check if new notifications have arrived
+        if (currentCount > previousCount && Notification.permission === 'granted') {
+            const newNotifications = myUnreadNotifications.slice(0, currentCount - previousCount);
+            
+            newNotifications.forEach(notification => {
+                const browserNotification = new Notification('Gestión THE EMBASSY', {
+                    body: notification.title,
+                    icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
+                    tag: notification.id, // Use ID to prevent duplicate notifications
+                });
+
+                // 3. Handle click on the notification
+                browserNotification.onclick = () => {
+                    window.focus(); // Bring the app tab to the front
+                    handleNotificationClick(notification);
+                    browserNotification.close();
+                };
+            });
+        }
+        
+        // 4. Update the ref with the new count for the next render
+        prevUnreadCount.current = currentCount;
+
+    }, [myUnreadNotifications]);
 
 
     // UI Logic and Handlers that combine store actions and UI state changes
