@@ -13,7 +13,6 @@ import { formatDateForBookingKey } from './dateUtils';
 
 // Module-scoped variables to hold the dynamically imported libraries.
 let jsPDF: any = null;
-let autoTable: any = null;
 
 // A promise to ensure libraries are loaded only once, handling concurrent requests.
 let libsPromise: Promise<boolean> | null = null;
@@ -31,9 +30,8 @@ const loadLibraries = (): Promise<boolean> => {
             const jspdfModule = await import('https://cdn.skypack.dev/jspdf@2.5.1');
             jsPDF = jspdfModule.jsPDF; // The class is on the 'jsPDF' property
 
-            // jspdf-autotable's default export is the function we need.
-            const autoTableModule = await import('https://cdn.skypack.dev/jspdf-autotable@3.8.2');
-            autoTable = autoTableModule.default;
+            // Import jspdf-autotable for its side-effects, which patches the jsPDF instance.
+            await import('https://cdn.skypack.dev/jspdf-autotable@3.8.2');
             
             return true;
         } catch (error) {
@@ -132,7 +130,7 @@ export const generateCalendarPDF = async (
         body.push(weekRow);
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -181,7 +179,7 @@ export const generateShiftsPDF = async (
         ];
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -200,7 +198,7 @@ export const generateShiftsPDF = async (
             t.text,
             Array.isArray(t.assignedTo) ? t.assignedTo.join(', ') : t.assignedTo
         ]);
-        autoTable(doc, {
+        (doc as any).autoTable({
             head: [['Completada', 'Tarea', 'Asignado a']],
             body: taskBody,
             startY: finalY,
@@ -287,7 +285,7 @@ export const generateAgendaPDF = async (
         });
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head: [weekDays.map(d => d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' }))],
         body: [body],
         startY: 30,
@@ -304,7 +302,7 @@ export const generateAgendaPDF = async (
             t.text,
             Array.isArray(t.assignedTo) ? t.assignedTo.join(', ') : t.assignedTo
         ]);
-        autoTable(doc, {
+        (doc as any).autoTable({
             head: [['Completada', 'Tarea', 'Asignado a']],
             body: taskBody,
             startY: 30,
@@ -346,7 +344,7 @@ export const generateCleaningPDF = async (
         ];
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -409,7 +407,7 @@ export const generateVacationPDF = async (
         ]);
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head: [['Trabajador', `Días en ${monthNameCapitalized}`, 'Total Mes', 'Total Anual']],
         body,
         startY: 30,
