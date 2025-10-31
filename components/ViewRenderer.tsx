@@ -106,8 +106,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         case 'servicios':
             return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
         case 'eventos':
-            // FIX: Removed `onSelectSpecialEvent` prop as it's not defined in `SpecialEventViewProps`
-            return <SpecialEventView bookings={bookings} onSaveEvent={handleSaveSpecialEvent} onBack={() => setView('agenda')} eventToEdit={selectedSpecialEvent} onEditDone={() => setSelectedSpecialEvent(null)} isReadOnly={!canEditSpecialEvents} />;
+            return <SpecialEventView bookings={bookings} onSaveEvent={handleSaveSpecialEvent} onBack={() => setView('agenda')} eventToEdit={selectedSpecialEvent} onEditDone={() => setSelectedSpecialEvent(null)} isReadOnly={!canEditSpecialEvents} onSelectSpecialEvent={handleSelectSpecialEvent} />;
         case 'detalles_evento':
             if (selectedSpecialEvent) {
                 const currentEventData = specialEvents[selectedSpecialEvent.id];
