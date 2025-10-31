@@ -1,5 +1,6 @@
 import React from 'react';
 import WifiIcon from '../icons/WifiIcon';
+import PizzaIcon from '../icons/PizzaIcon';
 
 interface FooterProps {
     onWifiClick: () => void;
@@ -18,6 +19,16 @@ const Footer: React.FC<FooterProps> = ({ onWifiClick }) => {
             >
                 <WifiIcon className="w-5 h-5" />
             </button>
+            <a
+                href="https://www.just-eat.es/restaurants-pizzeria-altos-del-higueron-benalmadena/menu?serviceType=delivery&utm_source=google&utm_medium=organic&utm_campaign=foodorder"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center p-1.5 text-gray-400 hover:text-orange-400 rounded-full hover:bg-white/10 transition-colors"
+                title="Pedir pizza"
+                aria-label="Pedir pizza"
+            >
+                <PizzaIcon className="w-5 h-5" />
+            </a>
         </footer>
     );
 };
