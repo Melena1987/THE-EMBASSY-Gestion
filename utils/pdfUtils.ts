@@ -11,13 +11,17 @@ import type {
 import { consolidateBookingsForDay } from './bookingUtils';
 import { formatDateForBookingKey } from './dateUtils';
 
-// Module-scoped variables to hold dynamically imported libraries.
+// Module-scoped variable to hold the jsPDF constructor.
 let jsPDF: any = null;
-let autoTable: any = null;
-
 // A promise to ensure libraries are loaded only once, handling concurrent requests.
 let libsPromise: Promise<boolean> | null = null;
 
+/**
+ * Dynamically loads jsPDF and the jsPDF-AutoTable plugin.
+ * The autotable plugin is loaded for its side-effect of attaching itself to the jsPDF prototype.
+ * This is a more robust method than calling it as a separate function.
+ * @returns A promise that resolves to true if libraries are loaded successfully.
+ */
 const loadLibraries = (): Promise<boolean> => {
     // If the promise already exists, return it to avoid re-fetching.
     if (libsPromise) {
@@ -27,13 +31,12 @@ const loadLibraries = (): Promise<boolean> => {
     // Create the promise to load libraries.
     libsPromise = (async () => {
         try {
-            // Import jspdf and its default export (the constructor)
+            // Dynamically import jspdf and get its default export (the constructor)
             const jspdfModule = await import('https://cdn.skypack.dev/jspdf@2.5.1');
             jsPDF = jspdfModule.default;
 
-            // Import jspdf-autotable and its default export (the autoTable function)
-            const autoTableModule = await import('https://cdn.skypack.dev/jspdf-autotable@3.8.2');
-            autoTable = autoTableModule.default;
+            // Dynamically import jspdf-autotable for its side-effect. It will patch the jsPDF prototype.
+            await import('https://cdn.skypack.dev/jspdf-autotable@3.8.2');
             
             return true;
         } catch (error) {
@@ -111,7 +114,6 @@ export const generateCalendarPDF = async (
                 fontSize: 6,
             };
 
-            // Define cell background color based on priority: vacation > event > default
             if (day.getMonth() === currentMonth.getMonth()) {
                 if (vacationWorker) {
                     styles.fillColor = [224, 204, 255]; // Light purple for vacations
@@ -132,7 +134,7 @@ export const generateCalendarPDF = async (
         body.push(weekRow);
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -181,7 +183,7 @@ export const generateShiftsPDF = async (
         ];
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -200,7 +202,7 @@ export const generateShiftsPDF = async (
             t.text,
             Array.isArray(t.assignedTo) ? t.assignedTo.join(', ') : t.assignedTo
         ]);
-        autoTable(doc, {
+        (doc as any).autoTable({
             head: [['Completada', 'Tarea', 'Asignado a']],
             body: taskBody,
             startY: finalY,
@@ -287,7 +289,7 @@ export const generateAgendaPDF = async (
         });
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head: [weekDays.map(d => d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' }))],
         body: [body],
         startY: 30,
@@ -304,7 +306,7 @@ export const generateAgendaPDF = async (
             t.text,
             Array.isArray(t.assignedTo) ? t.assignedTo.join(', ') : t.assignedTo
         ]);
-        autoTable(doc, {
+        (doc as any).autoTable({
             head: [['Completada', 'Tarea', 'Asignado a']],
             body: taskBody,
             startY: 30,
@@ -346,7 +348,7 @@ export const generateCleaningPDF = async (
         ];
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head,
         body,
         startY: 30,
@@ -409,7 +411,7 @@ export const generateVacationPDF = async (
         ]);
     });
 
-    autoTable(doc, {
+    (doc as any).autoTable({
         head: [['Trabajador', `Días en ${monthNameCapitalized}`, 'Total Mes', 'Total Anual']],
         body,
         startY: 30,
