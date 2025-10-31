@@ -4,6 +4,7 @@ import { WORKERS } from '../../../constants';
 import SwitchIcon from '../../icons/SwitchIcon';
 import RefreshCcwIcon from '../../icons/RefreshCcwIcon';
 import DownloadIcon from '../../icons/DownloadIcon';
+import CalendarCheckIcon from '../../icons/CalendarCheckIcon';
 import { ensurePdfLibsLoaded, generateShiftsPDF } from '../../../utils/pdfUtils';
 
 // Define the CombinedTask type locally as it's not exported from the parent
@@ -29,6 +30,7 @@ interface ShiftHeaderProps {
     onSwap: () => void;
     onReset: () => void;
     allTasks: CombinedTask[];
+    onDownloadVacationPDF: () => Promise<void>;
 }
 
 const ShiftHeader: React.FC<ShiftHeaderProps> = ({
@@ -44,8 +46,10 @@ const ShiftHeader: React.FC<ShiftHeaderProps> = ({
     onSwap,
     onReset,
     allTasks,
+    onDownloadVacationPDF,
 }) => {
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isDownloadingVacations, setIsDownloadingVacations] = useState(false);
 
     const changeWeek = (offset: number) => {
         const newDate = new Date(selectedDate);
@@ -60,6 +64,12 @@ const ShiftHeader: React.FC<ShiftHeaderProps> = ({
             await generateShiftsPDF(weekNumber, year, weekDays, currentShifts, allTasks);
         }
         setIsDownloading(false);
+    };
+
+    const handleDownloadVacationClick = async () => {
+        setIsDownloadingVacations(true);
+        await onDownloadVacationPDF();
+        setIsDownloadingVacations(false);
     };
 
     return (
@@ -81,7 +91,16 @@ const ShiftHeader: React.FC<ShiftHeaderProps> = ({
                         title="Descargar horario semanal en PDF"
                     >
                         <DownloadIcon className="w-5 h-5" />
-                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF'}</span>
+                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Turnos'}</span>
+                    </button>
+                    <button
+                        onClick={handleDownloadVacationClick}
+                        disabled={isDownloadingVacations}
+                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                        title="Descargar resumen de vacaciones del mes en PDF"
+                    >
+                        <CalendarCheckIcon className="w-5 h-5" />
+                        <span className="hidden sm:inline">{isDownloadingVacations ? 'Generando...' : 'PDF Vacaciones'}</span>
                     </button>
                 </div>
             </div>

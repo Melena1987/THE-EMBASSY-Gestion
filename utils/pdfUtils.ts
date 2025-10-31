@@ -364,3 +364,58 @@ export const generateCleaningPDF = async (
 
     doc.save(`limpieza-semana-${weekNumber}-${year}.pdf`);
 };
+
+/**
+ * Generates a PDF summary of vacation days for a specific month.
+ * @param selectedDate A date within the desired month.
+ * @param vacations The complete vacation data.
+ */
+export const generateVacationPDF = async (
+    selectedDate: Date,
+    vacations: Vacations
+): Promise<void> => {
+    const doc = new jsPDF();
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth(); // 0-indexed
+    const monthName = selectedDate.toLocaleString('es-ES', { month: 'long' });
+    const monthNameCapitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+    doc.setFontSize(18);
+    doc.text(`Resumen de Vacaciones - ${monthNameCapitalized} ${year}`, 14, 20);
+
+    const workersToReport = ['Olga', 'Dani'];
+    const yearVacations = vacations[year.toString()]?.dates || {};
+
+    const body: any[] = [];
+
+    workersToReport.forEach(worker => {
+        const totalAnnualDays = Object.values(yearVacations).filter(name => name === worker).length;
+
+        const monthDays = Object.keys(yearVacations)
+            .filter(dateStr => {
+                const vacationDate = new Date(`${dateStr}T00:00:00`);
+                return yearVacations[dateStr] === worker && vacationDate.getFullYear() === year && vacationDate.getMonth() === month;
+            })
+            .map(dateStr => new Date(`${dateStr}T00:00:00`).getDate())
+            .sort((a, b) => a - b);
+
+        const totalMonthDays = monthDays.length;
+
+        body.push([
+            worker,
+            monthDays.join(', ') || 'Ninguno',
+            totalMonthDays.toString(),
+            `${totalAnnualDays} / 30`
+        ]);
+    });
+
+    autoTable(doc, {
+        head: [['Trabajador', `Días en ${monthNameCapitalized}`, 'Total Mes', 'Total Anual']],
+        body,
+        startY: 30,
+        headStyles: { fillColor: [108, 92, 231] }, // Purple color
+        theme: 'grid',
+    });
+
+    doc.save(`vacaciones-${year}-${month + 1}.pdf`);
+};
