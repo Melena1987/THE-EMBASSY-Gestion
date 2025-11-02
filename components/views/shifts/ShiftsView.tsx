@@ -278,6 +278,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
                 userRole={userRole}
                 currentUserName={currentUserName}
                 handleUpdateVacations={handleUpdateVacations}
+                specialEvents={specialEvents}
             />
 
             {isDirty && !isReadOnly && (

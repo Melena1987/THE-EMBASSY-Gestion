@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Vacations, UserRole } from '../../../types';
+import type { Vacations, UserRole, SpecialEvents, SpecialEvent } from '../../../types';
 import { formatDateForBookingKey } from '../../../utils/dateUtils';
 import TrashIcon from '../../icons/TrashIcon';
 
@@ -9,10 +9,11 @@ interface VacationManagementSectionProps {
     userRole: UserRole;
     currentUserName: string | null;
     handleUpdateVacations: (year: string, dates: Record<string, string>) => Promise<void>;
+    specialEvents: SpecialEvents;
 }
 
 const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
-    selectedDate, vacations, userRole, currentUserName, handleUpdateVacations
+    selectedDate, vacations, userRole, currentUserName, handleUpdateVacations, specialEvents
 }) => {
     const currentYear = selectedDate.getFullYear().toString();
     const currentYearVacations = vacations[currentYear]?.dates || {};
@@ -22,6 +23,15 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
         if (!dateStr) return;
         const date = new Date(`${dateStr}T00:00:00`);
         const formattedDate = formatDateForBookingKey(date);
+
+        // Check for conflicts with special events
+        for (const event of Object.values(specialEvents)) {
+            const typedEvent = event as SpecialEvent;
+            if (formattedDate >= typedEvent.startDate && formattedDate <= typedEvent.endDate) {
+                alert(`No se pueden coger vacaciones durante el evento especial "${typedEvent.name}".`);
+                return;
+            }
+        }
 
         if (Object.keys(currentYearVacations).filter(d => currentYearVacations[d] === worker).length >= 30) {
             alert(`${worker} ya ha alcanzado el límite de 30 días de vacaciones.`);
