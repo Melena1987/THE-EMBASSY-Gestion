@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword } from 'https://aistudiocdn.com/firebase@12.4.0/auth.js';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
 import EmbassyLogo from '../icons/EmbassyLogo';
 import DownloadIcon from '../icons/DownloadIcon';

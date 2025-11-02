@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://aistudiocdn.com/firebase@12.4.0/storage.js';
-import { doc, collection } from 'https://aistudiocdn.com/firebase@12.4.0/firestore.js';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { doc, collection } from 'firebase/firestore';
 import { db, storage } from '../../firebase';
 import type { Bookings, Space, SpecialEvent, Task } from '../../types';
 import { SPACES, TIME_SLOTS, WORKERS } from '../../constants';
