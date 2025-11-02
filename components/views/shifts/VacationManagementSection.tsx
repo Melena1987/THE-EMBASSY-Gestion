@@ -8,12 +8,11 @@ interface VacationManagementSectionProps {
     vacations: Vacations;
     userRole: UserRole;
     currentUserName: string | null;
-    isReadOnly: boolean;
     handleUpdateVacations: (year: string, dates: Record<string, string>) => Promise<void>;
 }
 
 const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
-    selectedDate, vacations, userRole, currentUserName, isReadOnly, handleUpdateVacations
+    selectedDate, vacations, userRole, currentUserName, handleUpdateVacations
 }) => {
     const currentYear = selectedDate.getFullYear().toString();
     const currentYearVacations = vacations[currentYear]?.dates || {};
@@ -61,7 +60,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                             <h4 className="font-bold text-white">{worker}</h4>
                             <p className="text-sm text-gray-400 mb-2">{workerVacations.length} / 30 días</p>
 
-                            {canManage && !isReadOnly && (
+                            {canManage && (
                                 <div className="flex items-center gap-2 mb-3">
                                     <input
                                         type="date"
@@ -86,7 +85,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                                 {workerVacations.length > 0 ? workerVacations.map(date => (
                                     <div key={date} className="flex items-center justify-between text-sm p-1">
                                         <span className="text-gray-300">{new Date(`${date}T00:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                                        {canManage && !isReadOnly && (
+                                        {canManage && (
                                             <button onClick={() => handleRemoveVacation(date)} className="text-red-500 hover:text-red-400">
                                                 <TrashIcon className="w-4 h-4" />
                                             </button>
