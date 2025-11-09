@@ -48,29 +48,12 @@ const DropdownItem: React.FC<{
     </button>
 );
 
-const MobileNavItem: React.FC<{
-    onClick: () => void;
-    children: React.ReactNode;
-    label: string;
-}> = ({ onClick, children, label }) => (
-    <button
-        onClick={onClick}
-        className="flex items-center gap-3 px-3 py-2 text-base w-full text-left text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
-    >
-        {children}
-        <span>{label}</span>
-    </button>
-);
-
-
 const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const tasksRef = useRef<HTMLDivElement>(null);
-    const mobileMenuRef = useRef<HTMLDivElement>(null);
-
+  
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -78,9 +61,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
             }
             if (tasksRef.current && !tasksRef.current.contains(event.target as Node)) {
                 setIsTasksOpen(false);
-            }
-            if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-                setIsMobileMenuOpen(false);
             }
         };
 
@@ -94,11 +74,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
         setView(view);
         setIsMenuOpen(false);
     };
-    
-    const handleMobileViewChange = (view: View) => {
-        setView(view);
-        setIsMobileMenuOpen(false);
-    };
 
     const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
     const isTurnosActive = currentView === 'turnos';
@@ -106,7 +81,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isServiciosActive = currentView === 'servicios';
     const isSponsorsActive = currentView === 'sponsors';
     
-    const canCreate = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const notificationCount = pendingTasks.length + unreadNotifications.length;
 
     return (
@@ -213,7 +187,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
 
                     {/* --- Right Part: User, Notifications, Logout --- */}
                     <div className="flex-1 flex items-center justify-end">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                             <div className="relative" ref={tasksRef}>
                                 <button
                                     onClick={() => setIsTasksOpen(prev => !prev)}
@@ -238,80 +212,18 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 )}
                             </div>
                             
-                            <div className="text-right hidden md:block">
-                                <p className="text-sm font-medium text-white">{userEmail}</p>
+                            <div className="text-right">
+                                <p className="text-sm font-medium text-white truncate max-w-[120px] sm:max-w-none">{userEmail}</p>
                                 <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
                             </div>
                             
                             <button 
                                 onClick={onLogout}
                                 title="Cerrar Sesión"
-                                className="hidden md:block p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
                             >
                                 <LogoutIcon className="h-5 w-5" />
                             </button>
-
-                            {/* --- Mobile Hamburger Button --- */}
-                            <div className="md:hidden relative" ref={mobileMenuRef}>
-                               <button
-                                    onClick={() => setIsMobileMenuOpen(prev => !prev)}
-                                    className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                    title="Abrir menú"
-                               >
-                                   <MenuIcon className="h-6 w-6" />
-                               </button>
-                                {isMobileMenuOpen && (
-                                    <div 
-                                        className="absolute right-0 mt-2 w-72 origin-top-right bg-gray-900 border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-30"
-                                        role="menu"
-                                        aria-orientation="vertical"
-                                    >
-                                        <div className="p-2">
-                                            <nav className="flex-grow space-y-1">
-                                                <h3 className="px-2 pt-1 pb-2 text-sm font-semibold text-gray-500 uppercase">Agenda</h3>
-                                                <MobileNavItem onClick={() => handleMobileViewChange('calendario')} label="Calendario">
-                                                    <CalendarIcon className="w-5 h-5 text-gray-400" />
-                                                </MobileNavItem>
-                                                <MobileNavItem onClick={() => handleMobileViewChange('agenda')} label="Agenda Semanal">
-                                                    <ListIcon className="w-5 h-5 text-gray-400" />
-                                                </MobileNavItem>
-
-                                                <div className="pt-2 mt-2 border-t border-white/10">
-                                                    <h3 className="px-2 pt-2 pb-2 text-sm font-semibold text-gray-500 uppercase">Gestión</h3>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('turnos')} label="Turnos">
-                                                        <UsersIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('tareas')} label="Tareas">
-                                                        <ClipboardIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('servicios')} label="Servicios">
-                                                        <BriefcaseIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
-                                                        <MobileNavItem onClick={() => handleMobileViewChange('sponsors')} label="Patrocinadores">
-                                                            <HeartIcon className="w-5 h-5 text-gray-400" />
-                                                        </MobileNavItem>
-                                                    )}
-                                                </div>
-                                            </nav>
-                                            
-                                            <div className="pt-2 mt-2 border-t border-white/10 space-y-2">
-                                                <div className="text-left px-3 pt-2">
-                                                    <p className="text-sm font-medium text-white">{userEmail}</p>
-                                                    <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
-                                                </div>
-                                                <button 
-                                                    onClick={onLogout}
-                                                    className="w-full flex items-center gap-3 px-3 py-2 text-base text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150 rounded-md"
-                                                >
-                                                    <LogoutIcon className="w-5 h-5" />
-                                                    <span>Cerrar Sesión</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>

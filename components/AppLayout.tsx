@@ -9,6 +9,7 @@ import ViewRenderer from './ViewRenderer';
 import { findRelatedBookings } from '../utils/bookingUtils';
 import { useAppStore } from '../hooks/useAppStore';
 import { getMondayOfWeek } from '../utils/dateUtils';
+import BottomNavBar from './layout/BottomNavBar';
 
 interface AppLayoutProps {
     store: ReturnType<typeof useAppStore>;
@@ -27,7 +28,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         shiftConfirmationState, confirmShiftUpdate, setShiftConfirmationState,
     } = store;
 
-    const { user, userRole, handleLogout } = auth;
+    const { user, userRole, handleLogout, currentUserName } = auth;
 
     // UI State
     const [view, setView] = useState<View>('agenda');
@@ -233,7 +234,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onToggleTask={handleToggleTask}
                 onNotificationClick={handleNotificationClick}
             />
-            <main className="flex-grow p-4 sm:p-6 md:p-8">
+            <main className="flex-grow p-4 sm:p-6 md:p-8 pb-20 md:pb-8">
                 <ViewRenderer
                     view={view}
                     setView={setView}
@@ -272,6 +273,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onCancel={() => setShiftConfirmationState({ isOpen: false, weekId: null, newShifts: null, oldShifts: undefined })}
             />
             <WifiModal isOpen={isWifiModalOpen} onClose={() => setIsWifiModalOpen(false)} />
+            <BottomNavBar
+                currentView={view}
+                setView={setView}
+                userRole={userRole}
+            />
         </div>
     );
 };
