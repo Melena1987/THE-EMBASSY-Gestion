@@ -8,6 +8,7 @@ import StarIcon from '../icons/StarIcon';
 import { consolidateBookingsForDay } from '../../utils/bookingUtils';
 import DownloadIcon from '../icons/DownloadIcon';
 import { ensurePdfLibsLoaded, generateCalendarPDF } from '../../utils/pdfUtils';
+import PlusIcon from '../icons/PlusIcon';
 
 
 interface CalendarViewProps {
@@ -147,133 +148,146 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
     };
 
     return (
-        <div className="bg-white/5 backdrop-blur-lg p-4 sm:p-6 rounded-lg shadow-lg border border-white/10" style={{ fontFamily: 'Arial, sans-serif' }}>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
-                <button onClick={() => changeMonth(-1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&lt;</button>
-                <h2 className="text-xl font-bold text-white capitalize text-center">
-                    {currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-                </h2>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleDownloadCalendarPDF}
-                        disabled={isDownloading}
-                        className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
-                        title="Descargar calendario del mes en PDF"
-                    >
-                        <DownloadIcon className="w-5 h-5" />
-                        <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Calendario'}</span>
-                    </button>
-                    <button onClick={() => changeMonth(1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&gt;</button>
+        <>
+            <div className="bg-white/5 backdrop-blur-lg p-4 sm:p-6 rounded-lg shadow-lg border border-white/10" style={{ fontFamily: 'Arial, sans-serif' }}>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-y-2">
+                    <button onClick={() => changeMonth(-1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&lt;</button>
+                    <h2 className="text-xl font-bold text-white capitalize text-center">
+                        {currentMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleDownloadCalendarPDF}
+                            disabled={isDownloading}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                            title="Descargar calendario del mes en PDF"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">{isDownloading ? 'Generando...' : 'PDF Calendario'}</span>
+                        </button>
+                        <button onClick={() => changeMonth(1)} className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20">&gt;</button>
+                    </div>
                 </div>
-            </div>
-            
-            <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr,1fr,1fr] gap-1 text-center font-semibold text-orange-400 mb-2">
-                <div></div>
-                {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => <div key={d}>{d}</div>)}
-            </div>
-            <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr,1fr,1fr] gap-1 sm:gap-2">
-                {weeks.map((weekDays, i) => {
-                    const firstDayOfWeek = weekDays[0];
-                    const { week, year } = getWeekData(firstDayOfWeek);
-                    const weekId = `${year}-${week.toString().padStart(2, '0')}`;
-                    
-                    const isEvenWeek = week % 2 === 0;
-                    const defaultMorning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-                    const defaultEvening = defaultMorning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
-                    
-                    const weeklyShifts = shiftAssignments[weekId];
-                    const morningWorker = weeklyShifts?.morning || defaultMorning;
-                    const eveningWorker = weeklyShifts?.evening || defaultEvening;
-                    
-                    return (
-                        <React.Fragment key={i}>
-                            <div className="flex flex-col items-center justify-center bg-black/20 rounded-md text-xs px-2 py-1 h-full">
-                                <div className="space-y-2 my-1 text-center">
-                                    <div className="flex items-center gap-1 text-yellow-300" title={`Mañana: ${morningWorker}`}>
-                                        <SunIcon className="w-4 h-4" />
-                                        <span className="font-mono font-bold">{morningWorker.substring(0, 2).toUpperCase()}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-blue-300" title={`Tarde: ${eveningWorker}`}>
-                                        <MoonIcon className="w-4 h-4" />
-                                        <span className="font-mono font-bold">{eveningWorker.substring(0, 2).toUpperCase()}</span>
+                
+                <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr,1fr,1fr] gap-1 text-center font-semibold text-orange-400 mb-2">
+                    <div></div>
+                    {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => <div key={d}>{d}</div>)}
+                </div>
+                <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr,1fr,1fr] gap-1 sm:gap-2">
+                    {weeks.map((weekDays, i) => {
+                        const firstDayOfWeek = weekDays[0];
+                        const { week, year } = getWeekData(firstDayOfWeek);
+                        const weekId = `${year}-${week.toString().padStart(2, '0')}`;
+                        
+                        const isEvenWeek = week % 2 === 0;
+                        const defaultMorning = isEvenWeek ? WORKERS[1] : WORKERS[0];
+                        const defaultEvening = defaultMorning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+                        
+                        const weeklyShifts = shiftAssignments[weekId];
+                        const morningWorker = weeklyShifts?.morning || defaultMorning;
+                        const eveningWorker = weeklyShifts?.evening || defaultEvening;
+                        
+                        return (
+                            <React.Fragment key={i}>
+                                <div className="flex flex-col items-center justify-center bg-black/20 rounded-md text-xs px-2 py-1 h-full">
+                                    <div className="space-y-2 my-1 text-center">
+                                        <div className="flex items-center gap-1 text-yellow-300" title={`Mañana: ${morningWorker}`}>
+                                            <SunIcon className="w-4 h-4" />
+                                            <span className="font-mono font-bold">{morningWorker.substring(0, 2).toUpperCase()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-blue-300" title={`Tarde: ${eveningWorker}`}>
+                                            <MoonIcon className="w-4 h-4" />
+                                            <span className="font-mono font-bold">{eveningWorker.substring(0, 2).toUpperCase()}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {weekDays.map((d, j) => {
-                                const dayKey = formatDateForBookingKey(d);
-                                const dayYear = d.getFullYear().toString();
-                                const dayBookings = consolidateBookingsForDay(bookings, d);
-                                const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
-                                const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
-                                const isSelected = isSameDay(d, selectedDate);
-                                
-                                const dayWeekData = getWeekData(d);
-                                const dayWeekId = `${dayWeekData.year}-${dayWeekData.week.toString().padStart(2, '0')}`;
-                                const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
-                                const hasOverride = !!shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
+                                {weekDays.map((d, j) => {
+                                    const dayKey = formatDateForBookingKey(d);
+                                    const dayYear = d.getFullYear().toString();
+                                    const dayBookings = consolidateBookingsForDay(bookings, d);
+                                    const eventsForDay = Object.values(specialEvents).filter(event => dayKey >= (event as SpecialEvent).startDate && dayKey <= (event as SpecialEvent).endDate);
+                                    const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
+                                    const isSelected = isSameDay(d, selectedDate);
+                                    
+                                    const dayWeekData = getWeekData(d);
+                                    const dayWeekId = `${dayWeekData.year}-${dayWeekData.week.toString().padStart(2, '0')}`;
+                                    const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
+                                    const hasOverride = !!shiftAssignments[dayWeekId]?.dailyOverrides?.[dayIndex];
 
-                                // Comprobamos si hay vacaciones para este día.
-                                const vacationWorker = vacations[dayYear]?.dates[dayKey];
+                                    // Comprobamos si hay vacaciones para este día.
+                                    const vacationWorker = vacations[dayYear]?.dates[dayKey];
 
-                                return (
-                                    <button
-                                        key={j}
-                                        onClick={() => handleDayClick(d)}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={(e) => handleDrop(e, d)}
-                                        className={`relative p-1 sm:p-2 h-28 sm:h-32 md:h-36 rounded-md transition-colors duration-200 flex flex-col items-start text-left overflow-hidden ${
-                                            isSelected ? 'bg-orange-600 ring-2 ring-orange-300' 
-                                            : (vacationWorker ? 'bg-purple-900/70 border border-purple-600' : 'bg-black/20')
-                                        } ${isCurrentMonth ? 'text-white hover:bg-black/40' : 'text-gray-500 hover:bg-black/40'}`}
-                                    >
-                                        <div className="flex justify-between w-full items-center mb-1">
-                                            <span className="font-bold text-sm">{d.getDate()}</span>
-                                            {hasOverride && <span className="h-2 w-2 bg-blue-400 rounded-full" title="Horario especial"></span>}
-                                        </div>
+                                    return (
+                                        <button
+                                            key={j}
+                                            onClick={() => handleDayClick(d)}
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, d)}
+                                            className={`relative p-1 sm:p-2 h-28 sm:h-32 md:h-36 rounded-md transition-colors duration-200 flex flex-col items-start text-left overflow-hidden ${
+                                                isSelected ? 'bg-orange-600 ring-2 ring-orange-300' 
+                                                : (vacationWorker ? 'bg-purple-900/70 border border-purple-600' : 'bg-black/20')
+                                            } ${isCurrentMonth ? 'text-white hover:bg-black/40' : 'text-gray-500 hover:bg-black/40'}`}
+                                        >
+                                            <div className="flex justify-between w-full items-center mb-1">
+                                                <span className="font-bold text-sm">{d.getDate()}</span>
+                                                {hasOverride && <span className="h-2 w-2 bg-blue-400 rounded-full" title="Horario especial"></span>}
+                                            </div>
 
-                                        <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
-                                            {/* Mostramos el indicador de vacaciones */}
-                                            {vacationWorker && (
-                                                <div className="text-purple-300 font-bold truncate" title={`${vacationWorker} de vacaciones`}>
-                                                    🌴 {vacationWorker}
-                                                </div>
-                                            )}
-                                            {eventsForDay.map(event => (
-                                                <div 
-                                                    key={(event as SpecialEvent).id}
-                                                    className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
-                                                    onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(event as SpecialEvent); }}
-                                                >
-                                                   <StarIcon className="w-3 h-3 flex-shrink-0" />
-                                                   <span className="truncate">{(event as SpecialEvent).name}</span>
-                                                </div>
-                                            ))}
-                                            {dayBookings.map((booking, index) => {
-                                                const salaOnly = isSalaOnly(booking);
-                                                return (
-                                                    <div 
-                                                        key={index} 
-                                                        className={`${salaOnly ? 'bg-green-900/70' : 'bg-black/30'} rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
-                                                        title={`${booking.startTime} - ${booking.details.name}`}
-                                                        draggable={!isReadOnly}
-                                                        onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
-                                                        onDragEnd={!isReadOnly ? handleDragEnd : undefined}
-                                                    >
-                                                        <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
+                                            <div className="text-xs w-full space-y-1 flex-grow overflow-y-auto pr-1">
+                                                {/* Mostramos el indicador de vacaciones */}
+                                                {vacationWorker && (
+                                                    <div className="text-purple-300 font-bold truncate" title={`${vacationWorker} de vacaciones`}>
+                                                        🌴 {vacationWorker}
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </React.Fragment>
-                    )
-                })}
+                                                )}
+                                                {eventsForDay.map(event => (
+                                                    <div 
+                                                        key={(event as SpecialEvent).id}
+                                                        className="bg-purple-800/80 text-white rounded px-1.5 py-0.5 truncate font-bold flex items-center gap-1 cursor-pointer"
+                                                        onClick={(e) => { e.stopPropagation(); onSelectSpecialEvent(event as SpecialEvent); }}
+                                                    >
+                                                    <StarIcon className="w-3 h-3 flex-shrink-0" />
+                                                    <span className="truncate">{(event as SpecialEvent).name}</span>
+                                                    </div>
+                                                ))}
+                                                {dayBookings.map((booking, index) => {
+                                                    const salaOnly = isSalaOnly(booking);
+                                                    return (
+                                                        <div 
+                                                            key={index} 
+                                                            className={`${salaOnly ? 'bg-green-900/70' : 'bg-black/30'} rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
+                                                            title={`${booking.startTime} - ${booking.details.name}`}
+                                                            draggable={!isReadOnly}
+                                                            onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                                            onDragEnd={!isReadOnly ? handleDragEnd : undefined}
+                                                        >
+                                                            <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </React.Fragment>
+                        )
+                    })}
+                </div>
             </div>
-        </div>
+
+            {!isReadOnly && (
+                <div className="fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3">
+                    <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
+                        <StarIcon className="w-6 h-6"/>
+                    </button>
+                    <button onClick={() => setView('plano')} className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Reserva">
+                        <PlusIcon className="w-6 h-6"/>
+                    </button>
+                </div>
+            )}
+        </>
     );
 };
 

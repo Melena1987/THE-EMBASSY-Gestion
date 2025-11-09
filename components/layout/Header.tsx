@@ -143,15 +143,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                     aria-orientation="vertical"
                                 >
                                     <div className="py-1" role="none">
-                                        {canCreate && (
-                                            <DropdownItem
-                                                isActive={currentView === 'plano'}
-                                                onClick={() => handleViewChange('plano')}
-                                                label="Reserva"
-                                            >
-                                                <PlusIcon className="h-5 w-5" />
-                                            </DropdownItem>
-                                        )}
                                         <DropdownItem
                                             isActive={currentView === 'calendario'}
                                             onClick={() => handleViewChange('calendario')}
@@ -166,15 +157,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                         >
                                             <ListIcon className="h-5 w-5" />
                                         </DropdownItem>
-                                        {canCreate && (
-                                            <DropdownItem
-                                                isActive={currentView === 'eventos'}
-                                                onClick={() => handleViewChange('eventos')}
-                                                label="Evento Especial"
-                                            >
-                                                <StarIcon className="h-5 w-5" />
-                                            </DropdownItem>
-                                        )}
                                     </div>
                                 </div>
                             )}
@@ -274,22 +256,12 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                         <div className="p-2">
                                             <nav className="flex-grow space-y-1">
                                                 <h3 className="px-2 pt-1 pb-2 text-sm font-semibold text-gray-500 uppercase">Agenda</h3>
-                                                {canCreate && (
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('plano')} label="Nueva Reserva">
-                                                        <PlusIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                )}
                                                 <MobileNavItem onClick={() => handleMobileViewChange('calendario')} label="Calendario">
                                                     <CalendarIcon className="w-5 h-5 text-gray-400" />
                                                 </MobileNavItem>
                                                 <MobileNavItem onClick={() => handleMobileViewChange('agenda')} label="Agenda Semanal">
                                                     <ListIcon className="w-5 h-5 text-gray-400" />
                                                 </MobileNavItem>
-                                                {canCreate && (
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('eventos')} label="Evento Especial">
-                                                        <StarIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                )}
 
                                                 <div className="pt-2 mt-2 border-t border-white/10">
                                                     <h3 className="px-2 pt-2 pb-2 text-sm font-semibold text-gray-500 uppercase">Gestión</h3>
