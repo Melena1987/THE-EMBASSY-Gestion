@@ -33,8 +33,8 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             }
         }
 
-        if (Object.keys(currentYearVacations).filter(d => currentYearVacations[d] === worker).length >= 30) {
-            alert(`${worker} ya ha alcanzado el límite de 30 días de vacaciones.`);
+        if (Object.keys(currentYearVacations).filter(d => currentYearVacations[d] === worker).length >= 23) {
+            alert(`${worker} ya ha alcanzado el límite de 23 días de vacaciones.`);
             return;
         }
         if (currentYearVacations[formattedDate] && currentYearVacations[formattedDate] !== worker) {
@@ -68,7 +68,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                     return (
                         <div key={worker}>
                             <h4 className="font-bold text-white">{worker}</h4>
-                            <p className="text-sm text-gray-400 mb-2">{workerVacations.length} / 30 días</p>
+                            <p className="text-sm text-gray-400 mb-2">{workerVacations.length} / 23 días</p>
 
                             {canManage && (
                                 <div className="flex items-center gap-2 mb-3">

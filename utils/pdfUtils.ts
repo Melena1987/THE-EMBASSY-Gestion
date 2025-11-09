@@ -407,7 +407,7 @@ export const generateVacationPDF = async (
             worker,
             monthDays.join(', ') || 'Ninguno',
             totalMonthDays.toString(),
-            `${totalAnnualDays} / 30`
+            `${totalAnnualDays} / 23`
         ]);
     });
 
