@@ -30,6 +30,8 @@ import type {
     Vacations,
     AppNotification,
     ShiftUpdateNotification,
+    VacationYear,
+    VacationUpdateNotification,
 } from '../types';
 import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
 import { TIME_SLOTS, WORKERS } from '../constants';
@@ -224,16 +226,21 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         if (!user || !currentUserName) return [];
         return Object.values(notifications)
             .filter((n: any): n is AppNotification => {
-                // Basic validation and check if user has already read it
                 if (!n || !n.type || !n.createdAt || !Array.isArray(n.readBy) || n.readBy.includes(user.uid)) {
                     return false;
                 }
-                // For shift updates, only show it to the affected workers ('Olga', 'Dani')
-                if (n.type === 'shift_update' && Array.isArray(n.affectedWorkers)) {
-                    return n.affectedWorkers.includes(currentUserName);
+                
+                if (n.type === 'shift_update') {
+                    return Array.isArray(n.affectedWorkers) && n.affectedWorkers.includes(currentUserName);
                 }
-                // For other types (e.g., special_event), show to everyone
-                return n.type === 'special_event';
+                if (n.type === 'vacation_update') {
+                    return Array.isArray(n.targetUsers) && n.targetUsers.includes(currentUserName);
+                }
+                if (n.type === 'special_event') {
+                    return true;
+                }
+
+                return false;
             })
             .sort((a, b) => b.createdAt - a.createdAt);
     }, [notifications, user, currentUserName]);
@@ -605,15 +612,61 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         }
     }, []);
 
-    const handleUpdateVacations = useCallback(async (year: string, dates: Record<string, string>) => {
+    const handleUpdateVacations = useCallback(async (year: string, newDates: Record<string, string>) => {
+        const oldYearVacations = (vacations[year] as VacationYear)?.dates || {};
         try {
             const docRef = doc(db, 'vacations', year);
-            await setDoc(docRef, { dates });
+            await setDoc(docRef, { dates: newDates });
+
+            if (userRole === 'TRABAJADOR' && currentUserName) {
+                const oldDatesSet = new Set(Object.keys(oldYearVacations));
+                const newDatesSet = new Set(Object.keys(newDates));
+
+                let action: 'añadido' | 'eliminado' | null = null;
+                let changedDate: string | null = null;
+
+                for (const date of newDatesSet) {
+                    if (!oldDatesSet.has(date)) {
+                        action = 'añadido';
+                        changedDate = date;
+                        break;
+                    }
+                }
+                if (!action) {
+                    for (const date of oldDatesSet) {
+                        if (!newDatesSet.has(date)) {
+                            action = 'eliminado';
+                            changedDate = date;
+                            break;
+                        }
+                    }
+                }
+
+                if (action && changedDate) {
+                    const dateObj = new Date(`${changedDate}T00:00:00`);
+                    const formattedChangedDate = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
+                    const notificationId = `vacation-update-${changedDate}-${currentUserName}`;
+                    const notificationPayload: Omit<VacationUpdateNotification, 'createdAt'> & {createdAt: any} = {
+                        id: notificationId,
+                        type: 'vacation_update',
+                        title: `${currentUserName} ha ${action} el ${formattedChangedDate} como día de vacaciones.`,
+                        createdAt: serverTimestamp(),
+                        readBy: [],
+                        targetUsers: ['Manu'],
+                        link: {
+                            view: 'turnos',
+                            date: changedDate,
+                        },
+                    };
+                    await setDoc(doc(db, 'notifications', notificationId), notificationPayload);
+                }
+            }
         } catch (error) {
             console.error("Error updating vacations:", error);
             alert("No se pudieron actualizar las vacaciones.");
         }
-    }, []);
+    }, [vacations, userRole, currentUserName]);
 
     // Return all state and handlers
     return {

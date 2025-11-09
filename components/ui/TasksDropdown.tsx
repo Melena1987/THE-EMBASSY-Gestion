@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 // FIX: Corrected import path for types and added new types for notifications.
-import type { AppNotification, TaskSourceCollection, AggregatedTask, SpecialEventNotification, ShiftUpdateNotification } from '../../types';
+import type { AppNotification, TaskSourceCollection, AggregatedTask, SpecialEventNotification, ShiftUpdateNotification, VacationUpdateNotification } from '../../types';
 // FIX: Corrected import paths for icons.
 import CheckIcon from '../icons/CheckIcon';
 import BellIcon from '../icons/BellIcon';
 import StarIcon from '../icons/StarIcon';
 import UsersIcon from '../icons/UsersIcon';
+import CalendarCheckIcon from '../icons/CalendarCheckIcon';
 
 // FIX: Updated props to include notifications and a click handler for them.
 interface TasksDropdownProps {
@@ -28,17 +29,20 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
         }, {} as Record<string, AggregatedTask[]>);
     }, [tasks]);
 
-    const { eventNotifications, shiftNotifications } = useMemo(() => {
+    const { eventNotifications, shiftNotifications, vacationNotifications } = useMemo(() => {
         const eventNots: SpecialEventNotification[] = [];
         const shiftNots: ShiftUpdateNotification[] = [];
+        const vacationNots: VacationUpdateNotification[] = [];
         notifications.forEach(n => {
             if (n.type === 'special_event') {
                 eventNots.push(n);
             } else if (n.type === 'shift_update') {
                 shiftNots.push(n);
+            } else if (n.type === 'vacation_update') {
+                vacationNots.push(n as VacationUpdateNotification);
             }
         });
-        return { eventNotifications: eventNots, shiftNotifications: shiftNots };
+        return { eventNotifications: eventNots, shiftNotifications: shiftNots, vacationNotifications: vacationNots };
     }, [notifications]);
 
     const handleNotificationItemClick = (notification: AppNotification) => {
@@ -90,6 +94,23 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
                                             className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors"
                                         >
                                             <UsersIcon className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                                            <span className="flex-grow text-gray-200">{notification.title}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                         {vacationNotifications.length > 0 && (
+                             <div className="mb-3">
+                                <h4 className="px-3 py-1 text-xs font-bold text-green-400 uppercase">Vacaciones</h4>
+                                <div className="space-y-1 mt-1">
+                                    {vacationNotifications.map(notification => (
+                                        <button
+                                            key={notification.id}
+                                            onClick={() => handleNotificationItemClick(notification)}
+                                            className="flex items-start gap-3 p-2 text-sm text-left w-full hover:bg-white/5 rounded-md transition-colors"
+                                        >
+                                            <CalendarCheckIcon className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                                             <span className="flex-grow text-gray-200">{notification.title}</span>
                                         </button>
                                     ))}

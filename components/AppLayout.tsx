@@ -66,6 +66,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 setSelectedDate(monday);
                 setView('agenda');
             }
+        } else if (notification.type === 'vacation_update') {
+            setSelectedDate(new Date(`${notification.link.date}T00:00:00`));
+            setView('turnos');
         }
     }, [handleMarkNotificationAsRead, specialEvents, setSelectedSpecialEvent, setView, setSelectedDate]);
 

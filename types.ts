@@ -129,4 +129,17 @@ export interface ShiftUpdateNotification {
   affectedWorkers: string[]; // Nombres ['Olga', 'Dani']
 }
 
-export type AppNotification = SpecialEventNotification | ShiftUpdateNotification;
+export interface VacationUpdateNotification {
+  id: string;
+  type: 'vacation_update';
+  title: string;
+  createdAt: any; // Firestore Timestamp
+  readBy: string[]; // array of user UIDs
+  targetUsers: string[]; // array of user names, e.g., ['Manu']
+  link: {
+    view: 'turnos';
+    date: string; // The date of the vacation day that was changed
+  };
+}
+
+export type AppNotification = SpecialEventNotification | ShiftUpdateNotification | VacationUpdateNotification;
