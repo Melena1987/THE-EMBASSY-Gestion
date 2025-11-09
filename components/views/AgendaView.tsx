@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
 import { WORKERS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
@@ -44,25 +44,6 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
         currentUserName, userRole, vacations 
     } = props;
     
-    const [areFabsVisible, setAreFabsVisible] = useState(true);
-    const lastScrollY = useRef(0);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            const scrollThreshold = 100;
-
-            if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
-                setAreFabsVisible(false);
-            } else {
-                setAreFabsVisible(true);
-            }
-            lastScrollY.current = currentScrollY;
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
         const dayOfWeek = referenceDate.getDay();
@@ -202,7 +183,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
             </div>
 
             {!isReadOnly && (
-                 <div className={`fixed bottom-24 right-6 z-40 flex flex-col items-center gap-3 transition-transform duration-300 ease-in-out md:bottom-6 ${areFabsVisible ? 'translate-y-0' : 'translate-y-40'}`}>
+                 <div className="fixed bottom-24 right-6 z-40 flex flex-col items-center gap-3 md:bottom-6">
                      <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
                         <StarIcon className="w-6 h-6"/>
                     </button>
