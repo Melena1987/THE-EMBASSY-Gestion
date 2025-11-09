@@ -10,6 +10,7 @@ import ExternalServicesView from './views/ExternalServicesView';
 import SpecialEventView from './views/SpecialEventView';
 import SpecialEventDetailsView from './views/SpecialEventDetailsView';
 import SponsorsView from './views/SponsorsView';
+import TasksView from './views/TasksView';
 
 interface ViewRendererProps {
     view: View;
@@ -117,6 +118,8 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
             return null;
         case 'sponsors':
                 return <SponsorsView sponsors={sponsors} onUpdateSponsor={handleUpdateSponsor} onAddSponsor={handleAddSponsor} onToggleTask={handleToggleTask} isReadOnly={!canManageSponsors} />;
+        case 'tareas':
+            return <TasksView specialEvents={specialEvents} sponsors={sponsors} onToggleTask={handleToggleTask} currentUserName={currentUserName} userRole={userRole} />;
         default:
             return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} vacations={vacations} />;
     }
