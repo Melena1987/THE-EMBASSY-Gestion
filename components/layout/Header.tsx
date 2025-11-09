@@ -5,16 +5,14 @@ import LayoutIcon from '../icons/LayoutIcon';
 import ListIcon from '../icons/ListIcon';
 import EmbassyLogo from '../icons/EmbassyLogo';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
-import PlusIcon from '../icons/PlusIcon';
 import UsersIcon from '../icons/UsersIcon';
 import BriefcaseIcon from '../icons/BriefcaseIcon';
 import LogoutIcon from '../icons/LogoutIcon';
-import StarIcon from '../icons/StarIcon';
 import HeartIcon from '../icons/HeartIcon';
 import BellIcon from '../icons/BellIcon';
 import TasksDropdown from '../ui/TasksDropdown';
-import MenuIcon from '../icons/MenuIcon';
 import ClipboardIcon from '../icons/ClipboardIcon';
+import UserIcon from '../icons/UserIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -51,8 +49,10 @@ const DropdownItem: React.FC<{
 const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const tasksRef = useRef<HTMLDivElement>(null);
+    const userMenuRef = useRef<HTMLDivElement>(null);
   
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -61,6 +61,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
             }
             if (tasksRef.current && !tasksRef.current.contains(event.target as Node)) {
                 setIsTasksOpen(false);
+            }
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setIsUserMenuOpen(false);
             }
         };
 
@@ -212,7 +215,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                 )}
                             </div>
                             
-                            <div className="text-right">
+                            {/* --- Desktop User Info --- */}
+                            <div className="text-right hidden md:block">
                                 <p className="text-sm font-medium text-white truncate max-w-[120px] sm:max-w-none">{userEmail}</p>
                                 <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
                             </div>
@@ -220,10 +224,43 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                             <button 
                                 onClick={onLogout}
                                 title="Cerrar Sesión"
-                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors hidden md:block"
                             >
                                 <LogoutIcon className="h-5 w-5" />
                             </button>
+
+                            {/* --- Mobile User Menu --- */}
+                            <div className="relative md:hidden" ref={userMenuRef}>
+                                <button
+                                    onClick={() => setIsUserMenuOpen(prev => !prev)}
+                                    className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                                    title="Cuenta de usuario"
+                                >
+                                    <UserIcon className="h-6 w-6" />
+                                </button>
+                                {isUserMenuOpen && (
+                                    <div 
+                                        className="absolute right-0 mt-2 w-64 origin-top-right bg-gray-900 border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-30"
+                                        role="menu"
+                                    >
+                                        <div className="p-2">
+                                            <div className="text-left px-3 pt-2 pb-3">
+                                                <p className="text-sm font-medium text-white truncate">{userEmail}</p>
+                                                <p className="text-xs text-orange-400 font-semibold">{userRole}</p>
+                                            </div>
+                                            <div className="pt-2 border-t border-white/10">
+                                                <button 
+                                                    onClick={() => { onLogout(); setIsUserMenuOpen(false); }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 text-base text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150 rounded-md"
+                                                >
+                                                    <LogoutIcon className="w-5 h-5" />
+                                                    <span>Cerrar Sesión</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
