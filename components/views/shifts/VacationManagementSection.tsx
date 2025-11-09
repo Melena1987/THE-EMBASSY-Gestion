@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// FIX: Import `VacationYear` to provide explicit type hints and fix type inference errors.
 import type { Vacations, UserRole, SpecialEvent, VacationYear } from '../../../types';
 import { formatDateForBookingKey } from '../../../utils/dateUtils';
 import TrashIcon from '../../icons/TrashIcon';
@@ -46,6 +45,12 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
         const yearOfNewDate = date.getFullYear().toString();
         const formattedDate = formatDateForBookingKey(date);
 
+        const month = date.getMonth(); // 0-indexed: 5=June, 6=July, 7=August
+        if (userRole === 'TRABAJADOR' && [5, 6, 7].includes(month)) {
+            alert("No se pueden solicitar vacaciones en junio, julio o agosto. Por favor, contacte con un administrador para gestionar su petición.");
+            return;
+        }
+
         for (const event of Object.values(specialEvents)) {
             const typedEvent = event as SpecialEvent;
             if (formattedDate >= typedEvent.startDate && formattedDate <= typedEvent.endDate) {
@@ -54,9 +59,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             }
         }
 
-        // Robustly count all days for the worker in the target year, regardless of which document they are in.
         const daysTakenInYear = Object.values(vacations)
-            // FIX: Explicitly type `yearData` to fix "property 'dates' does not exist on type 'unknown'" error.
             .flatMap((yearData: VacationYear) => Object.entries(yearData.dates))
             .filter(([d, name]) => name === worker && d.startsWith(yearOfNewDate))
             .length;
@@ -66,8 +69,6 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             return;
         }
 
-        // Check for conflicts
-        // FIX: Explicitly type `yearData` to fix "property 'dates' does not exist on type 'unknown'" error.
         const allDates = Object.values(vacations).flatMap((yearData: VacationYear) => Object.entries(yearData.dates));
         const existingBooking = allDates.find(([d]) => d === formattedDate);
         if (existingBooking && existingBooking[1] !== worker) {
@@ -75,8 +76,6 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             return;
         }
 
-        // Write to the CORRECT document for the new date's year.
-        // FIX: Explicitly cast to `VacationYear` to fix "property 'dates' does not exist on type 'unknown'" error.
         const vacationsForCorrectYear = (vacations[yearOfNewDate] as VacationYear)?.dates || {};
         const newDates = { ...vacationsForCorrectYear, [formattedDate]: worker };
         handleUpdateVacations(yearOfNewDate, newDates);
@@ -85,9 +84,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
     const handleRemoveVacation = (date: string) => {
         let yearDocKey: string | null = null;
     
-        // Find which year document the date is actually stored in
         for (const yearKey in vacations) {
-            // FIX: Explicitly cast to `VacationYear` to fix "property 'dates' does not exist on type 'unknown'" error.
             if ((vacations[yearKey] as VacationYear).dates && (vacations[yearKey] as VacationYear).dates[date]) {
                 yearDocKey = yearKey;
                 break;
@@ -100,7 +97,6 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             return;
         }
 
-        // FIX: Explicitly cast to `VacationYear` to fix potential "property 'dates' does not exist on type 'unknown'" error.
         const vacationsForYear = { ...((vacations[yearDocKey] as VacationYear).dates || {}) };
         delete vacationsForYear[date];
         handleUpdateVacations(yearDocKey, vacationsForYear);
@@ -113,9 +109,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                 {WORKERS_FOR_VACATIONS.map(worker => {
                     const canManage = (userRole === 'ADMIN' || currentUserName === worker) && !isReadOnly;
 
-                    // New robust grouping logic: derives the year from each date key.
                     const vacationsByYear = Object.values(vacations)
-                        // FIX: Explicitly type `yearData` to fix "property 'dates' does not exist on type 'unknown'" error.
                         .flatMap((yearData: VacationYear) => Object.entries(yearData.dates))
                         .reduce((acc, [date, name]) => {
                             if (name === worker) {
@@ -128,7 +122,6 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                             return acc;
                         }, {} as Record<string, string[]>);
 
-                    // Ensure the current year is always displayed for context, even if empty
                     if (!vacationsByYear[currentYearForDisplay]) {
                         vacationsByYear[currentYearForDisplay] = [];
                     }

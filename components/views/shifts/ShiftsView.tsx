@@ -277,6 +277,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
                 vacations={vacations}
                 userRole={userRole}
                 currentUserName={currentUserName}
+                isReadOnly={isReadOnly}
                 handleUpdateVacations={handleUpdateVacations}
                 specialEvents={specialEvents}
             />
