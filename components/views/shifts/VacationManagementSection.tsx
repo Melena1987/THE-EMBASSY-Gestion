@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// FIX: Import `VacationYear` to correctly type the data from `Object.entries`.
 import type { Vacations, UserRole, SpecialEvent, VacationYear } from '../../../types';
 import { formatDateForBookingKey } from '../../../utils/dateUtils';
 import TrashIcon from '../../icons/TrashIcon';
@@ -16,16 +15,15 @@ interface VacationManagementSectionProps {
 const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
     selectedDate, vacations, userRole, currentUserName, handleUpdateVacations, specialEvents
 }) => {
-    const currentYear = selectedDate.getFullYear().toString();
+    const currentYearForDisplay = selectedDate.getFullYear().toString();
     const WORKERS_FOR_VACATIONS = ['Olga', 'Dani'];
 
     const handleAddVacation = (worker: string, dateStr: string) => {
         if (!dateStr) return;
         const date = new Date(`${dateStr}T00:00:00`);
-        const yearOfNewDate = date.getFullYear().toString();
+        const yearOfNewDate = date.getFullYear().toString(); // Use the year from the new date
         const formattedDate = formatDateForBookingKey(date);
 
-        // Check for conflicts with special events
         for (const event of Object.values(specialEvents)) {
             const typedEvent = event as SpecialEvent;
             if (formattedDate >= typedEvent.startDate && formattedDate <= typedEvent.endDate) {
@@ -42,14 +40,13 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
             return;
         }
 
-        // Check if another worker has already taken this day
         if (vacationsForYear[formattedDate] && vacationsForYear[formattedDate] !== worker) {
             alert(`El día ${formattedDate} ya está cogido por ${vacationsForYear[formattedDate]}.`);
             return;
         }
 
         const newDates = { ...vacationsForYear, [formattedDate]: worker };
-        handleUpdateVacations(yearOfNewDate, newDates);
+        handleUpdateVacations(yearOfNewDate, newDates); // Use the correct year for updating
     };
 
     const handleRemoveVacation = (date: string) => {
@@ -68,7 +65,6 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                 {WORKERS_FOR_VACATIONS.map(worker => {
                     const canManage = userRole === 'ADMIN' || currentUserName === worker;
 
-                    // FIX: Explicitly type `yearData` to resolve 'unknown' type error.
                     const vacationsByYear = Object.entries(vacations).reduce((acc, [year, yearData]: [string, VacationYear]) => {
                         const workerDates = Object.keys(yearData.dates).filter(date => yearData.dates[date] === worker);
                         if (workerDates.length > 0) {
@@ -77,9 +73,9 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                         return acc;
                     }, {} as Record<string, string[]>);
 
-                    // Ensure the current year is always displayed, even if empty
-                    if (!vacationsByYear[currentYear]) {
-                        vacationsByYear[currentYear] = [];
+                    // Ensure the current year is always displayed for context, even if empty
+                    if (!vacationsByYear[currentYearForDisplay]) {
+                        vacationsByYear[currentYearForDisplay] = [];
                     }
                     
                     const allWorkerVacations = Object.values(vacationsByYear).flat().sort();
@@ -102,6 +98,7 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
                                         value={newVacationDate}
                                         onChange={(e) => setNewVacationDate(e.target.value)}
                                         className="w-full bg-black/30 text-white border-white/20 rounded-md p-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                                        placeholder="dd/mm/aaaa"
                                     />
                                     <button
                                         onClick={() => {
