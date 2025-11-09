@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { Bookings, SpecialEvents, SpecialEvent, ShiftAssignment, Vacations, ConsolidatedBooking, BookingDetails } from '../../../types';
-import { TIME_SLOTS } from '../../../constants';
+import { SPACES, TIME_SLOTS } from '../../../constants';
 import { formatDateForBookingKey, timeToMinutes } from '../../../utils/dateUtils';
 import { consolidateBookingsForDay } from '../../../utils/bookingUtils';
 import { getDefaultDailyShift } from '../../../utils/shiftUtils';
@@ -19,6 +19,18 @@ interface AgendaTimelineDayProps {
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
     isReadOnly: boolean;
 }
+
+const isSalaOnly = (booking: ConsolidatedBooking): boolean => {
+    if (!booking.keys || booking.keys.length === 0) return false;
+    const spaceIds = new Set(booking.keys.map(key => key.split('-').slice(0, -4).join('-')));
+    for (const id of spaceIds) {
+        const spaceInfo = SPACES.find(s => s.id === id);
+        if (!spaceInfo || spaceInfo.group !== 'Salas') {
+            return false;
+        }
+    }
+    return spaceIds.size > 0;
+};
 
 const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
     day, dayIndex, bookings, specialEvents, currentWeekShifts, defaultAssignments, vacations, timelineConfig, onSelectSpecialEvent, onSelectBooking, onAddBooking, isReadOnly
@@ -152,6 +164,7 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
                     const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
                     const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
                     const isEvent = event.type === 'event';
+                    const salaOnly = !isEvent && isSalaOnly(event.consolidatedBooking!);
                     
                     const { left, width, zIndex } = event.layout;
 
@@ -159,7 +172,13 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
                         <div
                             key={event.id}
                             onClick={() => isEvent ? onSelectSpecialEvent(specialEvents[event.id] as SpecialEvent) : onSelectBooking(event.consolidatedBooking!)}
-                            className={`absolute p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${ isEvent ? 'bg-purple-800/80 hover:bg-purple-700' : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`} ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                            className={`absolute p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${
+                                isEvent 
+                                    ? 'bg-purple-800/80 hover:bg-purple-700' 
+                                    : salaOnly
+                                        ? `bg-green-800/80 ${!isReadOnly ? 'hover:bg-green-700' : ''}`
+                                        : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
+                            } ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
                             style={{ 
                                 top: `${top + 8}px`, 
                                 height: `${Math.max(height - 2, 10)}px`,

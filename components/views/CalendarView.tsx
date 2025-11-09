@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Vacations } from '../../types';
-import { WORKERS, TIME_SLOTS } from '../../constants';
+import { SPACES, WORKERS, TIME_SLOTS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import SunIcon from '../icons/SunIcon';
 import MoonIcon from '../icons/MoonIcon';
@@ -26,6 +26,18 @@ interface CalendarViewProps {
 const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, vacations, onAddBooking, onSelectSpecialEvent, isReadOnly }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
+
+    const isSalaOnly = (booking: ConsolidatedBooking): boolean => {
+        if (!booking.keys || booking.keys.length === 0) return false;
+        const spaceIds = new Set(booking.keys.map(key => key.split('-').slice(0, -4).join('-')));
+        for (const id of spaceIds) {
+            const spaceInfo = SPACES.find(s => s.id === id);
+            if (!spaceInfo || spaceInfo.group !== 'Salas') {
+                return false;
+            }
+        }
+        return spaceIds.size > 0;
+    };
 
     const days = useMemo(() => {
         const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -238,18 +250,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                                    <span className="truncate">{(event as SpecialEvent).name}</span>
                                                 </div>
                                             ))}
-                                            {dayBookings.map((booking, index) => (
-                                                <div 
-                                                    key={index} 
-                                                    className={`bg-black/30 rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
-                                                    title={`${booking.startTime} - ${booking.details.name}`}
-                                                    draggable={!isReadOnly}
-                                                    onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
-                                                    onDragEnd={!isReadOnly ? handleDragEnd : undefined}
-                                                >
-                                                    <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
-                                                </div>
-                                            ))}
+                                            {dayBookings.map((booking, index) => {
+                                                const salaOnly = isSalaOnly(booking);
+                                                return (
+                                                    <div 
+                                                        key={index} 
+                                                        className={`${salaOnly ? 'bg-green-900/70' : 'bg-black/30'} rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
+                                                        title={`${booking.startTime} - ${booking.details.name}`}
+                                                        draggable={!isReadOnly}
+                                                        onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
+                                                        onDragEnd={!isReadOnly ? handleDragEnd : undefined}
+                                                    >
+                                                        <span className="font-semibold text-orange-400 pointer-events-none">{booking.startTime}</span> <span className="pointer-events-none">{booking.details.name}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </button>
                                 );
