@@ -278,7 +278,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
             </div>
 
             {!isReadOnly && (
-                <div className="fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3">
+                <div className="fixed bottom-20 right-6 z-10 flex flex-col items-center gap-3 md:bottom-6">
                     <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
                         <StarIcon className="w-6 h-6"/>
                     </button>

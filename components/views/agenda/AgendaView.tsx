@@ -2,8 +2,8 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
 import { WORKERS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
-import PlusIcon from '../icons/PlusIcon';
-import StarIcon from '../icons/StarIcon';
+import PlusIcon from '../../icons/PlusIcon';
+import StarIcon from '../../icons/StarIcon';
 import AgendaHeader from './AgendaHeader';
 import AgendaTasksObservations from './AgendaTasksObservations';
 import AgendaTimelineDay from './AgendaTimelineDay';
@@ -202,7 +202,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
             </div>
 
             {!isReadOnly && (
-                 <div className={`fixed bottom-6 right-6 z-10 flex flex-col items-center gap-3 transition-transform duration-300 ease-in-out ${areFabsVisible ? 'translate-y-0' : 'translate-y-40'}`}>
+                 <div className={`fixed bottom-20 right-6 z-10 flex flex-col items-center gap-3 transition-transform duration-300 ease-in-out md:bottom-6 ${areFabsVisible ? 'translate-y-0' : 'translate-y-40'}`}>
                      <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
                         <StarIcon className="w-6 h-6"/>
                     </button>

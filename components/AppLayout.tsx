@@ -222,7 +222,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const canManageSponsors = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
     return (
-        <div className="min-h-screen text-gray-100 flex flex-col">
+        <div className="min-h-screen text-gray-100 flex flex-col w-full overflow-x-hidden">
             <Header
                 currentView={view}
                 setView={setView}
@@ -234,7 +234,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onToggleTask={handleToggleTask}
                 onNotificationClick={handleNotificationClick}
             />
-            <main className="flex-grow p-4 sm:p-6 md:p-8 pb-20 md:pb-8">
+            <main className="flex-grow p-4 sm:p-6 md:p-8 pb-24 md:pb-8">
                 <ViewRenderer
                     view={view}
                     setView={setView}
