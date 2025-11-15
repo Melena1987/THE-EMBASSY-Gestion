@@ -34,7 +34,7 @@ import type {
     VacationUpdateNotification,
 } from '../types';
 import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
-import { TIME_SLOTS, WORKERS, SHIFT_CHANGE_DATE } from '../constants';
+import { TIME_SLOTS, WORKERS } from '../constants';
 
 /**
  * Compares old and new shift assignments to find workers whose shifts have changed.
@@ -345,7 +345,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 const mondayOfWeek = getMondayOfWeek(year, weekNum);
 
                 let defaultAssignments: { morning: string; evening: string };
-                if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+                if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
                     defaultAssignments = { morning: 'Adrián', evening: 'Olga' };
                 } else {
                     const isEvenWeek = weekNum % 2 === 0;
@@ -420,13 +420,13 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
                     let morning: string;
                     let evening: string;
-                    if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+                    if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
                         morning = 'Adrián';
                         evening = 'Olga';
                     } else {
                         const isEvenWeek = week % 2 === 0;
-                        morning = isEvenWeek ? 'Dani' : 'Olga';
-                        evening = isEvenWeek ? 'Olga' : 'Dani';
+                        morning = isEvenWeek ? 'Adrián' : 'Olga';
+                        evening = isEvenWeek ? 'Olga' : 'Adrián';
                     }
                     
                     const newAssignment: ShiftAssignment = {

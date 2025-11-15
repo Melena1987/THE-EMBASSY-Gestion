@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import type { ShiftAssignments, ShiftAssignment, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection, Vacations, UserRole } from '../../../types';
-import { WORKERS, SHIFT_CHANGE_DATE } from '../../../constants';
+import { WORKERS } from '../../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../../utils/dateUtils';
 import { calculateUpdatedShifts } from '../../../utils/shiftUtils';
 import { ensurePdfLibsLoaded, generateVacationPDF } from '../../../utils/pdfUtils';
@@ -59,7 +59,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
 
     const defaultAssignments = useMemo(() => {
         const mondayOfWeek = weekDays[0];
-        if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+        if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
             return { morning: 'Adrián', evening: 'Olga' };
         }
         const { week: weekNumberForLogic } = getWeekData(mondayOfWeek);

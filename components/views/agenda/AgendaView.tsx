@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
-import { WORKERS, SHIFT_CHANGE_DATE } from '../../constants';
+import { WORKERS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import PlusIcon from '../../icons/PlusIcon';
 import StarIcon from '../../icons/StarIcon';
@@ -81,7 +81,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
 
     const defaultAssignments = useMemo(() => {
         const mondayOfWeek = weekDays[0];
-        if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+        if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
             return { morning: 'Adrián', evening: 'Olga' };
         }
         const { week: weekNumberForLogic } = getWeekData(mondayOfWeek);
