@@ -1,5 +1,9 @@
 import type { Space } from './types';
 
+// The date from which the new default shifts (Adrián/Olga) apply.
+// This is Monday, November 17, 2025.
+export const SHIFT_CHANGE_DATE = new Date('2025-11-17T00:00:00Z');
+
 export const SPACES: Space[] = [
   { id: 'court1_basketA', name: 'Pista 1 - Canasta A', group: 'Pista 1' },
   { id: 'court1_basketB', name: 'Pista 1 - Canasta B', group: 'Pista 1' },
@@ -12,18 +16,20 @@ export const SPACES: Space[] = [
   { id: 'locker_room2', name: 'Vestuario 2', group: 'Vestuarios' },
 ];
 
-export const WORKERS: string[] = ['Olga', 'Dani', 'Manu', 'Alfonso', 'Yiyi'];
+// Adrián replaces Dani in the list of active workers.
+export const WORKERS: string[] = ['Olga', 'Adrián', 'Manu', 'Alfonso', 'Yiyi'];
 
 export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
 
+// Adrián's email is added, and Dani's is removed.
 export const USER_EMAIL_MAP: Record<string, string> = {
-    'daniel.l@theembassytc.com': 'Dani',
+    'adrian@theembassytc.com': 'Adrián',
     'mescobar@theembassytc.com': 'Manolo',
     'olga.duran@theembassytc.com': 'Olga',
     'berni@theembassytc.com': 'Berni',
     'alfonso@theembassytc.com': 'Alfonso',
     'eventos@theembassytc.com': 'Yiyi',
-    'manu@theembassytc.com': 'Manu' // Assuming Manu's email for completeness
+    'manu@theembassytc.com': 'Manu'
 };
 
 export const TIME_SLOTS: string[] = [];

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Vacations } from '../../types';
-import { SPACES, WORKERS, TIME_SLOTS } from '../../constants';
+import { SPACES, TIME_SLOTS, SHIFT_CHANGE_DATE } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import SunIcon from '../icons/SunIcon';
 import MoonIcon from '../icons/MoonIcon';
@@ -179,9 +179,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                         const { week, year } = getWeekData(firstDayOfWeek);
                         const weekId = `${year}-${week.toString().padStart(2, '0')}`;
                         
-                        const isEvenWeek = week % 2 === 0;
-                        const defaultMorning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-                        const defaultEvening = defaultMorning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+                        let defaultMorning: string;
+                        let defaultEvening: string;
+
+                        if (firstDayOfWeek >= SHIFT_CHANGE_DATE) {
+                            defaultMorning = 'Adrián';
+                            defaultEvening = 'Olga';
+                        } else {
+                            const isEvenWeek = week % 2 === 0;
+                            defaultMorning = isEvenWeek ? 'Dani' : 'Olga';
+                            defaultEvening = defaultMorning === 'Olga' ? 'Dani' : 'Olga';
+                        }
                         
                         const weeklyShifts = shiftAssignments[weekId];
                         const morningWorker = weeklyShifts?.morning || defaultMorning;

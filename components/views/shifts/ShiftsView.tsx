@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import type { ShiftAssignments, ShiftAssignment, ShiftPeriodDetail, Task, SpecialEvents, SpecialEvent, TaskSourceCollection, Vacations, UserRole } from '../../../types';
-import { WORKERS } from '../../../constants';
+import { WORKERS, SHIFT_CHANGE_DATE } from '../../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../../utils/dateUtils';
 import { calculateUpdatedShifts } from '../../../utils/shiftUtils';
 import { ensurePdfLibsLoaded, generateVacationPDF } from '../../../utils/pdfUtils';
@@ -58,11 +58,16 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
     }, [selectedDate]);
 
     const defaultAssignments = useMemo(() => {
-        const isEvenWeek = weekNumber % 2 === 0;
-        const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-        const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+        const mondayOfWeek = weekDays[0];
+        if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+            return { morning: 'Adrián', evening: 'Olga' };
+        }
+        const { week: weekNumberForLogic } = getWeekData(mondayOfWeek);
+        const isEvenWeek = weekNumberForLogic % 2 === 0;
+        const morning = isEvenWeek ? 'Dani' : 'Olga';
+        const evening = morning === 'Olga' ? 'Dani' : 'Olga';
         return { morning, evening };
-    }, [weekNumber]);
+    }, [weekDays]);
 
     const currentShifts: ShiftAssignment = useMemo(() => ({ ...defaultAssignments, ...(shiftAssignments[weekId] || {}) }), [defaultAssignments, shiftAssignments, weekId]);
     const isCustomized = !!shiftAssignments[weekId];

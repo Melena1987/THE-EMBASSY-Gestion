@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
-import { WORKERS } from '../../constants';
+import { WORKERS, SHIFT_CHANGE_DATE } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import PlusIcon from '../../icons/PlusIcon';
 import StarIcon from '../../icons/StarIcon';
@@ -43,7 +43,7 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
         onSelectSpecialEvent, isReadOnly, onUpdateShifts, 
         currentUserName, userRole, vacations 
     } = props;
-
+    
     const weekDays = useMemo(() => {
         const referenceDate = new Date(selectedDate);
         const dayOfWeek = referenceDate.getDay();
@@ -80,11 +80,16 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
     }, [weekDays, bookings, specialEvents]);
 
     const defaultAssignments = useMemo(() => {
-        const isEvenWeek = weekNumber % 2 === 0;
-        const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-        const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+        const mondayOfWeek = weekDays[0];
+        if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+            return { morning: 'Adrián', evening: 'Olga' };
+        }
+        const { week: weekNumberForLogic } = getWeekData(mondayOfWeek);
+        const isEvenWeek = weekNumberForLogic % 2 === 0;
+        const morning = isEvenWeek ? 'Dani' : 'Olga';
+        const evening = morning === 'Olga' ? 'Dani' : 'Olga';
         return { morning, evening };
-    }, [weekNumber]);
+    }, [weekDays]);
 
     const currentWeekShifts = shiftAssignments[weekId];
     

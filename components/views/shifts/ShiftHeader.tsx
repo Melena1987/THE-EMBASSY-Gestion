@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ShiftAssignment, Task } from '../../../types';
-import { WORKERS } from '../../../constants';
+import { WORKERS, SHIFT_CHANGE_DATE } from '../../../constants';
 import SwitchIcon from '../../icons/SwitchIcon';
 import RefreshCcwIcon from '../../icons/RefreshCcwIcon';
 import DownloadIcon from '../../icons/DownloadIcon';
@@ -129,8 +129,9 @@ const ShiftHeader: React.FC<ShiftHeaderProps> = ({
 
                 <button
                     onClick={onSwap}
+                    disabled={isReadOnly || selectedDate >= SHIFT_CHANGE_DATE}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Intercambiar turno de mañana y tarde para toda la semana"
+                    title={selectedDate >= SHIFT_CHANGE_DATE ? "El intercambio de turnos por defecto está desactivado" : "Intercambiar turno de mañana y tarde para toda la semana"}
                 >
                     <SwitchIcon className="w-5 h-5" />
                     Intercambiar

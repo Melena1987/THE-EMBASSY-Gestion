@@ -18,11 +18,11 @@ const VacationManagementSection: React.FC<VacationManagementSectionProps> = ({
     selectedDate, vacations, userRole, currentUserName, handleUpdateVacations, specialEvents, isReadOnly
 }) => {
     const currentYearForDisplay = selectedDate.getFullYear().toString();
-    const WORKERS_FOR_VACATIONS = ['Olga', 'Dani'];
+    const WORKERS_FOR_VACATIONS = ['Olga', 'Adrián'];
 
     const [expandedWorkerYears, setExpandedWorkerYears] = useState<Record<string, Set<string>>>({
         'Olga': new Set([selectedDate.getFullYear().toString()]),
-        'Dani': new Set([selectedDate.getFullYear().toString()]),
+        'Adrián': new Set([selectedDate.getFullYear().toString()]),
     });
 
     const toggleYear = (worker: string, year: string) => {

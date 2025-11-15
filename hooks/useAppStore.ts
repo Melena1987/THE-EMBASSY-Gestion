@@ -34,14 +34,14 @@ import type {
     VacationUpdateNotification,
 } from '../types';
 import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
-import { TIME_SLOTS, WORKERS } from '../constants';
+import { TIME_SLOTS, WORKERS, SHIFT_CHANGE_DATE } from '../constants';
 
 /**
  * Compares old and new shift assignments to find workers whose shifts have changed.
  * @param oldShifts The state of shifts before the change.
  * @param newShifts The state of shifts after the change.
  * @param defaultAssignments The default weekly shift assignments (for comparison if oldShifts is undefined).
- * @returns An array of names of affected workers (from ['Olga', 'Dani']).
+ * @returns An array of names of affected workers.
  */
 const getAffectedWorkers = (
     oldShifts: ShiftAssignment | undefined,
@@ -49,7 +49,7 @@ const getAffectedWorkers = (
     defaultAssignments: { morning: string; evening: string }
 ): string[] => {
     const affected = new Set<string>();
-    const workersToTrack = ['Olga', 'Dani'];
+    const workersToTrack = ['Olga', 'Dani', 'Adrián'];
 
     const oldM = oldShifts?.morning || defaultAssignments.morning;
     const oldE = oldShifts?.evening || defaultAssignments.evening;
@@ -339,14 +339,21 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             
             // Only send notifications for current or next week's changes
             if (weekId === currentWeekId || weekId === nextWeekId) {
-                 const [yearStr, weekStr] = weekId.split('-');
-                 const year = parseInt(yearStr, 10);
-                 const weekNum = parseInt(weekStr, 10);
-                const isEvenWeek = weekNum % 2 === 0;
-                const defaultAssignments = {
-                    morning: isEvenWeek ? WORKERS[1] : WORKERS[0],
-                    evening: isEvenWeek ? WORKERS[0] : WORKERS[1],
-                };
+                const [yearStr, weekStr] = weekId.split('-');
+                const year = parseInt(yearStr, 10);
+                const weekNum = parseInt(weekStr, 10);
+                const mondayOfWeek = getMondayOfWeek(year, weekNum);
+
+                let defaultAssignments: { morning: string; evening: string };
+                if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+                    defaultAssignments = { morning: 'Adrián', evening: 'Olga' };
+                } else {
+                    const isEvenWeek = weekNum % 2 === 0;
+                    defaultAssignments = {
+                        morning: isEvenWeek ? 'Dani' : 'Olga',
+                        evening: isEvenWeek ? 'Olga' : 'Dani',
+                    };
+                }
 
                 const affectedWorkers = getAffectedWorkers(oldShifts, newShifts, defaultAssignments);
 
@@ -407,11 +414,21 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     const updatedTasks = [...(existingData.tasks || []), newTask];
                     batch.update(docRef, { tasks: updatedTasks });
                 } else {
-                    const [, weekStr] = weekId.split('-');
+                    const [yearStr, weekStr] = weekId.split('-');
+                    const year = parseInt(yearStr, 10);
                     const week = parseInt(weekStr, 10);
-                    const isEvenWeek = week % 2 === 0;
-                    const morning = isEvenWeek ? WORKERS[1] : WORKERS[0];
-                    const evening = morning === WORKERS[0] ? WORKERS[1] : WORKERS[0];
+                    const mondayOfWeek = getMondayOfWeek(year, week);
+
+                    let morning: string;
+                    let evening: string;
+                    if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
+                        morning = 'Adrián';
+                        evening = 'Olga';
+                    } else {
+                        const isEvenWeek = week % 2 === 0;
+                        morning = isEvenWeek ? 'Dani' : 'Olga';
+                        evening = isEvenWeek ? 'Olga' : 'Dani';
+                    }
                     
                     const newAssignment: ShiftAssignment = {
                         morning,
