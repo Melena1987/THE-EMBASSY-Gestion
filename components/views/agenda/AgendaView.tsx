@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../types';
-import { WORKERS } from '../../constants';
-import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
+import type { Bookings, ConsolidatedBooking, View, ShiftAssignments, ShiftAssignment, BookingDetails, SpecialEvents, SpecialEvent, Task, TaskSourceCollection, UserRole, Vacations } from '../../../types';
+import { WORKERS } from '../../../constants';
+import { getWeekData, formatDateForBookingKey } from '../../../utils/dateUtils';
 import PlusIcon from '../../icons/PlusIcon';
 import StarIcon from '../../icons/StarIcon';
 import AgendaHeader from './AgendaHeader';
 import AgendaTasksObservations from './AgendaTasksObservations';
 import AgendaTimelineDay from './AgendaTimelineDay';
-import { consolidateBookingsForDay } from '../../utils/bookingUtils';
+import { consolidateBookingsForDay } from '../../../utils/bookingUtils';
 
 interface AgendaViewProps {
     bookings: Bookings;
