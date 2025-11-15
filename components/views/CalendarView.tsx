@@ -187,8 +187,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                             defaultEvening = 'Olga';
                         } else {
                             const isEvenWeek = week % 2 === 0;
-                            defaultMorning = isEvenWeek ? 'Dani' : 'Olga';
-                            defaultEvening = defaultMorning === 'Olga' ? 'Dani' : 'Olga';
+                            defaultMorning = isEvenWeek ? 'Adrián' : 'Olga';
+                            defaultEvening = isEvenWeek ? 'Olga' : 'Adrián';
                         }
                         
                         const weeklyShifts = shiftAssignments[weekId];

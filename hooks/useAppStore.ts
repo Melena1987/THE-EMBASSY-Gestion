@@ -349,10 +349,9 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     defaultAssignments = { morning: 'Adrián', evening: 'Olga' };
                 } else {
                     const isEvenWeek = weekNum % 2 === 0;
-                    defaultAssignments = {
-                        morning: isEvenWeek ? 'Dani' : 'Olga',
-                        evening: isEvenWeek ? 'Olga' : 'Dani',
-                    };
+                    const morning = isEvenWeek ? 'Adrián' : 'Olga';
+                    const evening = isEvenWeek ? 'Olga' : 'Adrián';
+                    defaultAssignments = { morning, evening };
                 }
 
                 const affectedWorkers = getAffectedWorkers(oldShifts, newShifts, defaultAssignments);

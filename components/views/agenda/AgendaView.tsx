@@ -86,8 +86,8 @@ const AgendaView: React.FC<AgendaViewProps> = (props) => {
         }
         const { week: weekNumberForLogic } = getWeekData(mondayOfWeek);
         const isEvenWeek = weekNumberForLogic % 2 === 0;
-        const morning = isEvenWeek ? 'Dani' : 'Olga';
-        const evening = morning === 'Olga' ? 'Dani' : 'Olga';
+        const morning = isEvenWeek ? 'Adrián' : 'Olga';
+        const evening = isEvenWeek ? 'Olga' : 'Adrián';
         return { morning, evening };
     }, [weekDays]);
 
