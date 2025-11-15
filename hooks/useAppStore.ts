@@ -37,6 +37,33 @@ import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/
 import { TIME_SLOTS, WORKERS } from '../constants';
 
 /**
+ * Recursively traverses an object or array and replaces all occurrences of a string.
+ * @param obj The object/array/string to process.
+ * @param find The string to find.
+ * @param replace The string to replace with.
+ * @returns The processed object/array/string.
+ */
+const deepReplace = (obj: any, find: string, replace: string): any => {
+    if (typeof obj === 'string') {
+        return obj === find ? replace : obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(item => deepReplace(item, find, replace));
+    }
+    if (typeof obj === 'object' && obj !== null) {
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                newObj[key] = deepReplace(obj[key], find, replace);
+            }
+        }
+        return newObj;
+    }
+    return obj;
+};
+
+
+/**
  * Compares old and new shift assignments to find workers whose shifts have changed.
  * @param oldShifts The state of shifts before the change.
  * @param newShifts The state of shifts after the change.
@@ -142,13 +169,33 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             return onSnapshot(collection(db, name), (snapshot) => {
                 const data: Record<string, any> = {};
                 snapshot.forEach(doc => {
-                    const docData = doc.data();
-                    // Handle timestamp conversion for notifications
+                    let docData = doc.data();
+                    
                     if (name === 'notifications' && docData.createdAt && typeof docData.createdAt.toDate === 'function') {
-                        data[doc.id] = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
-                    } else {
-                        data[doc.id] = docData;
+                        docData = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
                     }
+
+                    if (name === 'shiftAssignments') {
+                        const weekId = doc.id;
+                        const [yearStr, weekStr] = weekId.split('-');
+                        const year = parseInt(yearStr, 10);
+                        const week = parseInt(weekStr, 10);
+
+                        // First, replace all instances of 'Dani' with 'Adrián'
+                        let processedData = deepReplace(docData, 'Dani', 'Adrián');
+
+                        // Then, for weeks from the change date forward, enforce the new defaults
+                        if (!isNaN(year) && !isNaN(week)) {
+                            const mondayOfWeek = getMondayOfWeek(year, week);
+                            if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
+                                processedData.morning = 'Adrián';
+                                processedData.evening = 'Olga';
+                            }
+                        }
+                        docData = processedData;
+                    }
+
+                    data[doc.id] = docData;
                 });
                 setter(data);
             });

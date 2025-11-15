@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Bookings, View, ConsolidatedBooking, ShiftAssignments, BookingDetails, SpecialEvents, SpecialEvent, Vacations } from '../../types';
-import { SPACES, TIME_SLOTS } from '../../constants';
+import { SPACES, TIME_SLOTS, WORKERS } from '../../constants';
 import { getWeekData, formatDateForBookingKey } from '../../utils/dateUtils';
 import SunIcon from '../icons/SunIcon';
 import MoonIcon from '../icons/MoonIcon';
