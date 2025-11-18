@@ -5,7 +5,7 @@ import FloorPlanView from './views/FloorPlanView';
 import CalendarView from './views/CalendarView';
 import AgendaView from './views/AgendaView';
 import BookingDetailsView from './views/BookingDetailsView';
-import ShiftsView from './views/ShiftsView';
+import ShiftsView from './views/shifts/ShiftsView';
 import ExternalServicesView from './views/ExternalServicesView';
 import SpecialEventView from './views/SpecialEventView';
 import SpecialEventDetailsView from './views/SpecialEventDetailsView';

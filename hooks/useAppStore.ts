@@ -34,7 +34,8 @@ import type {
     VacationUpdateNotification,
 } from '../types';
 import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
-import { TIME_SLOTS, WORKERS } from '../constants';
+import { TIME_SLOTS } from '../constants';
+import { SHIFT_CHANGE_DATE } from '../constants';
 
 /**
  * Recursively traverses an object or array and replaces all occurrences of a string.
@@ -76,7 +77,7 @@ const getAffectedWorkers = (
     defaultAssignments: { morning: string; evening: string }
 ): string[] => {
     const affected = new Set<string>();
-    const workersToTrack = ['Olga', 'Dani', 'Adrián'];
+    const workersToTrack = ['Olga', 'Adrián']; // Dani is no longer active
 
     const oldM = oldShifts?.morning || defaultAssignments.morning;
     const oldE = oldShifts?.evening || defaultAssignments.evening;
@@ -174,25 +175,9 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     if (name === 'notifications' && docData.createdAt && typeof docData.createdAt.toDate === 'function') {
                         docData = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
                     }
-
+                    
                     if (name === 'shiftAssignments') {
-                        const weekId = doc.id;
-                        const [yearStr, weekStr] = weekId.split('-');
-                        const year = parseInt(yearStr, 10);
-                        const week = parseInt(weekStr, 10);
-
-                        // First, replace all instances of 'Dani' with 'Adrián'
-                        let processedData = deepReplace(docData, 'Dani', 'Adrián');
-
-                        // Then, for weeks from the change date forward, enforce the new defaults
-                        if (!isNaN(year) && !isNaN(week)) {
-                            const mondayOfWeek = getMondayOfWeek(year, week);
-                            if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
-                                processedData.morning = 'Adrián';
-                                processedData.evening = 'Olga';
-                            }
-                        }
-                        docData = processedData;
+                        docData = deepReplace(docData, 'Dani', 'Adrián');
                     }
 
                     data[doc.id] = docData;
@@ -220,14 +205,31 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             }
             return false;
         };
+        
+        const mondayOfShiftChange = SHIFT_CHANGE_DATE;
 
         const getTasksFromShifts = (): AggregatedTask[] => {
             const tasks: AggregatedTask[] = [];
             Object.entries(shiftAssignments).forEach(([id, assignment]) => {
-                const typedAssignment = assignment as ShiftAssignment;
+                const [yearStr, weekStr] = id.split('-');
+                const year = parseInt(yearStr, 10);
+                const week = parseInt(weekStr, 10);
+                if (isNaN(year) || isNaN(week)) return;
+
+                const mondayOfWeek = getMondayOfWeek(year, week);
+                
+                let defaultAssignments;
+                if (mondayOfWeek >= mondayOfShiftChange) {
+                    defaultAssignments = { morning: 'Adrián', evening: 'Olga' };
+                } else {
+                    const isEvenWeek = week % 2 === 0;
+                    defaultAssignments = { morning: isEvenWeek ? 'Adrián' : 'Olga', evening: isEvenWeek ? 'Olga' : 'Adrián' };
+                }
+
+                const typedAssignment = { ...defaultAssignments, ...assignment as ShiftAssignment };
                 (typedAssignment.tasks || []).forEach(task => {
                     if (!task.completed && isUserAssignedToShiftTask(task, typedAssignment)) {
-                        tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${id.split('-')[1]})` });
+                        tasks.push({ ...task, sourceCollection: 'shiftAssignments', sourceId: id, sourceName: `Turnos (Semana ${week})` });
                     }
                 });
             });
@@ -241,7 +243,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 (typedEvent.tasks || []).forEach(task => {
                     const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
                     if (!task.completed && assignees.includes(currentUserName)) {
-                        tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: typedEvent.name });
+                        tasks.push({ ...task, sourceCollection: 'specialEvents', sourceId: id, sourceName: `Evento: ${typedEvent.name}` });
                     }
                 });
             });
@@ -255,7 +257,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 (typedSponsor.tasks || []).forEach(task => {
                     const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
                     if (!task.completed && assignees.includes(currentUserName)) {
-                        tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: typedSponsor.name });
+                        tasks.push({ ...task, sourceCollection: 'sponsors', sourceId: id, sourceName: `Patrocinador: ${typedSponsor.name}` });
                     }
                 });
             });
@@ -354,9 +356,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     }, []);
     
     const handleUpdateShifts = useCallback((weekId: string, newShifts: ShiftAssignment, oldShifts: ShiftAssignment | undefined) => {
-        // Compare new and old shifts. Using JSON.stringify for simplicity.
         if (JSON.stringify(newShifts) !== JSON.stringify(oldShifts)) {
-            // If there are changes, open the confirmation modal instead of saving directly.
             setShiftConfirmationState({
                 isOpen: true,
                 weekId,
@@ -384,7 +384,6 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             const { year: nextYear, week: nextWeek } = getWeekData(nextWeekDate);
             const nextWeekId = `${nextYear}-${nextWeek.toString().padStart(2, '0')}`;
             
-            // Only send notifications for current or next week's changes
             if (weekId === currentWeekId || weekId === nextWeekId) {
                 const [yearStr, weekStr] = weekId.split('-');
                 const year = parseInt(yearStr, 10);
@@ -392,13 +391,11 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 const mondayOfWeek = getMondayOfWeek(year, weekNum);
 
                 let defaultAssignments: { morning: string; evening: string };
-                if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
+                if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
                     defaultAssignments = { morning: 'Adrián', evening: 'Olga' };
                 } else {
                     const isEvenWeek = weekNum % 2 === 0;
-                    const morning = isEvenWeek ? 'Adrián' : 'Olga';
-                    const evening = isEvenWeek ? 'Olga' : 'Adrián';
-                    defaultAssignments = { morning, evening };
+                    defaultAssignments = { morning: isEvenWeek ? 'Adrián' : 'Olga', evening: isEvenWeek ? 'Olga' : 'Adrián' };
                 }
 
                 const affectedWorkers = getAffectedWorkers(oldShifts, newShifts, defaultAssignments);
@@ -410,14 +407,13 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                         type: 'shift_update',
                         title: `Cambios en turnos - Semana ${weekNum}`,
                         createdAt: serverTimestamp(),
-                        readBy: [], // This will be populated by users as they read it.
+                        readBy: [],
                         link: {
                             view: 'agenda',
                             weekId: weekId,
                         },
                         affectedWorkers: affectedWorkers,
                     };
-                    // Create or overwrite the notification for this week
                     await setDoc(doc(db, 'notifications', notificationId), notificationPayload);
                 }
             }
@@ -438,7 +434,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     ): Promise<boolean> => {
         try {
             const batch = writeBatch(db);
-            const recurrenceId = doc(collection(db, 'shiftAssignments')).id; // Just for a unique ID
+            const recurrenceId = doc(collection(db, 'shiftAssignments')).id;
 
             const docRefs = weekIds.map(id => doc(db, 'shiftAssignments', id));
             const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
@@ -450,7 +446,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
                 const newTask: Task = {
                     ...taskDetails,
-                    id: doc(collection(db, 'shiftAssignments')).id, // Unique ID for each instance
+                    id: doc(collection(db, 'shiftAssignments')).id,
                     completed: false,
                     recurrenceId: recurrenceId,
                 };
@@ -467,7 +463,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
 
                     let morning: string;
                     let evening: string;
-                    if (formatDateForBookingKey(mondayOfWeek) >= '2025-11-17') {
+                    if (mondayOfWeek >= SHIFT_CHANGE_DATE) {
                         morning = 'Adrián';
                         evening = 'Olga';
                     } else {
@@ -555,54 +551,43 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             const batch = writeBatch(db);
             const eventRef = doc(db, 'specialEvents', eventData.id);
 
-            // 1. Delete old bookings from original event if spaces/times have changed
-            if (originalEvent?.spaceIds && originalEvent.spaceIds.length > 0 && originalEvent.startTime && originalEvent.endTime) {
-                const oldKeysToDelete: string[] = [];
-                const oldTimeSlots = TIME_SLOTS.filter(time => time >= originalEvent.startTime! && time < originalEvent.endTime!);
-                for (let d = new Date(`${originalEvent.startDate}T00:00:00`); d <= new Date(`${originalEvent.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
+            const getBookingKeys = (event: SpecialEvent | null): Set<string> => {
+                const keys = new Set<string>();
+                if (!event || !event.spaceIds || !event.startTime || !event.endTime) return keys;
+                const timeSlots = TIME_SLOTS.filter(time => time >= event.startTime! && time < event.endTime!);
+                for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
                     const dateStr = formatDateForBookingKey(d);
-                    originalEvent.spaceIds.forEach(spaceId => {
-                        oldTimeSlots.forEach(time => {
-                            oldKeysToDelete.push(`${spaceId}-${dateStr}-${time}`);
-                        });
+                    event.spaceIds.forEach(spaceId => {
+                        timeSlots.forEach(time => keys.add(`${spaceId}-${dateStr}-${time}`));
                     });
                 }
-                oldKeysToDelete.forEach(key => batch.delete(doc(db, 'bookings', key)));
-            }
-            
-            // 2. Add new bookings for the current event
-            if (eventData.spaceIds && eventData.spaceIds.length > 0 && eventData.startTime && eventData.endTime) {
-                const newTimeSlots = TIME_SLOTS.filter(time => time >= eventData.startTime! && time < eventData.endTime!);
-                const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
-                
-                 for (let d = new Date(`${eventData.startDate}T00:00:00`); d <= new Date(`${eventData.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
-                    const dateStr = formatDateForBookingKey(d);
-                    eventData.spaceIds.forEach(spaceId => {
-                        newTimeSlots.forEach(time => {
-                            const key = `${spaceId}-${dateStr}-${time}`;
-                            batch.set(doc(db, 'bookings', key), eventBookingDetails);
-                        });
-                    });
-                }
-            }
-            
-            // 3. Save the event document itself
-            batch.set(eventRef, eventData);
+                return keys;
+            };
 
+            const oldKeys = getBookingKeys(originalEvent);
+            const newKeys = getBookingKeys(eventData);
+
+            const keysToDelete = [...oldKeys].filter(key => !newKeys.has(key));
+            const keysToAdd = [...newKeys].filter(key => !oldKeys.has(key));
+
+            keysToDelete.forEach(key => batch.delete(doc(db, 'bookings', key)));
+            
+            if (keysToAdd.length > 0) {
+                 const eventBookingDetails: BookingDetails = { name: `EVENTO: ${eventData.name}` };
+                 keysToAdd.forEach(key => batch.set(doc(db, 'bookings', key), eventBookingDetails));
+            }
+            
+            batch.set(eventRef, eventData);
             await batch.commit();
 
-            // 4. Create/Update notification SEPARATELY to use serverTimestamp
             const notificationRef = doc(db, 'notifications', eventData.id);
             const notificationPayload = {
                 id: eventData.id,
                 type: 'special_event' as const,
                 title: originalEvent ? `Evento actualizado: ${eventData.name}` : `Nuevo evento: ${eventData.name}`,
                 createdAt: serverTimestamp(),
-                readBy: [], // Reset read status on every update to re-notify everyone
-                link: {
-                    view: 'detalles_evento' as const,
-                    entityId: eventData.id,
-                },
+                readBy: [],
+                link: { view: 'detalles_evento' as const, entityId: eventData.id },
             };
             await setDoc(notificationRef, notificationPayload);
 
@@ -622,7 +607,6 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             const batch = writeBatch(db);
             const eventRef = doc(db, 'specialEvents', event.id);
 
-            // Delete associated bookings
             if (event.spaceIds && event.spaceIds.length > 0 && event.startTime && event.endTime) {
                 const timeSlots = TIME_SLOTS.filter(time => time >= event.startTime! && time < event.endTime!);
                  for (let d = new Date(`${event.startDate}T00:00:00`); d <= new Date(`${event.endDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
@@ -636,12 +620,8 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 }
             }
             
-            // Delete the event document
             batch.delete(eventRef);
-
-            // Delete the associated notification
             batch.delete(doc(db, 'notifications', event.id));
-
             await batch.commit();
         } catch (error) {
             console.error("Error deleting special event:", error);
@@ -682,8 +662,8 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             await setDoc(docRef, { dates: newDates });
 
             if (userRole === 'TRABAJADOR' && currentUserName) {
-                const oldDatesSet = new Set(Object.keys(oldYearVacations));
-                const newDatesSet = new Set(Object.keys(newDates));
+                const oldDatesSet = new Set(Object.keys(oldYearVacations).filter(date => oldYearVacations[date] === currentUserName));
+                const newDatesSet = new Set(Object.keys(newDates).filter(date => newDates[date] === currentUserName));
 
                 let action: 'añadido' | 'eliminado' | null = null;
                 let changedDate: string | null = null;
