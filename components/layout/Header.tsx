@@ -89,7 +89,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     return (
         <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 shadow-lg sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
+                <div className="flex items-center justify-between h-16 flex-nowrap">
                     {/* --- Left Part: Logo --- */}
                     <div className="flex-1 flex items-center justify-start">
                         <div className="flex items-center gap-2">
