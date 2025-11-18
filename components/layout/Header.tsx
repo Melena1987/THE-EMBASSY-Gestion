@@ -99,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                     </div>
                     
                     {/* --- Center Part: Desktop Navigation --- */}
-                    <nav className="hidden md:flex items-center justify-center space-x-1 sm:space-x-2">
+                    <nav className="hidden md:flex items-center justify-center space-x-1 sm:space-x-2 flex-nowrap">
                        <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setIsMenuOpen(prev => !prev)}
