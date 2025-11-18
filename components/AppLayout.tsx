@@ -222,7 +222,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const canManageSponsors = userRole === 'ADMIN' || userRole === 'EVENTOS';
 
     return (
-        <div className="min-h-screen text-gray-100 flex flex-col w-screen overflow-x-hidden">
+        <div className="min-h-full text-gray-100 flex flex-col w-full">
             <Header
                 currentView={view}
                 setView={setView}
