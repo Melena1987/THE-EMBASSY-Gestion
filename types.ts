@@ -3,7 +3,7 @@ export type { User } from 'firebase/auth';
 
 export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento' | 'sponsors' | 'tareas';
 
-export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | null;
+export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | 'SALUD' | null;
 
 export interface Space {
   id: string;

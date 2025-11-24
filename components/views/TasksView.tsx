@@ -171,7 +171,7 @@ const TasksView: React.FC<TasksViewProps> = ({ specialEvents, sponsors, onToggle
         }, {} as Record<string, AggregatedTask[]>);
     }, [allTasks, filterAssignee, filterStatus, searchTerm, currentUserName]);
 
-    const canManageTasks = userRole === 'ADMIN' || userRole === 'EVENTOS';
+    const canManageTasks = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD';
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>

@@ -16,12 +16,12 @@ export const SPACES: Space[] = [
   { id: 'locker_room2', name: 'Vestuario 2', group: 'Vestuarios' },
 ];
 
-// Adrián replaces Dani in the list of active workers.
-export const WORKERS: string[] = ['Olga', 'Adrián', 'Manu', 'Alfonso', 'Yiyi'];
+// Adrián replaces Dani in the list of active workers. Adriana added.
+export const WORKERS: string[] = ['Olga', 'Adrián', 'Manu', 'Alfonso', 'Yiyi', 'Adriana'];
 
-export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo'];
+export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo', 'Adriana'];
 
-// Adrián's email is added, and Dani's is removed.
+// Adrián's email is added, Dani's removed, Adriana added.
 export const USER_EMAIL_MAP: Record<string, string> = {
     'adrian@theembassytc.com': 'Adrián',
     'mescobar@theembassytc.com': 'Manolo',
@@ -29,7 +29,8 @@ export const USER_EMAIL_MAP: Record<string, string> = {
     'berni@theembassytc.com': 'Berni',
     'alfonso@theembassytc.com': 'Alfonso',
     'eventos@theembassytc.com': 'Yiyi',
-    'manu@theembassytc.com': 'Manu'
+    'manu@theembassytc.com': 'Manu',
+    'adriana@theembassytc.com': 'Adriana'
 };
 
 export const TIME_SLOTS: string[] = [];
