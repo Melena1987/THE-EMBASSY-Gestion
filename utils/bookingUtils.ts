@@ -19,6 +19,7 @@ const groupDefinitions = (() => {
     const court1Ids = SPACES.filter(s => s.group === 'Pista 1').map(s => s.id);
     const court2Ids = SPACES.filter(s => s.group === 'Pista 2').map(s => s.id);
     const meetingRoomIds = SPACES.filter(s => s.group === 'Salas').map(s => s.id);
+    const healthRoomIds = SPACES.filter(s => s.group === 'Salud').map(s => s.id);
     const lockerRoomIds = SPACES.filter(s => s.group === 'Vestuarios').map(s => s.id);
 
     return [
@@ -27,6 +28,7 @@ const groupDefinitions = (() => {
         { name: 'Pista 1', ids: new Set(court1Ids) },
         { name: 'Pista 2', ids: new Set(court2Ids) },
         { name: 'TODAS LAS SALAS', ids: new Set(meetingRoomIds) },
+        { name: 'ZONA SALUD', ids: new Set(healthRoomIds) },
         { name: 'TODOS LOS VESTUARIOS', ids: new Set(lockerRoomIds) },
     ];
 })();

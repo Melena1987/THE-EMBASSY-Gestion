@@ -12,6 +12,8 @@ export const SPACES: Space[] = [
   { id: 'main_meeting', name: 'Sala de Reuniones Principal', group: 'Salas' },
   { id: 'small_meeting', name: 'Sala de Reuniones Pequeña', group: 'Salas' },
   { id: 'upstairs_room', name: 'Sala de Arriba', group: 'Salas' },
+  { id: 'multi_lab', name: 'Sala Multifunción Lab', group: 'Salud' },
+  { id: 'physio_office', name: 'Sala Despacho Fisio', group: 'Salud' },
   { id: 'locker_room1', name: 'Vestuario 1', group: 'Vestuarios' },
   { id: 'locker_room2', name: 'Vestuario 2', group: 'Vestuarios' },
 ];

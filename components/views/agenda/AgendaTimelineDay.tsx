@@ -32,6 +32,16 @@ const isSalaOnly = (booking: ConsolidatedBooking): boolean => {
     return spaceIds.size > 0;
 };
 
+const isSaludOnly = (booking: ConsolidatedBooking): boolean => {
+    if (!booking.keys || booking.keys.length === 0) return false;
+    const spaceIds = new Set(booking.keys.map(key => key.split('-').slice(0, -4).join('-')));
+    const healthIds = ['multi_lab', 'physio_office'];
+    for (const id of spaceIds) {
+        if (!healthIds.includes(id)) return false;
+    }
+    return spaceIds.size > 0;
+};
+
 const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
     day, dayIndex, bookings, specialEvents, currentWeekShifts, defaultAssignments, vacations, timelineConfig, onSelectSpecialEvent, onSelectBooking, onAddBooking, isReadOnly
 }) => {
@@ -164,7 +174,16 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
                     const top = (timeToMinutes(event.startTime) - timelineConfig.startHour * 60) * timelineConfig.pixelsPerMinute;
                     const height = (timeToMinutes(event.endTime) - timeToMinutes(event.startTime)) * timelineConfig.pixelsPerMinute;
                     const isEvent = event.type === 'event';
-                    const salaOnly = !isEvent && isSalaOnly(event.consolidatedBooking!);
+                    
+                    let saludOnly = false;
+                    let salaOnly = false;
+
+                    if (!isEvent && event.consolidatedBooking) {
+                        saludOnly = isSaludOnly(event.consolidatedBooking);
+                        if (!saludOnly) {
+                            salaOnly = isSalaOnly(event.consolidatedBooking);
+                        }
+                    }
                     
                     const { left, width, zIndex } = event.layout;
 
@@ -175,9 +194,11 @@ const AgendaTimelineDay: React.FC<AgendaTimelineDayProps> = ({
                             className={`absolute p-1 rounded-md text-white text-[10px] leading-tight overflow-hidden transition-colors ${
                                 isEvent 
                                     ? 'bg-purple-800/80 hover:bg-purple-700' 
-                                    : salaOnly
-                                        ? `bg-green-800/80 ${!isReadOnly ? 'hover:bg-green-700' : ''}`
-                                        : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
+                                    : saludOnly
+                                        ? `bg-blue-600/90 ${!isReadOnly ? 'hover:bg-blue-500' : ''}`
+                                        : salaOnly
+                                            ? `bg-green-800/80 ${!isReadOnly ? 'hover:bg-green-700' : ''}`
+                                            : `bg-gray-700/80 ${!isReadOnly ? 'hover:bg-gray-600' : ''}`
                             } ${!isReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
                             style={{ 
                                 top: `${top + 8}px`, 

@@ -40,6 +40,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
         return spaceIds.size > 0;
     };
 
+    const isSaludOnly = (booking: ConsolidatedBooking): boolean => {
+        if (!booking.keys || booking.keys.length === 0) return false;
+        const spaceIds = new Set(booking.keys.map(key => key.split('-').slice(0, -4).join('-')));
+        const healthIds = ['multi_lab', 'physio_office'];
+        for (const id of spaceIds) {
+            if (!healthIds.includes(id)) return false;
+        }
+        return spaceIds.size > 0;
+    };
+
     const days = useMemo(() => {
         const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const dayOfWeek = startOfMonth.getDay();
@@ -261,11 +271,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
                                                     </div>
                                                 ))}
                                                 {dayBookings.map((booking, index) => {
-                                                    const salaOnly = isSalaOnly(booking);
+                                                    const saludOnly = isSaludOnly(booking);
+                                                    const salaOnly = !saludOnly && isSalaOnly(booking);
                                                     return (
                                                         <div 
                                                             key={index} 
-                                                            className={`${salaOnly ? 'bg-green-900/70' : 'bg-black/30'} rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
+                                                            className={`${saludOnly ? 'bg-blue-600/90' : (salaOnly ? 'bg-green-900/70' : 'bg-black/30')} rounded px-1.5 py-0.5 truncate ${!isReadOnly ? 'cursor-grab' : 'cursor-default'}`} 
                                                             title={`${booking.startTime} - ${booking.details.name}`}
                                                             draggable={!isReadOnly}
                                                             onDragStart={(e) => !isReadOnly && handleDragStart(e, booking)}
