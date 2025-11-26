@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { View, UserRole, AggregatedTask, TaskSourceCollection, AppNotification } from '../../types';
 import CalendarIcon from '../icons/CalendarIcon';
@@ -15,7 +16,6 @@ import BellIcon from '../icons/BellIcon';
 import TasksDropdown from '../ui/TasksDropdown';
 import ClipboardIcon from '../icons/ClipboardIcon';
 import UserIcon from '../icons/UserIcon';
-import MenuIcon from '../icons/MenuIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -49,30 +49,13 @@ const DropdownItem: React.FC<{
     </button>
 );
 
-const MobileNavItem: React.FC<{
-    onClick: () => void;
-    children: React.ReactNode;
-    label: string;
-}> = ({ onClick, children, label }) => (
-    <button
-        onClick={onClick}
-        className="flex items-center gap-3 px-3 py-2 text-base w-full text-left text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
-    >
-        {children}
-        <span>{label}</span>
-    </button>
-);
-
-
 const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const tasksRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
-    const mobileMenuRef = useRef<HTMLDivElement>(null);
   
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -85,9 +68,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
                 setIsUserMenuOpen(false);
             }
-            if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-                setIsMobileMenuOpen(false);
-            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -99,11 +79,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const handleViewChange = (view: View) => {
         setView(view);
         setIsMenuOpen(false);
-    };
-    
-    const handleMobileViewChange = (view: View) => {
-        setView(view);
-        setIsMobileMenuOpen(false);
     };
 
     const isAgendaMenuActive = ['plano', 'calendario', 'agenda', 'detalles', 'eventos', 'detalles_evento'].includes(currentView);
@@ -305,64 +280,6 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                                     <span>Cerrar Sesión</span>
                                                 </button>
                                             </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                             {/* --- Mobile Hamburger Button --- */}
-                             <div className="md:hidden relative" ref={mobileMenuRef}>
-                               <button
-                                    onClick={() => setIsMobileMenuOpen(prev => !prev)}
-                                    className="p-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-                                    title="Abrir menú"
-                               >
-                                   <MenuIcon className="h-6 w-6" />
-                               </button>
-                                {isMobileMenuOpen && (
-                                    <div 
-                                        className="absolute right-0 mt-2 w-72 origin-top-right bg-gray-900 border border-white/10 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-30"
-                                        role="menu"
-                                        aria-orientation="vertical"
-                                    >
-                                        <div className="p-2">
-                                            <nav className="flex-grow space-y-1">
-                                                <h3 className="px-2 pt-1 pb-2 text-sm font-semibold text-gray-500 uppercase">Agenda</h3>
-                                                {canCreateBooking && (
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('plano')} label="Nueva Reserva">
-                                                        <PlusIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                )}
-                                                <MobileNavItem onClick={() => handleMobileViewChange('calendario')} label="Calendario">
-                                                    <CalendarIcon className="w-5 h-5 text-gray-400" />
-                                                </MobileNavItem>
-                                                <MobileNavItem onClick={() => handleMobileViewChange('agenda')} label="Agenda Semanal">
-                                                    <ListIcon className="w-5 h-5 text-gray-400" />
-                                                </MobileNavItem>
-                                                {canCreateEvent && (
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('eventos')} label="Evento Especial">
-                                                        <StarIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                )}
-
-                                                <div className="pt-2 mt-2 border-t border-white/10">
-                                                    <h3 className="px-2 pt-2 pb-2 text-sm font-semibold text-gray-500 uppercase">Gestión</h3>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('turnos')} label="Turnos">
-                                                        <UsersIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('tareas')} label="Tareas">
-                                                        <ClipboardIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    <MobileNavItem onClick={() => handleMobileViewChange('servicios')} label="Servicios">
-                                                        <BriefcaseIcon className="w-5 h-5 text-gray-400" />
-                                                    </MobileNavItem>
-                                                    {(userRole === 'ADMIN' || userRole === 'EVENTOS') && (
-                                                        <MobileNavItem onClick={() => handleMobileViewChange('sponsors')} label="Patrocinadores">
-                                                            <HeartIcon className="w-5 h-5 text-gray-400" />
-                                                        </MobileNavItem>
-                                                    )}
-                                                </div>
-                                            </nav>
                                         </div>
                                     </div>
                                 )}
