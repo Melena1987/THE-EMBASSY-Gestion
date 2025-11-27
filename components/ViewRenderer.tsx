@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole } from '../types';
 import { useAppStore } from '../hooks/useAppStore';
@@ -11,6 +12,7 @@ import SpecialEventView from './views/SpecialEventView';
 import SpecialEventDetailsView from './views/SpecialEventDetailsView';
 import SponsorsView from './views/SponsorsView';
 import TasksView from './views/TasksView';
+import CashFlowView from './views/CashFlowView';
 
 interface ViewRendererProps {
     view: View;
@@ -74,6 +76,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         specialEvents,
         sponsors,
         vacations,
+        cashFlow,
         handleAddBooking,
         handleToggleTask,
         handleUpdateShifts,
@@ -86,9 +89,11 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         handleDeleteSpecialEvent,
         handleUpdateSponsor,
         handleAddSponsor,
+        handleAddCashMovement,
     } = store;
 
     const { userRole, currentUserName } = auth;
+    const canManageCashFlow = userRole === 'ADMIN';
 
     switch (view) {
         case 'plano':
@@ -120,6 +125,8 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
                 return <SponsorsView sponsors={sponsors} onUpdateSponsor={handleUpdateSponsor} onAddSponsor={handleAddSponsor} onToggleTask={handleToggleTask} isReadOnly={!canManageSponsors} />;
         case 'tareas':
             return <TasksView specialEvents={specialEvents} sponsors={sponsors} onToggleTask={handleToggleTask} currentUserName={currentUserName} userRole={userRole} selectedDate={selectedDate} onAddRecurringTask={handleAddRecurringTask} />;
+        case 'caja':
+            return <CashFlowView cashFlow={cashFlow} onAddMovement={handleAddCashMovement} isReadOnly={!canManageCashFlow} />;
         default:
             return <AgendaView bookings={bookings} selectedDate={selectedDate} onDateChange={setSelectedDate} onSelectBooking={handleSelectBooking} setView={setView} shiftAssignments={shiftAssignments} specialEvents={specialEvents} onAddBooking={handleAddBooking} onToggleTask={handleToggleTask} onSelectSpecialEvent={handleSelectSpecialEvent} isReadOnly={!canEditBookings} onUpdateShifts={handleUpdateShifts} currentUserName={currentUserName} userRole={userRole} vacations={vacations} />;
     }

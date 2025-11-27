@@ -16,6 +16,7 @@ import BellIcon from '../icons/BellIcon';
 import TasksDropdown from '../ui/TasksDropdown';
 import ClipboardIcon from '../icons/ClipboardIcon';
 import UserIcon from '../icons/UserIcon';
+import EuroIcon from '../icons/EuroIcon';
 
 interface HeaderProps {
     currentView: View;
@@ -87,9 +88,11 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isTareasActive = currentView === 'tareas';
     const isServiciosActive = currentView === 'servicios';
     const isSponsorsActive = currentView === 'sponsors';
+    const isCajaActive = currentView === 'caja';
     
     const canCreateBooking = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD';
     const canCreateEvent = userRole === 'ADMIN' || userRole === 'EVENTOS';
+    const isAdmin = userRole === 'ADMIN';
     const notificationCount = pendingTasks.length + unreadNotifications.length;
 
     return (
@@ -208,6 +211,19 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                            >
                                <HeartIcon className="h-5 w-5" />
                                <span>Patrocinadores</span>
+                           </button>
+                       )}
+                       {isAdmin && (
+                           <button
+                               onClick={() => setView('caja')}
+                               className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                   isCajaActive
+                                       ? 'bg-orange-600 text-white'
+                                       : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                               }`}
+                           >
+                               <EuroIcon className="h-5 w-5" />
+                               <span>Caja</span>
                            </button>
                        )}
                     </nav>

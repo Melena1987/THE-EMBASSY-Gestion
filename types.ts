@@ -1,7 +1,8 @@
+
 // FIX: The User type was missing from this file. It is re-exported from firebase/auth to be available across the app.
 export type { User } from 'firebase/auth';
 
-export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento' | 'sponsors' | 'tareas';
+export type View = 'plano' | 'calendario' | 'agenda' | 'detalles' | 'turnos' | 'servicios' | 'eventos' | 'detalles_evento' | 'sponsors' | 'tareas' | 'caja';
 
 export type UserRole = 'ADMIN' | 'TRABAJADOR' | 'EVENTOS' | 'SALUD' | null;
 
@@ -143,3 +144,16 @@ export interface VacationUpdateNotification {
 }
 
 export type AppNotification = SpecialEventNotification | ShiftUpdateNotification | VacationUpdateNotification;
+
+export type CashFlowCategory = 'GENERAL' | 'ALFONSO' | 'ADRIANA';
+
+export interface CashFlowMovement {
+    id: string;
+    category: CashFlowCategory;
+    amount: number;
+    date: string; // YYYY-MM-DD
+    description: string;
+    createdAt: any;
+}
+
+export type CashFlows = Record<string, CashFlowMovement>;

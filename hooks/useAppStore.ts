@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction } from 'react';
 import {
     collection,
@@ -10,6 +11,7 @@ import {
     updateDoc,
     serverTimestamp,
     arrayUnion,
+    addDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
@@ -33,6 +35,9 @@ import type {
     ShiftUpdateNotification,
     VacationYear,
     VacationUpdateNotification,
+    CashFlows,
+    CashFlowMovement,
+    CashFlowCategory
 } from '../types';
 import { formatDateForBookingKey, getWeekData, getMondayOfWeek } from '../utils/dateUtils';
 import { TIME_SLOTS } from '../constants';
@@ -131,6 +136,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
     const [sponsors, setSponsors] = useState<Sponsors>({});
     const [vacations, setVacations] = useState<Vacations>({});
     const [notifications, setNotifications] = useState<Record<string, AppNotification>>({});
+    const [cashFlow, setCashFlow] = useState<CashFlows>({});
     
     // State for shift update confirmation flow
     const [shiftConfirmationState, setShiftConfirmationState] = useState<{
@@ -153,6 +159,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             setSponsors({});
             setVacations({});
             setNotifications({});
+            setCashFlow({});
             return;
         }
 
@@ -165,6 +172,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             { name: 'sponsors', setter: setSponsors },
             { name: 'vacations', setter: setVacations },
             { name: 'notifications', setter: setNotifications },
+            { name: 'cashFlow', setter: setCashFlow },
         ];
 
         const unsubscribes = collections.map(({ name, setter }) => {
@@ -174,6 +182,9 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     let docData = doc.data();
                     
                     if (name === 'notifications' && docData.createdAt && typeof docData.createdAt.toDate === 'function') {
+                        docData = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
+                    }
+                    if (name === 'cashFlow' && docData.createdAt && typeof docData.createdAt.toDate === 'function') {
                         docData = { ...docData, createdAt: docData.createdAt.toDate().getTime() };
                     }
                     
@@ -719,6 +730,20 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         }
     }, [vacations, userRole, currentUserName]);
 
+    const handleAddCashMovement = useCallback(async (movementData: Omit<CashFlowMovement, 'id' | 'createdAt'>) => {
+        try {
+            await addDoc(collection(db, 'cashFlow'), {
+                ...movementData,
+                createdAt: serverTimestamp(),
+            });
+            return true;
+        } catch (error) {
+            console.error("Error adding cash movement:", error);
+            alert("No se pudo añadir el movimiento de caja.");
+            return false;
+        }
+    }, []);
+
     // Return all state and handlers
     return {
         bookings,
@@ -728,6 +753,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         specialEvents,
         sponsors,
         vacations,
+        cashFlow,
         myPendingTasks,
         myUnreadNotifications,
         handleAddBooking,
@@ -745,6 +771,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         handleUpdateSponsor,
         handleAddSponsor,
         handleUpdateVacations,
+        handleAddCashMovement,
         shiftConfirmationState,
         confirmShiftUpdate,
         setShiftConfirmationState,

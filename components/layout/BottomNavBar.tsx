@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { View, UserRole } from '../../types';
 import CalendarIcon from '../icons/CalendarIcon';
@@ -6,6 +7,7 @@ import UsersIcon from '../icons/UsersIcon';
 import ClipboardIcon from '../icons/ClipboardIcon';
 import BriefcaseIcon from '../icons/BriefcaseIcon';
 import HeartIcon from '../icons/HeartIcon';
+import EuroIcon from '../icons/EuroIcon';
 
 interface BottomNavBarProps {
     currentView: View;
@@ -46,7 +48,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, userR
     const isAgendaActive = ['agenda', 'calendario', 'detalles', 'detalles_evento', 'plano', 'eventos'].includes(currentView);
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-gray-900 border-t border-white/10 flex items-center justify-around z-30 md:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-gray-900 border-t border-white/10 flex items-center justify-around z-30 md:hidden overflow-x-auto">
             <NavItem
                 onClick={handleAgendaClick}
                 isActive={isAgendaActive}
@@ -78,6 +80,14 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, userR
                     isActive={currentView === 'sponsors'}
                     label="Sponsors"
                     icon={<HeartIcon className="w-6 h-6" />}
+                />
+            )}
+            {userRole === 'ADMIN' && (
+                <NavItem
+                    onClick={() => setView('caja')}
+                    isActive={currentView === 'caja'}
+                    label="Caja"
+                    icon={<EuroIcon className="w-6 h-6" />}
                 />
             )}
         </nav>
