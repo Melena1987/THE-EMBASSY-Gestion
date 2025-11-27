@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
-// FIX: Corrected import path for types and added new types for notifications.
 import type { AppNotification, TaskSourceCollection, AggregatedTask, SpecialEventNotification, ShiftUpdateNotification, VacationUpdateNotification } from '../../types';
-// FIX: Corrected import paths for icons.
 import CheckIcon from '../icons/CheckIcon';
 import BellIcon from '../icons/BellIcon';
 import StarIcon from '../icons/StarIcon';
 import UsersIcon from '../icons/UsersIcon';
 import CalendarCheckIcon from '../icons/CalendarCheckIcon';
 
-// FIX: Updated props to include notifications and a click handler for them.
 interface TasksDropdownProps {
     tasks: AggregatedTask[];
     notifications: AppNotification[];
@@ -63,15 +60,18 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Notificaciones</h3>
                 <div className="flex items-center gap-2">
-                    {hasNotifications && (
-                        <button 
-                            onClick={onMarkAllAsRead}
-                            className="text-xs text-blue-400 hover:text-blue-300 font-medium underline decoration-blue-400/50 hover:decoration-blue-300"
-                            title="Marcar todas como leídas"
-                        >
-                            Marcar todo leído
-                        </button>
-                    )}
+                    <button 
+                        onClick={onMarkAllAsRead}
+                        disabled={!hasNotifications}
+                        className={`text-xs font-medium transition-colors ${
+                            hasNotifications 
+                                ? 'text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 cursor-pointer' 
+                                : 'text-gray-600 cursor-default'
+                        }`}
+                        title={hasNotifications ? "Marcar todas como leídas" : "No hay notificaciones nuevas"}
+                    >
+                        Marcar todo leído
+                    </button>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
                 </div>
             </div>
