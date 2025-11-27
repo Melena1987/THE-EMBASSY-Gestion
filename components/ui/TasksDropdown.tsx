@@ -15,9 +15,10 @@ interface TasksDropdownProps {
     onToggleTask: (sourceId: string, taskId: string, collection: TaskSourceCollection) => void;
     onNotificationClick: (notification: AppNotification) => void;
     onClose: () => void;
+    onMarkAllAsRead: () => void;
 }
 
-const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onToggleTask, onNotificationClick, onClose }) => {
+const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onToggleTask, onNotificationClick, onClose, onMarkAllAsRead }) => {
     
     const groupedTasks = useMemo(() => {
         return tasks.reduce((acc, task) => {
@@ -51,6 +52,7 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
     };
 
     const hasContent = tasks.length > 0 || notifications.length > 0;
+    const hasNotifications = eventNotifications.length > 0 || shiftNotifications.length > 0 || vacationNotifications.length > 0;
 
     return (
         <div 
@@ -60,7 +62,18 @@ const TasksDropdown: React.FC<TasksDropdownProps> = ({ tasks, notifications, onT
         >
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Notificaciones</h3>
-                 <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
+                <div className="flex items-center gap-2">
+                    {hasNotifications && (
+                        <button 
+                            onClick={onMarkAllAsRead}
+                            className="text-xs text-blue-400 hover:text-blue-300 font-medium underline decoration-blue-400/50 hover:decoration-blue-300"
+                            title="Marcar todas como leídas"
+                        >
+                            Marcar todo leído
+                        </button>
+                    )}
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
+                </div>
             </div>
 
             <div className="py-2 px-1 max-h-96 overflow-y-auto" style={{ fontFamily: 'Arial, sans-serif' }}>

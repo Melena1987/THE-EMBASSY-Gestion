@@ -24,7 +24,7 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
     const {
         bookings, myPendingTasks, handleDeleteBookingKeys, handleToggleTask,
-        myUnreadNotifications, handleMarkNotificationAsRead, specialEvents,
+        myUnreadNotifications, handleMarkNotificationAsRead, handleMarkAllNotificationsAsRead, specialEvents,
         shiftConfirmationState, confirmShiftUpdate, setShiftConfirmationState,
     } = store;
 
@@ -235,6 +235,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 unreadNotifications={myUnreadNotifications}
                 onToggleTask={handleToggleTask}
                 onNotificationClick={handleNotificationClick}
+                onMarkAllAsRead={handleMarkAllNotificationsAsRead}
             />
             <main className="flex-grow p-4 sm:p-6 md:p-8 md:pb-8">
                 <ViewRenderer

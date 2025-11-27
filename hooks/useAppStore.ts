@@ -9,6 +9,7 @@ import {
     setDoc,
     updateDoc,
     serverTimestamp,
+    arrayUnion,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
@@ -301,19 +302,26 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         if (!user) return;
         try {
             const docRef = doc(db, 'notifications', notificationId);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const readBy = (data.readBy || []) as string[];
-                if (!readBy.includes(user.uid)) {
-                    const newReadBy = [...readBy, user.uid];
-                    await updateDoc(docRef, { readBy: newReadBy });
-                }
-            }
+            await updateDoc(docRef, { readBy: arrayUnion(user.uid) });
         } catch (error) {
             console.error("Error marking notification as read:", error);
         }
     }, [user]);
+
+    const handleMarkAllNotificationsAsRead = useCallback(async () => {
+        if (!user || myUnreadNotifications.length === 0) return;
+        try {
+            const batch = writeBatch(db);
+            myUnreadNotifications.forEach(notification => {
+                const docRef = doc(db, 'notifications', notification.id);
+                batch.update(docRef, { readBy: arrayUnion(user.uid) });
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error("Error marking all notifications as read:", error);
+            alert("Error al marcar las notificaciones como leídas.");
+        }
+    }, [user, myUnreadNotifications]);
 
     const handleAddBooking = useCallback(async (bookingKeys: string[], bookingDetails: BookingDetails): Promise<boolean> => {
         try {
@@ -729,6 +737,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
         handleResetWeekShifts,
         handleToggleTask,
         handleMarkNotificationAsRead,
+        handleMarkAllNotificationsAsRead,
         handleUpdateCleaningTime,
         handleUpdateCleaningObservations,
         handleSaveSpecialEvent,

@@ -27,6 +27,7 @@ interface HeaderProps {
     unreadNotifications: AppNotification[];
     onToggleTask: (sourceId: string, taskId: string, collection: TaskSourceCollection) => void;
     onNotificationClick: (notification: AppNotification) => void;
+    onMarkAllAsRead: () => void;
 }
 
 const DropdownItem: React.FC<{
@@ -49,7 +50,7 @@ const DropdownItem: React.FC<{
     </button>
 );
 
-const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRole, onLogout, pendingTasks, unreadNotifications, onToggleTask, onNotificationClick, onMarkAllAsRead }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -234,6 +235,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
                                         onToggleTask={onToggleTask}
                                         onNotificationClick={onNotificationClick}
                                         onClose={() => setIsTasksOpen(false)}
+                                        onMarkAllAsRead={onMarkAllAsRead}
                                     />
                                 )}
                             </div>
