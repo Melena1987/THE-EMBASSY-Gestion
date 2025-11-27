@@ -22,9 +22,10 @@ interface CalendarViewProps {
     onAddBooking: (bookingKeys: string[], bookingDetails: BookingDetails) => Promise<boolean>;
     onSelectSpecialEvent: (event: SpecialEvent) => void;
     isReadOnly: boolean;
+    canCreateEvent: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, vacations, onAddBooking, onSelectSpecialEvent, isReadOnly }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onDateChange, setView, shiftAssignments, specialEvents, vacations, onAddBooking, onSelectSpecialEvent, isReadOnly, canCreateEvent }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -298,9 +299,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, selectedDate, onD
 
             {!isReadOnly && (
                 <div className="fixed bottom-24 right-6 z-40 flex flex-col items-center gap-3 md:bottom-6">
-                    <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
-                        <StarIcon className="w-6 h-6"/>
-                    </button>
+                    {canCreateEvent && (
+                        <button onClick={() => setView('eventos')} className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Evento Especial">
+                            <StarIcon className="w-6 h-6"/>
+                        </button>
+                    )}
                     <button onClick={() => setView('plano')} className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform" title="Añadir Reserva">
                         <PlusIcon className="w-6 h-6"/>
                     </button>
