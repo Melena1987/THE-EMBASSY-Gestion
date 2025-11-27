@@ -236,7 +236,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                 onToggleTask={handleToggleTask}
                 onNotificationClick={handleNotificationClick}
             />
-            <main className="flex-grow p-4 sm:p-6 md:p-8 pb-24 md:pb-8">
+            <main className="flex-grow p-4 sm:p-6 md:p-8 md:pb-8">
                 <ViewRenderer
                     view={view}
                     setView={setView}
