@@ -569,16 +569,42 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                const tasks = (data.tasks as Task[] || []).map(task => 
-                    task.id === taskId ? { ...task, completed: !task.completed } : task
-                );
-                await updateDoc(docRef, { tasks });
+                let taskText = '';
+                let isNowCompleted = false;
+
+                const tasks = (data.tasks as Task[] || []).map(task => {
+                    if (task.id === taskId) {
+                        taskText = task.text;
+                        isNowCompleted = !task.completed; // Toggle status
+                        return { ...task, completed: isNowCompleted };
+                    }
+                    return task;
+                });
+
+                const batch = writeBatch(db);
+                batch.update(docRef, { tasks });
+
+                // --- Automatic Logging for Completed Weekly Tasks ---
+                // If a task is marked as completed and belongs to 'shiftAssignments' (which represents a week)
+                if (isNowCompleted && collectionName === 'shiftAssignments') {
+                    const timestamp = new Date().toLocaleString('es-ES', { 
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                    });
+                    const userLabel = currentUserName || 'Usuario';
+                    const logEntry = `\n- [${timestamp}] ✓ HECHO: ${taskText} (${userLabel})`;
+
+                    const currentObs = data.observations || '';
+                    batch.update(docRef, { observations: currentObs + logEntry });
+                }
+                // ---------------------------------------------------
+
+                await batch.commit();
             }
         } catch (error) {
             console.error("Error toggling task:", error);
             alert("No se pudo actualizar el estado de la tarea.");
         }
-    }, []);
+    }, [currentUserName]);
 
     const handleUpdateCleaningTime = useCallback(async (date: Date, startTime: string) => {
         const docId = formatDateForBookingKey(date);

@@ -69,9 +69,14 @@ const AgendaTasksObservations: React.FC<AgendaTasksObservationsProps> = ({
             if (!line.trim()) return <br key={index} />;
             
             const isReservasLog = line.includes('RESERVAS:');
+            const isDoneLog = line.includes('HECHO:');
+            
+            let className = 'block text-gray-300';
+            if (isReservasLog) className = 'block text-orange-500 font-bold';
+            if (isDoneLog) className = 'block text-green-400 font-bold';
             
             return (
-                <span key={index} className={`block ${isReservasLog ? 'text-orange-500 font-bold' : 'text-gray-300'}`}>
+                <span key={index} className={className}>
                     {line}
                 </span>
             );
