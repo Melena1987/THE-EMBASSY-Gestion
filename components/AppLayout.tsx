@@ -89,17 +89,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         const newNotifications = myUnreadNotifications.filter(n => !prevNotificationIds.current.has(n.id));
 
         newNotifications.forEach(notification => {
-            const browserNotification = new Notification('Gestión THE EMBASSY', {
-                body: notification.title,
-                icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
-                tag: notification.id,
-            });
+            try {
+                const browserNotification = new Notification('Gestión THE EMBASSY', {
+                    body: notification.title,
+                    icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
+                    tag: notification.id,
+                });
 
-            browserNotification.onclick = () => {
-                window.focus();
-                handleNotificationClick(notification);
-                browserNotification.close();
-            };
+                browserNotification.onclick = () => {
+                    window.focus();
+                    handleNotificationClick(notification);
+                    browserNotification.close();
+                };
+            } catch (e) {
+                console.warn("Failed to create notification:", e);
+            }
         });
 
         // 3. Detect and show notifications for new pending tasks
@@ -107,16 +111,20 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         const newTasks = myPendingTasks.filter(t => !prevTaskIds.current.has(t.id));
 
         newTasks.forEach(task => {
-            const browserNotification = new Notification('Nueva Tarea Asignada', {
-                body: `[${task.sourceName}] ${task.text}`,
-                icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
-                tag: `task-${task.id}`, // Unique tag for the task notification
-            });
+            try {
+                const browserNotification = new Notification('Nueva Tarea Asignada', {
+                    body: `[${task.sourceName}] ${task.text}`,
+                    icon: 'https://firebasestorage.googleapis.com/v0/b/galeriaoficialapp.firebasestorage.app/o/users%2FI5KZz4BuUEfxcoAvSCAWllkQtwt1%2Fphotos%2F1761110250760_logo_TE_sombra.png?alt=media&token=7aac4790-0aa2-49b9-9170-89918bc641ce',
+                    tag: `task-${task.id}`, // Unique tag for the task notification
+                });
 
-            browserNotification.onclick = () => {
-                window.focus(); // Just bring the app to the front
-                browserNotification.close();
-            };
+                browserNotification.onclick = () => {
+                    window.focus(); // Just bring the app to the front
+                    browserNotification.close();
+                };
+            } catch (e) {
+                console.warn("Failed to create task notification:", e);
+            }
         });
         
         // 4. Update the refs with the new sets of IDs for the next render

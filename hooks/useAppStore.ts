@@ -45,6 +45,8 @@ import { SHIFT_CHANGE_DATE } from '../constants';
 
 /**
  * Recursively traverses an object or array and replaces all occurrences of a string.
+ * Safer version that avoids traversing complex objects (like Firestore Timestamps)
+ * by only iterating over plain objects and arrays.
  * @param obj The object/array/string to process.
  * @param find The string to find.
  * @param replace The string to replace with.
@@ -57,7 +59,8 @@ const deepReplace = (obj: any, find: string, replace: string): any => {
     if (Array.isArray(obj)) {
         return obj.map(item => deepReplace(item, find, replace));
     }
-    if (typeof obj === 'object' && obj !== null) {
+    // Only iterate if it's a plain object (constructor is Object) to avoid messing with Firestore types
+    if (typeof obj === 'object' && obj !== null && obj.constructor === Object) {
         const newObj: { [key: string]: any } = {};
         for (const key in obj) {
             if (Object.prototype.hasOwnProperty.call(obj, key)) {
