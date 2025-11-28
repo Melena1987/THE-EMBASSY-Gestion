@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Task, TaskSourceCollection, ShiftAssignment } from '../../../types';
 import CheckIcon from '../../icons/CheckIcon';
@@ -61,6 +62,22 @@ const AgendaTasksObservations: React.FC<AgendaTasksObservationsProps> = ({
         setNewObservationText('');
     };
 
+    const renderObservations = (text: string) => {
+        if (!text) return 'No hay observaciones para esta semana.';
+        
+        return text.split('\n').map((line, index) => {
+            if (!line.trim()) return <br key={index} />;
+            
+            const isReservasLog = line.includes('RESERVAS:');
+            
+            return (
+                <span key={index} className={`block ${isReservasLog ? 'text-orange-500 font-bold' : 'text-gray-300'}`}>
+                    {line}
+                </span>
+            );
+        });
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
@@ -112,10 +129,8 @@ const AgendaTasksObservations: React.FC<AgendaTasksObservationsProps> = ({
             </div>
             <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                 <h3 className="text-lg font-semibold text-orange-400 mb-2">Observaciones de Turnos</h3>
-                <div className="bg-black/20 p-3 rounded-md min-h-[100px] max-h-[250px] overflow-y-auto">
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                        {currentWeekShifts?.observations || 'No hay observaciones para esta semana.'}
-                    </p>
+                <div className="bg-black/20 p-3 rounded-md min-h-[100px] max-h-[250px] overflow-y-auto text-sm">
+                    {renderObservations(currentWeekShifts?.observations || '')}
                 </div>
                 {canAddObservations && (
                     <div className="mt-3 space-y-2">

@@ -352,6 +352,47 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                 const docRef = doc(db, 'bookings', key);
                 batch.set(docRef, bookingDetails);
             });
+
+            // --- Auto-logging for RESERVAS in current week ---
+            if (bookingKeys.length > 0) {
+                // Extract date from the first key to determine the week of the booking
+                const bookingDatePart = bookingKeys[0].split('-').slice(1, 4).join('-');
+                const bookingDate = new Date(bookingDatePart);
+                const { week: bookingWeek, year: bookingYear } = getWeekData(bookingDate);
+                const bookingWeekId = `${bookingYear}-${bookingWeek.toString().padStart(2, '0')}`;
+
+                // Calculate current real-time week
+                const today = new Date();
+                const { week: currentWeek, year: currentYear } = getWeekData(today);
+                const currentWeekId = `${currentYear}-${currentWeek.toString().padStart(2, '0')}`;
+
+                // Only log if the booking is modified/added within the current week
+                if (bookingWeekId === currentWeekId) {
+                    const shiftRef = doc(db, 'shiftAssignments', bookingWeekId);
+                    // We need to read the current observations to append
+                    const shiftSnap = await getDoc(shiftRef);
+                    
+                    const timestamp = new Date().toLocaleString('es-ES', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    
+                    const logEntry = `\n- [${timestamp}] RESERVAS: Modificación - ${bookingDetails.name}`;
+
+                    if (shiftSnap.exists()) {
+                        const currentObs = shiftSnap.data().observations || '';
+                        batch.update(shiftRef, { observations: currentObs + logEntry });
+                    } else {
+                        // Create the doc if it doesn't exist (unlikely for current week but safer)
+                        // Use set with merge to avoid overwriting other fields if they exist but snapshot missed (edge case)
+                        batch.set(shiftRef, { observations: logEntry }, { merge: true });
+                    }
+                }
+            }
+            // -------------------------------------------------
+
             await batch.commit();
             return true;
         } catch (error) {
