@@ -75,8 +75,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
 
     // Effect for handling native browser notifications
     useEffect(() => {
+        // 0. CRITICAL SAFETY CHECK: Stop immediately if Notification API is missing.
+        // This prevents the "ReferenceError: Can't find variable: Notification" crash on older iOS.
+        if (!('Notification' in window)) {
+            return;
+        }
+
         // 1. Request permission on component mount if not already granted/denied
-        if ('Notification' in window && Notification.permission === 'default') {
+        // Only safe to access 'Notification' global here because of the check above.
+        if (Notification.permission === 'default') {
             Notification.requestPermission();
         }
 
