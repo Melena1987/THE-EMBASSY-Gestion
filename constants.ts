@@ -23,7 +23,7 @@ export const WORKERS: string[] = ['Olga', 'Adrián', 'Manu', 'Alfonso', 'Yiyi', 
 
 export const SPONSOR_ASSIGNEES: string[] = ['Manu', 'Yiyi', 'Berni', 'Manolo', 'Adriana', 'Pedro'];
 
-// Adrián's email is added, Dani's removed, Adriana added. Pedro added.
+// Adrián's email is added, Dani's removed, Adriana added. Pedro added. Carlos added.
 export const USER_EMAIL_MAP: Record<string, string> = {
     'adrian@theembassytc.com': 'Adrián',
     'mescobar@theembassytc.com': 'Manolo',
@@ -33,7 +33,8 @@ export const USER_EMAIL_MAP: Record<string, string> = {
     'eventos@theembassytc.com': 'Yiyi',
     'manu@theembassytc.com': 'Manu',
     'adriana@theembassytc.com': 'Adriana',
-    'noocweb@gmail.com': 'Pedro'
+    'noocweb@gmail.com': 'Pedro',
+    'contabilidad@theembassy.com': 'Carlos'
 };
 
 export const TIME_SLOTS: string[] = [];
