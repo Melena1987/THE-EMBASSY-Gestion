@@ -230,9 +230,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
         }
     }, [view, selectedBooking, selectedSpecialEvent]);
 
-    const canEditBookings = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD';
-    // Shift editing restricted to ADMIN. SALUD can assign tasks but not edit shifts directly via the grid (unless we split permissions).
-    // For now, strict "edit shifts" means changing workers/hours.
+    // Permissions Logic
+    const canEditBookings = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD' || userRole === 'TRABAJADOR';
+    // Shift editing restricted to ADMIN. SALUD can assign tasks but not edit shifts directly via the grid.
     const canEditShifts = userRole === 'ADMIN';
     const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR' || userRole === 'SALUD';

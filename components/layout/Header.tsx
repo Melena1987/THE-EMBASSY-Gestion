@@ -90,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setView, userEmail, userRo
     const isSponsorsActive = currentView === 'sponsors';
     const isCajaActive = currentView === 'caja';
     
-    const canCreateBooking = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD';
+    const canCreateBooking = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD' || userRole === 'TRABAJADOR';
     const canCreateEvent = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const isAdmin = userRole === 'ADMIN';
     const notificationCount = pendingTasks.length + unreadNotifications.length;
