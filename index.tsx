@@ -1,3 +1,4 @@
+
 import './index.css';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
@@ -12,8 +13,8 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// FIX: Explicitly inheriting from React.Component and providing generic props and state types to ensure 'this.props' is correctly identified by TypeScript.
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// FIX: Explicitly inheriting from the imported Component and providing generic props and state types to ensure 'this.props' is correctly identified by TypeScript.
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = {
     hasError: false,
     error: null
@@ -48,7 +49,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // FIX: Using this.props.children is now correctly recognized by the compiler as part of the React.Component lifecycle.
+    // FIX: Using this.props.children is now correctly recognized by the compiler as part of the React.Component lifecycle when extending Component directly.
     return this.props.children;
   }
 }

@@ -279,11 +279,29 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             return tasks;
         };
 
-        return [
+        const allPending = [
             ...getTasksFromShifts(),
             ...getTasksFromEvents(),
             ...getTasksFromSponsors(),
         ];
+
+        // ACTUALIZACIÓN: De-duplicar tareas por recurrenceId para no saturar la campanita.
+        // Si varias tareas comparten el mismo recurrenceId, solo mostramos una.
+        const uniqueTasks: AggregatedTask[] = [];
+        const seenRecurrences = new Set<string>();
+
+        allPending.forEach(task => {
+            if (task.recurrenceId) {
+                if (!seenRecurrences.has(task.recurrenceId)) {
+                    uniqueTasks.push(task);
+                    seenRecurrences.add(task.recurrenceId);
+                }
+            } else {
+                uniqueTasks.push(task);
+            }
+        });
+
+        return uniqueTasks;
     }, [shiftAssignments, specialEvents, sponsors, currentUserName]);
 
     const myUnreadNotifications = useMemo<AppNotification[]>(() => {
@@ -594,6 +612,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
                     const logEntry = `\n- [${timestamp}] ✓ HECHO: ${taskText} (${userLabel})`;
 
                     const currentObs = data.observations || '';
+                    // FIX: shiftRef was not defined in this scope, used docRef which points to the correctly determined shift assignment document.
                     batch.update(docRef, { observations: currentObs + logEntry });
                 }
                 // ---------------------------------------------------
@@ -714,7 +733,7 @@ export const useAppStore = (user: User | null, userRole: UserRole, currentUserNa
             await batch.commit();
         } catch (error) {
             console.error("Error deleting special event:", error);
-            alert("No se pudo eliminar el evento especial.");
+            alert("No se pudo eliminar the event especial.");
         }
     }, []);
 
