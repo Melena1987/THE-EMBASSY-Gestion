@@ -19,7 +19,8 @@ interface ShiftsViewProps {
     onAddRecurringTask: (taskDetails: Omit<Task, 'id' | 'completed' | 'recurrenceId'>, weekIds: string[]) => Promise<boolean>;
     onToggleTask: (sourceId: string, taskId: string, collectionName: TaskSourceCollection) => void;
     onResetWeekShifts: (weekId: string) => void;
-    isReadOnly: boolean;
+    isReadOnly: boolean; // refers to shift hours/workers editing
+    canManageTasks: boolean; // refers to tasks/observations permission
     vacations: Vacations;
     handleUpdateVacations: (year: string, dates: Record<string, string>) => Promise<void>;
     currentUserName: string | null;
@@ -37,7 +38,7 @@ type CombinedTask = (Task & {
 
 const ShiftsView: React.FC<ShiftsViewProps> = ({
     shiftAssignments, specialEvents, selectedDate, onDateChange, onUpdateShifts,
-    onAddRecurringTask, onToggleTask, onResetWeekShifts, isReadOnly, vacations,
+    onAddRecurringTask, onToggleTask, onResetWeekShifts, isReadOnly, canManageTasks, vacations,
     handleUpdateVacations, currentUserName, userRole
 }) => {
     
@@ -261,7 +262,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
 
             <WeeklyTasksSection
                 allTasks={allTasks}
-                isReadOnly={isReadOnly}
+                isReadOnly={!canManageTasks}
                 onToggleTask={onToggleTask}
                 onDeleteTask={handleDeleteTask}
                 onAddSingleTask={handleAddSingleTask}
@@ -273,7 +274,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
             
             <WeeklyObservationsSection
                 observations={editingShifts.observations}
-                isReadOnly={isReadOnly}
+                isReadOnly={!canManageTasks}
                 onObservationsChange={handleObservationsChange}
             />
 
@@ -287,7 +288,7 @@ const ShiftsView: React.FC<ShiftsViewProps> = ({
                 specialEvents={specialEvents}
             />
 
-            {isDirty && !isReadOnly && (
+            {isDirty && (isReadOnly === false || canManageTasks === true) && (
                 <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-white/20 p-4 shadow-lg z-20 flex justify-center items-center gap-4">
                     <p className="text-yellow-400 font-semibold">Tienes cambios sin guardar.</p>
                     <button

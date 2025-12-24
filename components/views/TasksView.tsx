@@ -171,7 +171,7 @@ const TasksView: React.FC<TasksViewProps> = ({ specialEvents, sponsors, onToggle
         }, {} as Record<string, AggregatedTask[]>);
     }, [allTasks, filterAssignee, filterStatus, searchTerm, currentUserName]);
 
-    const canManageTasks = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD';
+    const canManageTasks = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD' || userRole === 'TRABAJADOR';
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -283,7 +283,6 @@ const TasksView: React.FC<TasksViewProps> = ({ specialEvents, sponsors, onToggle
                             <div key={sourceName} className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-lg border border-white/10">
                                 <h3 className="text-lg font-semibold text-orange-400 mb-3 border-b border-white/10 pb-2">{sourceName}</h3>
                                 <div className="space-y-2">
-                                    {/* FIX: Refactored from Object.entries to Object.keys to fix TS type inference issue on `tasks`. */}
                                     {tasks.map(task => {
                                         const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
                                         const canToggle = canManageTasks || (currentUserName && assignees.includes(currentUserName));

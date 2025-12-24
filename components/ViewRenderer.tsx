@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { View, ConsolidatedBooking, SpecialEvent, User, UserRole } from '../types';
 import { useAppStore } from '../hooks/useAppStore';
@@ -42,6 +41,7 @@ interface ViewRendererProps {
     canEditSpecialEvents: boolean;
     canEditServices: boolean;
     canManageSponsors: boolean;
+    canManageTasks: boolean;
 }
 
 const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
@@ -66,6 +66,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
         canEditSpecialEvents,
         canEditServices,
         canManageSponsors,
+        canManageTasks,
     } = props;
 
     const {
@@ -108,7 +109,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = (props) => {
             }
             return null;
         case 'turnos':
-            return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} vacations={vacations} handleUpdateVacations={handleUpdateVacations} currentUserName={currentUserName} userRole={userRole} />;
+            return <ShiftsView shiftAssignments={shiftAssignments} specialEvents={specialEvents} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateShifts={handleUpdateShifts} onAddRecurringTask={handleAddRecurringTask} onToggleTask={handleToggleTask} onResetWeekShifts={handleResetWeekShifts} isReadOnly={!canEditShifts} canManageTasks={canManageTasks} vacations={vacations} handleUpdateVacations={handleUpdateVacations} currentUserName={currentUserName} userRole={userRole} />;
         case 'servicios':
             return <ExternalServicesView cleaningAssignments={cleaningAssignments} cleaningObservations={cleaningObservations} selectedDate={selectedDate} onDateChange={setSelectedDate} onUpdateCleaningTime={handleUpdateCleaningTime} onUpdateCleaningObservations={handleUpdateCleaningObservations} isReadOnly={!canEditServices} />;
         case 'eventos':

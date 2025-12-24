@@ -232,11 +232,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
 
     // Permissions Logic
     const canEditBookings = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD' || userRole === 'TRABAJADOR';
-    // Shift editing restricted to ADMIN. SALUD can assign tasks but not edit shifts directly via the grid.
     const canEditShifts = userRole === 'ADMIN';
     const canEditSpecialEvents = userRole === 'ADMIN' || userRole === 'EVENTOS';
     const canEditServices = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'TRABAJADOR' || userRole === 'SALUD';
     const canManageSponsors = userRole === 'ADMIN' || userRole === 'EVENTOS';
+    const canManageTasks = userRole === 'ADMIN' || userRole === 'EVENTOS' || userRole === 'SALUD' || userRole === 'TRABAJADOR';
 
     return (
         <div className="min-h-full text-gray-100 flex flex-col w-full">
@@ -274,6 +274,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ store, auth }) => {
                     canEditSpecialEvents={canEditSpecialEvents}
                     canEditServices={canEditServices}
                     canManageSponsors={canManageSponsors}
+                    canManageTasks={canManageTasks}
                 />
             </main>
             <Footer onWifiClick={() => setIsWifiModalOpen(true)} />
